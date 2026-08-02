@@ -1,0 +1,57 @@
+import { useEffect, useState } from "react";
+
+type ThemePreference = "system" | "light" | "dark";
+
+const STORAGE_KEY = "pokedashboard-theme";
+const systemTheme = () => window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+
+const readPreference = (): ThemePreference => {
+  const stored = window.localStorage.getItem(STORAGE_KEY);
+  return stored === "light" || stored === "dark" ? stored : "system";
+};
+
+export const ThemeSelector = () => {
+  const [preference, setPreference] = useState<ThemePreference>(readPreference);
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const applyTheme = () => {
+      const resolvedTheme = preference === "system" ? systemTheme() : preference;
+      document.documentElement.dataset.theme = resolvedTheme;
+      document.documentElement.dataset.themePreference = preference;
+      document.querySelector('meta[name="theme-color"]')?.setAttribute(
+        "content",
+        resolvedTheme === "dark" ? "#0b1020" : "#ffffff"
+      );
+    };
+
+    applyTheme();
+    if (preference === "system") media.addEventListener("change", applyTheme);
+
+    return () => media.removeEventListener("change", applyTheme);
+  }, [preference]);
+
+  const handleChange = (nextPreference: ThemePreference) => {
+    if (nextPreference === "system") {
+      window.localStorage.removeItem(STORAGE_KEY);
+    } else {
+      window.localStorage.setItem(STORAGE_KEY, nextPreference);
+    }
+    setPreference(nextPreference);
+  };
+
+  return (
+    <label className="theme-selector">
+      <span className="theme-selector__label">Appearance</span>
+      <select
+        value={preference}
+        onChange={(event) => handleChange(event.target.value as ThemePreference)}
+        aria-label="Color theme"
+      >
+        <option value="system">System</option>
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
+      </select>
+    </label>
+  );
+};

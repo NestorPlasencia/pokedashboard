@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useCardContext } from "../../context/CardContext";
 import { updateUrlParams } from "../../utils/urlParams";
 import { Card } from "../../types/dashboard";
+import { ThemeSelector } from "../ui/ThemeSelector";
 
 export const Search: React.FC = () => {
   const [query, setQuery] = useState<string>("");
@@ -77,6 +78,10 @@ export const Search: React.FC = () => {
 
   return (
     <div className="search-bar">
+      <div className="app-brand" aria-label="PokéDashboard home">
+        <span className="app-brand__mark" aria-hidden="true">P</span>
+        <span className="app-brand__name">PokéDashboard</span>
+      </div>
       <input
         type="text"
         value={query}
@@ -84,6 +89,7 @@ export const Search: React.FC = () => {
         placeholder="Search by card name..."
         aria-label="Search by card name"
       />
+      <ThemeSelector />
     </div>
   );
 };
