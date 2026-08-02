@@ -5,7 +5,7 @@ import { getCollectionTotalQuantity } from "../../utils/utils";
 
 const formatCurrency = (value: number | undefined | null) => {
   if (value === undefined || value === null) return '-';
-  return value.toLocaleString('es-ES', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
+  return value.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
 };
 
 const escapeCsvValue = (value: string | number | null | undefined): string => {
@@ -14,7 +14,7 @@ const escapeCsvValue = (value: string | number | null | undefined): string => {
 };
 
 const CardListTableComponent: React.FC = () => {
-  const { visibleCards, collectionFilter, sets } = useCardContext();
+  const { visibleCards, collectionFilter, sets, seriesSelection } = useCardContext();
   const [itemsToShow, setItemsToShow] = useState<number>(50);
 
   // Memoize the load more callback
@@ -143,7 +143,12 @@ const CardListTableComponent: React.FC = () => {
   }, [displayData, getOwnedQuantity, getMissingToLimit, getPrice, getSetSymbol]);
 
   if (displayData.length === 0) {
-    return <div className="card-list-table-empty">No hay cartas para mostrar</div>;
+    const isAwaitingSeries = seriesSelection.included.length === 0 && seriesSelection.excluded.length === 0;
+    return (
+      <div className="card-list-table-empty">
+        {isAwaitingSeries ? 'Select a series to start exploring cards.' : 'No cards match your current filters.'}
+      </div>
+    );
   }
 
   return (
@@ -153,25 +158,25 @@ const CardListTableComponent: React.FC = () => {
           type="button"
           className="card-list-table-export-btn"
           onClick={handleExportCsv}
-          title="Exportar filas visibles de la tabla a CSV"
+          title="Export visible table rows to CSV"
         >
-          Exportar CSV
+          Export CSV
         </button>
       </div>
       <table className="card-list-table">
         <thead>
           <tr>
-            <th>Imagen</th>
-            <th>Nombre</th>
+            <th>Image</th>
+            <th>Name</th>
             <th>Set</th>
-            <th>Icono</th>
-            <th>Número</th>
+            <th>Icon</th>
+            <th>Number</th>
             <th>Variant</th>
-            <th>Tipo</th>
-            <th>Rareza</th>
-            <th>Cantidad</th>
-            <th>Faltantes</th>
-            <th>Precio</th>
+            <th>Type</th>
+            <th>Rarity</th>
+            <th>Quantity</th>
+            <th>Missing</th>
+            <th>Price</th>
           </tr>
         </thead>
         <tbody>

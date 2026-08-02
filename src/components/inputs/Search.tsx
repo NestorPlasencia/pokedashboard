@@ -81,8 +81,8 @@ export const Search: React.FC = () => {
         type="text"
         value={query}
         onChange={handleChange}
-        placeholder="Buscar por nombre de carta..."
-        aria-label="Buscar por nombre de carta"
+        placeholder="Search by card name..."
+        aria-label="Search by card name"
       />
     </div>
   );

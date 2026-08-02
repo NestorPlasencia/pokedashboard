@@ -65,17 +65,17 @@ export const ViewOptionsComponent = () => {
 
   return (
     <div className="section-sidebar">
-      <CollapsibleFieldset legend="Opciones de Vista" defaultCollapsed={true}>
+      <CollapsibleFieldset legend="View options" defaultCollapsed={true}>
         <div className="view-options-row">
-          <label htmlFor="displayModeSelect">Modo de visualización:</label>
+          <label htmlFor="displayModeSelect">Display mode:</label>
           <select
             id="displayModeSelect"
             value={currentView}
             onChange={handleViewChange}
             className="view-options-select"
           >
-            <option value="cards">Cartas</option>
-            <option value="table">Tabla</option>
+            <option value="cards">Cards</option>
+            <option value="table">Table</option>
           </select>
         </div>
       </CollapsibleFieldset>

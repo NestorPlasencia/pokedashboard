@@ -128,8 +128,8 @@ export const PriceRangeFilter = () => {
               type="button"
               className="filter-collapsed-chip filter-collapsed-chip-button"
               onClick={() => setPriceRange((prev) => ({ ...prev, min: null }))}
-              aria-label="Quitar mínimo"
-              title="Quitar mínimo"
+              aria-label="Clear minimum"
+              title="Clear minimum"
             >
               Min ${minValue.toFixed(2)} ×
             </button>
@@ -139,8 +139,8 @@ export const PriceRangeFilter = () => {
               type="button"
               className="filter-collapsed-chip filter-collapsed-chip-button"
               onClick={() => setPriceRange((prev) => ({ ...prev, max: null }))}
-              aria-label="Quitar máximo"
-              title="Quitar máximo"
+              aria-label="Clear maximum"
+              title="Clear maximum"
             >
               Max ${maxValue.toFixed(2)} ×
             </button>
@@ -152,13 +152,13 @@ export const PriceRangeFilter = () => {
 
   return (
     <CollapsibleFieldset
-      legend="Rango de precio"
+      legend="Price range"
       defaultCollapsed={true}
       collapsedSummary={collapsedSummary}
     >
       {!hasValidPrices ? (
         <div className="price-range-container">
-          <p className="price-info">No hay cartas con precios disponibles</p>
+          <p className="price-info">No cards with pricing available</p>
         </div>
       ) : (
       <div className="price-range-container">
@@ -170,8 +170,8 @@ export const PriceRangeFilter = () => {
               onClick={handleReset}
               className="btn-reset"
               type="button"
-              aria-label="Limpiar rango de precio"
-              title="Limpiar rango"
+              aria-label="Clear price range"
+              title="Clear range"
             >
               ↺
             </button>

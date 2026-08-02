@@ -29,7 +29,7 @@ export function useLoadCards(
         setCollections(convertToCollectionObjects(COLLECTIONS));
         setPokemonFormsData(formsResponse);
       } catch {
-        setError("Error cargando los datos. Intenta de nuevo más tarde.");
+        setError("Unable to load data. Please try again later.");
       } finally {
         setIsMetadataLoading(false);
       }
@@ -77,7 +77,7 @@ export function useLoadCards(
         }
       } catch {
         if (!cancelled) {
-          setError("Error generando las cartas de la serie seleccionada.");
+          setError("Unable to generate cards for the selected series.");
           setAllCards([]);
         }
       } finally {

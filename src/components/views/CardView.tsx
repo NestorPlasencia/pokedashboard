@@ -4,7 +4,7 @@ import { useCardContext } from "../../context/CardContext";
 import { getCardPriceBreakdown, getCollectionTotalQuantity } from "../../utils/utils";
 
 const formatCurrency = (value: number) => {
-  return value.toLocaleString('es-ES', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
+  return value.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
 };
 
 const CardViewComponent: React.FC<{
@@ -52,8 +52,8 @@ const CardViewComponent: React.FC<{
         loading="lazy"
         className={card.shadow ? 'shadow' : ''}
         src={card.image || ''}
-        alt={`Imagen ${variantName} de la carta ${card.name}`}
-        aria-label={`Imagen ${variantName} de la carta ${card.name}`}
+        alt={`${variantName} image of ${card.name}`}
+        aria-label={`${variantName} image of ${card.name}`}
         data-executed="false"
       />
       <div className="card-tags">
@@ -133,8 +133,8 @@ const CardViewComponent: React.FC<{
       {missingToLimit > 0 && collectionFilter.enabled && (
         <div
           className="missing-box"
-          title={`Faltan ${missingToLimit} para el límite`}
-          aria-label={`Faltan ${missingToLimit} para el límite`}
+          title={`${missingToLimit} more needed to reach the limit`}
+          aria-label={`${missingToLimit} more needed to reach the limit`}
         >
           {missingToLimit}
         </div>

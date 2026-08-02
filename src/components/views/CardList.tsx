@@ -7,7 +7,7 @@ import { CardGroup } from "./CardGroup";
 import { groupCardsByForm, sliceFormGroups, shouldIncludePokemonForm } from "../../utils/filters";
 
 const CardListComponent: React.FC = () => {
-  const { visibleCards, pokemonGrouping, collectionFilter, pokemonFormsData, allCards, filteredCards } = useCardContext();
+  const { visibleCards, pokemonGrouping, collectionFilter, pokemonFormsData, seriesSelection } = useCardContext();
   const { } = useOptionsContext();
 
   const [displayedCards, setDisplayedCards] = useState<Card[]>([]);
@@ -135,13 +135,13 @@ const CardListComponent: React.FC = () => {
   }, [isFormsGrouping, formsToShow, displayedFormGroups, pokemonGrouping.groupSortBy]);
 
   const isEmpty = visibleCards.length === 0;
-  const isAwaitingSeries = allCards.length > 0 && filteredCards.length === 0;
+  const isAwaitingSeries = seriesSelection.included.length === 0 && seriesSelection.excluded.length === 0;
 
   return (
     <div className="card-list">
       {isEmpty && (
         <div className="card-list-empty">
-          {isAwaitingSeries ? 'Selecciona una serie para ver las cartas' : 'No hay cartas para mostrar'}
+          {isAwaitingSeries ? 'Select a series to start exploring cards.' : 'No cards match your current filters.'}
         </div>
       )}
       {isFormsGrouping &&

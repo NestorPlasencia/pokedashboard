@@ -107,7 +107,7 @@ const CardGroupComponent: React.FC<CardGroupProps> = ({ cards, pokedexNumber, gr
       <>
         {!hideEmptyGroups && (
           <>
-            <div className="card-group" onClick={handleOpenModal} tabIndex={0} role="button" aria-label={isFormsMode ? "Pokémon form sin cartas" : "Pokédex no poseído"}>
+            <div className="card-group" onClick={handleOpenModal} tabIndex={0} role="button" aria-label={isFormsMode ? "Pokémon form without cards" : "Unowned Pokédex entry"}>
               <div className="card-group-empty">
                 <div className="card-group-empty-card">
                   {/* Background card image */}
@@ -134,9 +134,9 @@ const CardGroupComponent: React.FC<CardGroupProps> = ({ cards, pokedexNumber, gr
               </div>
             </div>
             {isModalOpen && (
-              <div className="modal" role="dialog" aria-modal="true" aria-label={isFormsMode ? "Pokémon form sin cartas" : "Pokédex no poseído"}>
+              <div className="modal" role="dialog" aria-modal="true" aria-label={isFormsMode ? "Pokémon form without cards" : "Unowned Pokédex entry"}>
                 <div className="modal-content">
-                  <button className="close" onClick={handleCloseModal} aria-label="Cerrar modal" type="button">
+                  <button className="close" onClick={handleCloseModal} aria-label="Close dialog" type="button">
                     &times;
                   </button>
                   <h2>{isFormsMode ? groupName : `Pokédex #${pokedexNumber}`}</h2>
@@ -158,7 +158,7 @@ const CardGroupComponent: React.FC<CardGroupProps> = ({ cards, pokedexNumber, gr
                         }}
                       />
                     </div>
-                      <p className="card-group-empty-message">{isFormsMode ? 'No tienes cartas de este Pokémon Form' : 'No tienes cartas de este Pokédex'}</p>
+                      <p className="card-group-empty-message">{isFormsMode ? 'You do not own cards for this Pokémon Form.' : 'You do not own cards for this Pokédex entry.'}</p>
                   </div>
                 </div>
               </div>
@@ -173,7 +173,7 @@ const CardGroupComponent: React.FC<CardGroupProps> = ({ cards, pokedexNumber, gr
     <>
       {!(isEmpty && hideEmptyGroups) && (
         <>
-          <div className="card-group" onClick={handleOpenModal} tabIndex={0} role="button" aria-label="Abrir grupo de cartas">
+          <div className="card-group" onClick={handleOpenModal} tabIndex={0} role="button" aria-label="Open card group">
             {!isEmpty && (cards.length > 0) && <CardView card={(firstNonShadowedCard || sortedCards[0]) as Card} key="group-preview" />}
             <div className="length">
               {isEmpty ? '0' : cards.filter(c => !('isPlaceholder' in c)).length}
@@ -187,12 +187,12 @@ const CardGroupComponent: React.FC<CardGroupProps> = ({ cards, pokedexNumber, gr
             </div>
           </div>
           {isModalOpen && (
-            <div className="modal" role="dialog" aria-modal="true" aria-label="Grupo de cartas">
+            <div className="modal" role="dialog" aria-modal="true" aria-label="Card group">
               <div className="modal-content">
-                <button className="close" onClick={handleCloseModal} aria-label="Cerrar modal" type="button">
+                <button className="close" onClick={handleCloseModal} aria-label="Close dialog" type="button">
                   &times;
                 </button>
-                <h2>{isFormsMode ? groupName : 'Lista de cartas'}</h2>
+                <h2>{isFormsMode ? groupName : 'Card list'}</h2>
                 <ul className="card-group-modal">
                   {!isEmpty && sortedCards.filter(card => !('isPlaceholder' in card)).map((card, index) => (
                     <CardView card={card as Card} key={`${card.id}-${index}`} />

@@ -170,7 +170,7 @@ export const PokemonGroupingFilter = () => {
 
   return (
     <div className="section-sidebar">
-      <CollapsibleFieldset legend="Agrupar por Pokémon" defaultCollapsed={true}>
+      <CollapsibleFieldset legend="Group by Pokémon" defaultCollapsed={true}>
         <label>
           <input
             type="checkbox"
@@ -181,9 +181,9 @@ export const PokemonGroupingFilter = () => {
                 enabled: !prev.enabled
               }));
             }}
-            aria-label="Agrupar por Pokémon"
+            aria-label="Group by Pokémon"
           />
-          Agrupar por Pokémon
+          Group by Pokémon
         </label>
 
         {pokemonGrouping.enabled && (
@@ -198,14 +198,14 @@ export const PokemonGroupingFilter = () => {
                     fallbackToDefault: !prev.fallbackToDefault
                   }));
                 }}
-                aria-label="Agrupar formas no listadas en la forma default"
+                aria-label="Group unlisted forms under the default form"
               />
-              Agrupar formas no listadas en default
+              Group unlisted forms under default
             </label>
 
             <div className="pokedex-filter-group">
               <label htmlFor="pokemonGroupFilterSelect">
-                Mostrar grupos:
+                Show groups:
               </label>
               <select
                 id="pokemonGroupFilterSelect"
@@ -218,16 +218,16 @@ export const PokemonGroupingFilter = () => {
                 }}
                 className="pokedex-filter-select"
               >
-                <option value="all">Todos los Pokémon</option>
-                <option value="owned">Solo con al menos una carta</option>
-                <option value="notOwned">Solo sin ninguna carta</option>
-                <option value="ownedNone">Solo grupos sin cartas propias</option>
+                <option value="all">All Pokémon</option>
+                <option value="owned">With at least one card</option>
+                <option value="notOwned">Without any cards</option>
+                <option value="ownedNone">Groups with no owned cards</option>
               </select>
             </div>
 
             <div className="pokedex-filter-group">
               <label htmlFor="formsGroupSortSelect">
-                Ordenar grupos:
+                Sort groups:
               </label>
               <select
                 id="formsGroupSortSelect"
@@ -240,18 +240,18 @@ export const PokemonGroupingFilter = () => {
                 }}
                 className="pokedex-filter-select"
               >
-                <option value="default">Orden por defecto</option>
-                <option value="cardCount">Menos cartas primero</option>
-                <option value="cardCountDesc">Más cartas primero</option>
-                <option value="ownedCount">Menos propias primero</option>
-                <option value="ownedCountDesc">Más propias primero</option>
+                <option value="default">Default order</option>
+                <option value="cardCount">Fewest cards first</option>
+                <option value="cardCountDesc">Most cards first</option>
+                <option value="ownedCount">Fewest owned first</option>
+                <option value="ownedCountDesc">Most owned first</option>
               </select>
             </div>
 
             <div className="pokedex-filter-group">
-              <p className="pokedex-filter-label">Variantes a mostrar:</p>
+              <p className="pokedex-filter-label">Variants to display:</p>
               <div className="forms-variant-legend">
-                <span className="forms-variant-legend-name">Variante</span>
+                <span className="forms-variant-legend-name">Variant</span>
                 <span className="forms-variant-legend-toggle">Allow</span>
                 <span className="forms-variant-legend-toggle">Hide</span>
               </div>
@@ -263,21 +263,21 @@ export const PokemonGroupingFilter = () => {
                     value={variant}
                     checked={pokemonGrouping.allowVariants.includes(variant)}
                     onChange={() => handleVariantToggle(variant, 'allow')}
-                    aria-label={`Allow variante ${variant}`}
+                    aria-label={`Allow variant ${variant}`}
                   />
                   <input
                     type="checkbox"
                     value={variant}
                     checked={pokemonGrouping.hideVariants.includes(variant)}
                     onChange={() => handleVariantToggle(variant, 'hide')}
-                    aria-label={`Hide variante ${variant}`}
+                    aria-label={`Hide variant ${variant}`}
                   />
                 </div>
               ))}
             </div>
 
             <div className="pokedex-filter-group">
-              <p className="pokedex-filter-label">Regiones para agrupar:</p>
+              <p className="pokedex-filter-label">Regions to group:</p>
               {GROUPING_REGIONS.map((region) => (
                 <label key={region} className="pokedex-region-option">
                   <input
@@ -285,7 +285,7 @@ export const PokemonGroupingFilter = () => {
                     value={region}
                     checked={pokemonGrouping.groupingRegions.includes(region)}
                     onChange={() => handleGroupingRegionChange(region)}
-                    aria-label={`Incluir región ${region} en agrupación`}
+                    aria-label={`Include region ${region} in grouping`}
                   />
                   <span className="pokedex-region-label">{region}</span>
                 </label>

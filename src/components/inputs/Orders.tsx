@@ -60,7 +60,7 @@ export const Orders = () => {
 
   return (
     <div className="section-sidebar">
-      <CollapsibleFieldset legend="Ordenar cartas" defaultCollapsed={true}>
+      <CollapsibleFieldset legend="Sort cards" defaultCollapsed={true}>
         {orders.map((order) => (
           <label key={order} className="orders-option-label">
             <input
@@ -68,13 +68,13 @@ export const Orders = () => {
               value={order}
               checked={checkedOrder == order}
               onChange={() => handleCheckboxChange(order)}
-              aria-label={`Ordenar por ${order}`}
+              aria-label={`Sort by ${order}`}
             />
             {order}
           </label>
         ))}
         <button onClick={handleResetOrder} type="button" className="orders-reset-btn">
-          Resetear orden
+          Reset sort
         </button>
       </CollapsibleFieldset>
     </div>

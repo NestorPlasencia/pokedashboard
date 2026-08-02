@@ -102,7 +102,7 @@ export const PokedexFilter = () => {
 
   return (
     <div className="section-sidebar">
-      <CollapsibleFieldset legend="Opciones de Pokedex" defaultCollapsed={true}>
+      <CollapsibleFieldset legend="Pokédex options" defaultCollapsed={true}>
         <label>
           <input
             type="checkbox"
@@ -113,16 +113,16 @@ export const PokedexFilter = () => {
                 enabled: !prev.enabled
               }));
             }}
-            aria-label="Agrupar por Pokedex"
+            aria-label="Group by Pokédex"
           />
-          Agrupar por Pokedex
+          Group by Pokédex
         </label>
 
         {pokemonGrouping.enabled && (
           <>
             <div className="pokedex-filter-group">
               <label htmlFor="pokedexGroupFilterSelect">
-                Mostrar grupos:
+                Show groups:
               </label>
               <select
                 id="pokedexGroupFilterSelect"
@@ -135,15 +135,15 @@ export const PokedexFilter = () => {
                 }}
                 className="pokedex-filter-select"
               >
-                <option value="all">Todos los Pokemon</option>
-                <option value="owned">Solo con al menos una carta</option>
-                <option value="notOwned">Solo sin ninguna carta</option>
-                <option value="ownedNone">Solo grupos sin cartas propias</option>
+                <option value="all">All Pokémon</option>
+                <option value="owned">With at least one card</option>
+                <option value="notOwned">Without any cards</option>
+                <option value="ownedNone">Groups with no owned cards</option>
               </select>
             </div>
 
             <div className="pokedex-filter-group">
-              <p className="pokedex-filter-label">Regiones para agrupar:</p>
+              <p className="pokedex-filter-label">Regions to group:</p>
               {POKEDEX_REGIONS.map((region) => (
                 <label key={region} className="pokedex-region-option">
                   <input
@@ -151,7 +151,7 @@ export const PokedexFilter = () => {
                     value={region}
                     checked={pokemonGrouping.groupingRegions.includes(region)}
                     onChange={() => handleGroupingRegionChange(region)}
-                    aria-label={`Incluir region ${region} en agrupacion`}
+                    aria-label={`Include region ${region} in grouping`}
                   />
                   <span className="pokedex-region-label">{region}</span>
                 </label>

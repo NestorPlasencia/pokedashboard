@@ -30,7 +30,7 @@ export const OptionsView = () => {
 
   return (
     <div className="section-sidebar">
-      <CollapsibleFieldset legend="Opciones de vista" defaultCollapsed={false}>
+      <CollapsibleFieldset legend="View options" defaultCollapsed={false}>
         <label>
           <input
             type="checkbox"
@@ -45,9 +45,9 @@ export const OptionsView = () => {
               }));
               updateUrlParams({ showTable: newValue ? 'true' : 'false' });
             }}
-            aria-label="Mostrar tabla"
+            aria-label="Show table"
           />
-          Mostrar tabla
+          Show table
         </label>
         <label>
           <input
@@ -63,9 +63,9 @@ export const OptionsView = () => {
               }));
               updateUrlParams({ showListTable: newValue ? 'true' : 'false' });
             }}
-            aria-label="Mostrar vista de lista en tabla"
+            aria-label="Show list as a table"
           />
-          Mostrar vista de lista en tabla
+          Show list as a table
         </label>
       </CollapsibleFieldset>
     </div>

@@ -31,14 +31,14 @@ const renderCollapsedChips = (
 
   return (
     <div className="filter-collapsed-group">
-      <span className="filter-collapsed-group-title">{type === 'include' ? 'Incluye' : 'Excluye'}</span>
+      <span className="filter-collapsed-group-title">{type === 'include' ? 'Includes' : 'Excludes'}</span>
       {visibleValues.map((value) => (
         <button
           key={`${type}-${value}`}
           type="button"
           className={`filter-collapsed-chip filter-collapsed-chip-button ${type}`}
           onClick={() => onRemoveValue(value)}
-          aria-label={`Quitar ${type === 'include' ? 'incluido' : 'excluido'} ${value}`}
+          aria-label={`Remove ${type === 'include' ? 'included' : 'excluded'} value ${value}`}
         >
           {value} ×
         </button>
@@ -122,7 +122,7 @@ export const Filters = () => {
     });
 
     return [
-      buildFilter(1, "Serie:", "setSeries", normalizeFromUrl(urlFilters.series), false),
+      buildFilter(1, "Series:", "setSeries", normalizeFromUrl(urlFilters.series), false),
       buildFilter(2, "Set:", "setNames", normalizeFromUrl(urlFilters.set), true),
       buildFilter(
         3,
@@ -153,7 +153,7 @@ export const Filters = () => {
         DEFAULT_POKEDEX_REGIONS_ORDER
       ),
       buildFilter(7, "Type:", "cardType", normalizeFromUrl(urlFilters.type), false),
-      buildFilter(8, "Energie:", "types", normalizeFromUrl(urlFilters.energy), true, [], DEFAULT_ENERGY_TYPES_ORDER),
+      buildFilter(8, "Energy:", "types", normalizeFromUrl(urlFilters.energy), true, [], DEFAULT_ENERGY_TYPES_ORDER),
       buildFilter(9, "Subtypes:", "subtypes", normalizeFromUrl(urlFilters.subtypes), true),
       buildFilter(10, "Artist:", "artist", normalizeFromUrl(urlFilters.artist), false)
     ];
@@ -614,7 +614,7 @@ export const Filters = () => {
   return (
     <div className="section-sidebar">
       <button onClick={handleResetFilters} className="filters-reset-btn" type="button">
-        Limpiar filtros
+        Clear filters
       </button>
       {filters.map((filter) => {
         const selectedMode = globalSelectionModes[filter.order] || 'include';
@@ -633,29 +633,9 @@ export const Filters = () => {
           filter.defaultOrder
         );
 
-        const orderedVisibleOptions = [...visibleOptions].sort((a, b) => {
-          const aCount = contextualOptionCountsByFilter[filter.order]?.[a] ?? 0;
-          const bCount = contextualOptionCountsByFilter[filter.order]?.[b] ?? 0;
-          const aState: OptionState = filter.includedValues.includes(a)
-            ? 'included'
-            : filter.excludedValues.includes(a)
-              ? 'excluded'
-              : 'neutral';
-          const bState: OptionState = filter.includedValues.includes(b)
-            ? 'included'
-            : filter.excludedValues.includes(b)
-              ? 'excluded'
-              : 'neutral';
-          const aDisabled = aCount === 0 && aState === 'neutral';
-          const bDisabled = bCount === 0 && bState === 'neutral';
-
-          if (aDisabled === bDisabled) return 0;
-          return aDisabled ? 1 : -1;
-        });
-
         const searchableOptions = effectiveSearchQuery.length > 0
-          ? orderedVisibleOptions.filter((option) => option.toLowerCase().includes(effectiveSearchQuery))
-          : orderedVisibleOptions;
+          ? visibleOptions.filter((option) => option.toLowerCase().includes(effectiveSearchQuery))
+          : visibleOptions;
 
         const isZeroOption = (option: string) => {
           if (filter.property === 'setSeries') return false;
@@ -668,8 +648,12 @@ export const Filters = () => {
           return count === 0 && currentState === 'neutral';
         };
 
-        const primaryOptions = searchableOptions.filter((option) => !isZeroOption(option));
-        const zeroOptions = searchableOptions.filter(isZeroOption);
+        const primaryOptions = filter.hideZeroCount
+          ? searchableOptions.filter((option) => !isZeroOption(option))
+          : searchableOptions;
+        const zeroOptions = filter.hideZeroCount
+          ? searchableOptions.filter(isZeroOption)
+          : [];
 
         const allOptionsSelectedForMode = searchableOptions.length > 0 && (
           selectedMode === 'include'
@@ -699,10 +683,10 @@ export const Filters = () => {
                 type="checkbox"
                 checked={isChecked}
                 onChange={() => handleQuickToggle(filter.order, option, currentState)}
-                aria-label={`Alternar ${option} en modo ${selectedMode}`}
+                aria-label={`Toggle ${option} in ${selectedMode} mode`}
               />
               <span className="filter-option-item-label">{option}</span>
-              <span className="filter-option-item-count" title="en pantalla / global">({visibleCount}/{globalCount})</span>
+              <span className="filter-option-item-count" title="visible / total">({visibleCount}/{globalCount})</span>
             </label>
           );
         };
@@ -733,13 +717,13 @@ export const Filters = () => {
           >
             <div className="filter-panel-body">
               <div className="filter-toolbar">
-                <div className="filter-segmented" role="group" aria-label={`Modo global de ${normalizeLabel(filter.label)}`}>
+                <div className="filter-segmented" role="group" aria-label={`Selection mode for ${normalizeLabel(filter.label)}`}>
                   <button
                     type="button"
                     className={selectedMode === 'include' ? 'active' : ''}
                     onClick={() => handleGlobalModeChange(filter.order, 'include')}
-                    aria-label="Modo incluir"
-                    title="Modo incluir"
+                    aria-label="Include mode"
+                    title="Include mode"
                   >
                     ✓
                   </button>
@@ -747,8 +731,8 @@ export const Filters = () => {
                     type="button"
                     className={selectedMode === 'exclude' ? 'active' : ''}
                     onClick={() => handleGlobalModeChange(filter.order, 'exclude')}
-                    aria-label="Modo excluir"
-                    title="Modo excluir"
+                    aria-label="Exclude mode"
+                    title="Exclude mode"
                   >
                     ✕
                   </button>
@@ -759,8 +743,8 @@ export const Filters = () => {
                     type="button"
                     className={`filter-icon-btn ${isSearchVisible ? 'active' : ''}`}
                     onClick={() => handleSearchToggle(filter.order)}
-                    aria-label="Mostrar u ocultar búsqueda"
-                    title="Buscar"
+                    aria-label="Show or hide search"
+                    title="Search"
                   >
                     🔍
                   </button>
@@ -768,8 +752,8 @@ export const Filters = () => {
                     type="button"
                     className={`filter-icon-btn ${allOptionsSelectedForMode ? 'active' : ''}`}
                     onClick={() => handleSelectAll(filter.order, searchableOptions)}
-                    aria-label={allOptionsSelectedForMode ? 'Deseleccionar todo' : 'Seleccionar todo'}
-                    title={allOptionsSelectedForMode ? 'Deseleccionar todo' : 'Seleccionar todo'}
+                    aria-label={allOptionsSelectedForMode ? 'Deselect all' : 'Select all'}
+                    title={allOptionsSelectedForMode ? 'Deselect all' : 'Select all'}
                     disabled={searchableOptions.length === 0}
                   >
                     ☑
@@ -778,8 +762,8 @@ export const Filters = () => {
                     type="button"
                     className="filter-icon-btn danger"
                     onClick={() => clearFilterSelections(filter.order, 'all')}
-                    aria-label="Limpiar todo"
-                    title="Limpiar todo"
+                    aria-label="Clear all"
+                    title="Clear all"
                   >
                     🗑
                   </button>
@@ -794,7 +778,7 @@ export const Filters = () => {
                       type="button"
                       className="filter-chip include"
                       onClick={() => handleOptionStateChange(filter.order, value, 'neutral')}
-                      aria-label={`Quitar incluido ${value}`}
+                      aria-label={`Remove included value ${value}`}
                     >
                       {value} <span>×</span>
                     </button>
@@ -805,7 +789,7 @@ export const Filters = () => {
                       type="button"
                       className="filter-chip exclude"
                       onClick={() => handleOptionStateChange(filter.order, value, 'neutral')}
-                      aria-label={`Quitar excluido ${value}`}
+                      aria-label={`Remove excluded value ${value}`}
                     >
                       {value} <span>×</span>
                     </button>
@@ -819,60 +803,60 @@ export const Filters = () => {
                   type="text"
                   value={optionSearchByFilter[filter.order] || ''}
                   onChange={(event) => handleSearchChange(filter.order, event.target.value)}
-                  placeholder="Buscar opciones..."
-                  aria-label={`Buscar en ${normalizeLabel(filter.label)}`}
+                  placeholder="Search options..."
+                  aria-label={`Search ${normalizeLabel(filter.label)}`}
                 />
               )}
 
               <div className="filter-options-list">
-                {searchableOptions.length === 0 && <span className="filter-empty">Sin opciones</span>}
+                {searchableOptions.length === 0 && <span className="filter-empty">No options</span>}
                 {primaryOptions.map(renderFilterOption)}
                 {zeroOptions.length > 0 && (
                   <details className="filter-zero-options">
-                    <summary>Ver más ({zeroOptions.length})</summary>
+                    <summary>Show more ({zeroOptions.length})</summary>
                     {zeroOptions.map(renderFilterOption)}
                   </details>
                 )}
               </div>
 
               <details className="filter-advanced-panel">
-                <summary>Ajustes avanzados</summary>
+                <summary>Advanced settings</summary>
                 <div className="filter-advanced-row">
                   <label className="filter-compact-select">
-                    Ceros
+                    Zero counts
                     <select
                       value={filter.hideZeroCount ? 'hide' : 'disable'}
                       onChange={(event) => handleFilterConfigChange(filter.order, 'hideZeroCount', event.target.value === 'hide')}
-                      aria-label={`Tratamiento de ceros en ${filter.label}`}
+                      aria-label={`Zero-count behavior for ${filter.label}`}
                     >
-                      <option value="disable">Deshabilitar</option>
-                      <option value="hide">Ver mas</option>
+                      <option value="disable">Disable</option>
+                      <option value="hide">Show more</option>
                     </select>
                   </label>
 
                   <label className="filter-compact-select">
-                    Incluye
+                    Include
                     <select
                       value={filter.includeMode}
                       onChange={(event) => handleFilterConfigChange(filter.order, 'includeMode', event.target.value as FilterOption['includeMode'])}
-                      aria-label={`Modo de inclusión en ${filter.label}`}
+                      aria-label={`Include mode for ${filter.label}`}
                     >
-                      <option value="ANY">Cualquiera</option>
-                      <option value="ALL">Todos</option>
-                      <option value="EXACT_SET">Exactamente esos</option>
+                      <option value="ANY">Any</option>
+                      <option value="ALL">All</option>
+                      <option value="EXACT_SET">Exact set</option>
                     </select>
                   </label>
 
                   <label className="filter-compact-select">
-                    Excluye
+                    Exclude
                     <select
                       value={filter.excludeMode}
                       onChange={(event) => handleFilterConfigChange(filter.order, 'excludeMode', event.target.value as FilterOption['excludeMode'])}
-                      aria-label={`Modo de exclusión en ${filter.label}`}
+                      aria-label={`Exclude mode for ${filter.label}`}
                     >
-                      <option value="NOT_ANY">Cualquiera</option>
-                      <option value="NOT_ALL">Todos</option>
-                      <option value="NOT_EXACT_SET">Exacto</option>
+                      <option value="NOT_ANY">Any</option>
+                      <option value="NOT_ALL">All</option>
+                      <option value="NOT_EXACT_SET">Exact set</option>
                     </select>
                   </label>
 
@@ -882,17 +866,17 @@ export const Filters = () => {
                       <select
                         value={filter.singleIncludeMatch}
                         onChange={(event) => handleFilterConfigChange(filter.order, 'singleIncludeMatch', event.target.value as FilterOption['singleIncludeMatch'])}
-                        aria-label={`Coincidencia de único valor en ${filter.label}`}
+                        aria-label={`Single-value match for ${filter.label}`}
                       >
-                        <option value="CONTAINS">Incluye</option>
-                        <option value="EXACT_SINGLE">Exacto</option>
+                        <option value="CONTAINS">Contains</option>
+                        <option value="EXACT_SINGLE">Exact</option>
                       </select>
                     </label>
                   )}
 
                   <div className="filter-clear-actions compact">
-                    <button type="button" onClick={() => clearFilterSelections(filter.order, 'included')}>Solo incluye</button>
-                    <button type="button" onClick={() => clearFilterSelections(filter.order, 'excluded')}>Solo excluye</button>
+                    <button type="button" onClick={() => clearFilterSelections(filter.order, 'included')}>Clear included</button>
+                    <button type="button" onClick={() => clearFilterSelections(filter.order, 'excluded')}>Clear excluded</button>
                   </div>
                 </div>
               </details>

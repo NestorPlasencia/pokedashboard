@@ -36,7 +36,7 @@ export const PrintButton: React.FC = () => {
 
   const formatCurrency = (value: number | null) => {
     if (value === null || value === undefined) return '-';
-    return value.toLocaleString('es-ES', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
+    return value.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
   };
 
   const getSetSymbol = (card: Card) => {
@@ -56,7 +56,7 @@ export const PrintButton: React.FC = () => {
         <!DOCTYPE html>
         <html>
         <head>
-          <title>Impresión - Lista de Cartas</title>
+          <title>Print - Card List</title>
           <style>
             body {
               font-family: Arial, sans-serif;
@@ -145,16 +145,16 @@ export const PrintButton: React.FC = () => {
           <table>
             <thead>
               <tr>
-                <th>Nombre</th>
+                <th>Name</th>
                 <th>Set</th>
-                <th class="icon-cell">Icono</th>
-                <th>Número</th>
+                <th class="icon-cell">Icon</th>
+                <th>Number</th>
                 <th>Variant</th>
-                <th>Tipo</th>
-                <th>Rareza</th>
-                <th class="number-cell">Cantidad</th>
-                <th class="number-cell">Faltantes</th>
-                <th class="number-cell">Precio</th>
+                <th>Type</th>
+                <th>Rarity</th>
+                <th class="number-cell">Quantity</th>
+                <th class="number-cell">Missing</th>
+                <th class="number-cell">Price</th>
               </tr>
             </thead>
             <tbody>
@@ -199,7 +199,7 @@ export const PrintButton: React.FC = () => {
         <!DOCTYPE html>
         <html>
         <head>
-          <title>Impresión - Cartas</title>
+          <title>Print - Cards</title>
           <style>
             body {
               font-family: Arial, sans-serif;
@@ -387,7 +387,7 @@ export const PrintButton: React.FC = () => {
           </style>
         </head>
         <body>
-          <h1>Cartas</h1>
+          <h1>Cards</h1>
           <div class="card-grid">
             ${actualCards.map(card => {
         const currentVariant = card.variant || 'Normal';
@@ -436,8 +436,8 @@ export const PrintButton: React.FC = () => {
   };
 
   return (
-    <button onClick={handlePrint} className="print-btn" title="Imprimir">
-      🖨️ Imprimir
+    <button onClick={handlePrint} className="print-btn" title="Print">
+      🖨️ Print
     </button>
   );
 };

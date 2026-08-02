@@ -26,8 +26,8 @@ const SidebarComponent: React.FC<SidebarProps> = ({ children, position = 'left' 
             <button
                 className={`collapse ${position}`}
                 onClick={toggleSidebar}
-                aria-label={isSidebarCollapsed ? 'Expandir barra lateral' : 'Colapsar barra lateral'}
-                title={isSidebarCollapsed ? 'Expandir barra lateral' : 'Colapsar barra lateral'}
+                aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                 type="button"
             >
                 {collapseIcon}

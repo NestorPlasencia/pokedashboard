@@ -55,10 +55,10 @@ export const Main: React.FC = () => {
       </Sidebar>
       <div className="card-view">
         <Search />
-        {isLoading && <div className="main-status-message">Cargando cartas...</div>}
+        {isLoading && <div className="main-status-message">Loading cards...</div>}
         {error && <div className="main-status-message main-status-message--error">{error}</div>}
         {!isLoading && !error && (
-          <Suspense fallback={<div className="main-status-message">Cargando vista...</div>}>
+          <Suspense fallback={<div className="main-status-message">Loading view...</div>}>
             {showListTable ? <CardListTable /> : <CardList />}
           </Suspense>
         )}

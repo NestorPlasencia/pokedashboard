@@ -94,7 +94,7 @@ export const Summary = () => {
 
     const grouped = new Map<string, Card[]>();
     filteredCards.forEach((card) => {
-      const setName = card.setName || card.setNames?.[0] || "Sin set";
+      const setName = card.setName || card.setNames?.[0] || "No set";
       const cards = grouped.get(setName) || [];
       cards.push(card);
       grouped.set(setName, cards);
@@ -292,7 +292,7 @@ export const Summary = () => {
 
   // Price formatter function
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('es-ES', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 2
@@ -313,27 +313,27 @@ export const Summary = () => {
       <table className="summary-table">
         <thead>
           <tr>
-            <th>Descripción</th>
-            <th>Cartas</th>
-            <th>Valor</th>
+            <th>Description</th>
+            <th>Cards</th>
+            <th>Value</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td>📋 Cartas en búsqueda</td>
+            <td>📋 Cards in search</td>
             <td><strong>{summary.totalCards}</strong></td>
             <td><strong>{formatPrice(summary.total)}</strong></td>
           </tr>
           {collectionFilter.limit > 1 && (
             <tr className="secondary-row">
-              <td>📋 Cartas en búsqueda ({collectionFilter.limit})</td>
+              <td>📋 Cards in search ({collectionFilter.limit})</td>
               <td><strong>{summary.totalCardsToLimit}</strong></td>
               <td><strong>{formatPrice(summary.totalToLimitPrice)}</strong></td>
             </tr>
           )}
           {summary.withoutPriceCount > 0 && (
             <tr className="secondary-row">
-              <td>⚠️ Sin precio</td>
+              <td>⚠️ No price</td>
               <td>{summary.withoutPriceCount}</td>
               <td>—</td>
             </tr>
@@ -351,31 +351,31 @@ export const Summary = () => {
         <table className="summary-table">
           <thead>
             <tr>
-              <th>Descripción</th>
-              <th>Cartas</th>
-              <th>Valor</th>
+              <th>Description</th>
+              <th>Cards</th>
+              <th>Value</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td>✅ Cartas que posees</td>
+              <td>✅ Cards owned</td>
               <td><strong>{summary.ownedCards}</strong></td>
               <td><strong>{formatPrice(summary.ownedPrice)}</strong></td>
             </tr>
             {collectionFilter.limit > 1 && (
               <tr className="secondary-row">
-                <td>✅ Cartas que posees ({collectionFilter.limit})</td>
+                <td>✅ Cards owned ({collectionFilter.limit})</td>
                 <td><strong>{summary.ownedToLimit}</strong></td>
                 <td><strong>{formatPrice(summary.ownedToLimitPriceTotal)}</strong></td>
               </tr>
             )}
             <tr>
-              <td>❌ Cartas faltantes</td>
+              <td>❌ Missing cards</td>
               <td><strong>{summary.missingCards}</strong></td>
               <td><strong>{formatPrice(summary.missingPrice)}</strong></td>
             </tr>
             <tr className="secondary-row">
-              <td>❌ Cartas faltantes ({collectionFilter.limit})</td>
+              <td>❌ Missing cards ({collectionFilter.limit})</td>
               <td><strong>{summary.missingToLimit}</strong></td>
               <td><strong>{formatPrice(summary.missingToLimitPriceTotal)}</strong></td>
             </tr>
@@ -388,7 +388,7 @@ export const Summary = () => {
       {/* Pokémon + Forms Statistics */}
       {setProgress.rows.length > 0 && (
         <div className="set-progress-report">
-          <h4>Avance por set</h4>
+          <h4>Progress by set</h4>
           <div className="set-progress-table-wrap">
             <table className="summary-table set-progress-table">
               <thead>
@@ -413,9 +413,9 @@ export const Summary = () => {
                       >
                         {item.percent.toFixed(2)}%
                         <span className="set-progress-tooltip">
-                          {item.owned} poseidas
+                          {item.owned} owned
                           <br />
-                          {Math.max(0, item.required - item.owned)} faltantes
+                          {Math.max(0, item.required - item.owned)} missing
                         </span>
                       </td>
                     ))}
@@ -433,9 +433,9 @@ export const Summary = () => {
                       >
                         {item.percent.toFixed(2)}%
                         <span className="set-progress-tooltip">
-                          {item.owned} poseidas
+                          {item.owned} owned
                           <br />
-                          {Math.max(0, item.required - item.owned)} faltantes
+                          {Math.max(0, item.required - item.owned)} missing
                         </span>
                       </td>
                     ))}
@@ -452,7 +452,7 @@ export const Summary = () => {
           <table className="summary-table">
             <thead>
               <tr>
-                <th>Descripción</th>
+                <th>Description</th>
                 <th>✅</th>
                 <th>☐</th>
                 <th>⨊</th>
@@ -481,7 +481,7 @@ export const Summary = () => {
                   <th colSpan={4}>{region.regionName}</th>
                 </tr>
                 <tr>
-                  <th>Descripción</th>
+                  <th>Description</th>
                   <th>✅</th>
                   <th>☐</th>
                   <th>⨊</th>

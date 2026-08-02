@@ -103,7 +103,7 @@ export const Collections = () => {
 
   return (
     <div className="section-sidebar">
-      <CollapsibleFieldset legend="Colecciones" defaultCollapsed={true}>
+      <CollapsibleFieldset legend="Collections" defaultCollapsed={true}>
         <label>
           <input
             type="checkbox"
@@ -115,9 +115,9 @@ export const Collections = () => {
                 enabled: !prev.enabled
               }));
             }}
-            aria-label="Activar filtro por colecciones"
+            aria-label="Enable collection filters"
           />
-          Filtrar por colecciones
+          Filter by collection
         </label>
         {collectionFilter.enabled && (
           <>
@@ -130,16 +130,16 @@ export const Collections = () => {
                   mode: e.target.value as any
                 }));
               }}
-              aria-label="Seleccionar tipo de filtro de colección"
+              aria-label="Select collection filter mode"
             >
-              <option value="none">Ninguno</option>
-              <option value="hideNotOwned">Ocultar no poseídas</option>
-              <option value="hideOwned">Ocultar poseídas</option>
-              <option value="shadowOwned">Sombrear poseídas</option>
-              <option value="shadowNotOwned">Sombrear no poseídas</option>
+              <option value="none">None</option>
+              <option value="hideNotOwned">Hide not owned</option>
+              <option value="hideOwned">Hide owned</option>
+              <option value="shadowOwned">Dim owned</option>
+              <option value="shadowNotOwned">Dim not owned</option>
             </select>
             <div className="collections-limit-row">
-              <label htmlFor="limitInput">Límite para considerar poseída:</label>
+              <label htmlFor="limitInput">Quantity required to count as owned:</label>
               <input
                 id="limitInput"
                 type="number"
@@ -155,10 +155,10 @@ export const Collections = () => {
               />
             </div>
             <button onClick={handleResetCollections} type="button" className="collections-reset-btn">
-              Limpiar selección de colecciones
+              Clear collection selection
             </button>
-            <p>Selecciona colección:</p>
-            {collections.length === 0 && <span>No hay colecciones disponibles</span>}
+            <p>Select collections:</p>
+            {collections.length === 0 && <span>No collections available</span>}
             {collections.map((collection) => (
               <label key={collection.name} className="collections-checkbox-label">
                 <input
@@ -166,19 +166,19 @@ export const Collections = () => {
                   value={collection.name}
                   checked={collectionFilter.selectedCollections.includes(collection.name)}
                   onChange={() => handleCollectionsChange(collection.name)}
-                  aria-label={`Seleccionar colección ${collection.name}`}
+                  aria-label={`Select collection ${collection.name}`}
                 />
                 <span>{collection.name}</span>
               </label>
             ))}
             {collectionFilter.selectedCollections.length > 0 && (
-              <CollapsibleFieldset legend="Condición:" defaultCollapsed={false}>
+              <CollapsibleFieldset legend="Condition:" defaultCollapsed={false}>
                 <label className="collections-checkbox-label">
                   <input
                     type="checkbox"
                     checked={collectionFilter.conditionsFilter.includes("All")}
                     onChange={handleConditionAll}
-                    aria-label="Todas las condiciones"
+                    aria-label="All conditions"
                   />
                   <span>All</span>
                 </label>
@@ -188,7 +188,7 @@ export const Collections = () => {
                       type="checkbox"
                       checked={!collectionFilter.conditionsFilter.includes("All") && collectionFilter.conditionsFilter.includes(condition)}
                       onChange={() => handleConditionChange(condition)}
-                      aria-label={`Filtrar por condición ${condition}`}
+                      aria-label={`Filter by condition ${condition}`}
                     />
                     <span>{condition}</span>
                   </label>

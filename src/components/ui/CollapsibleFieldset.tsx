@@ -44,7 +44,7 @@ export const CollapsibleFieldset: React.FC<CollapsibleFieldsetProps> = ({
       <legend className="collapsible-legend">
         <button
           type="button"
-          aria-label={collapsed ? `Expandir ${legend}` : `Colapsar ${legend}`}
+          aria-label={collapsed ? `Expand ${legend}` : `Collapse ${legend}`}
           onClick={toggleCollapse}
           className="collapsible-legend-button"
         >
@@ -64,4 +64,4 @@ export const CollapsibleFieldset: React.FC<CollapsibleFieldsetProps> = ({
       )}
     </fieldset>
   );
-}; 
+};
