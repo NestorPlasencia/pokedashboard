@@ -1,18 +1,34 @@
-import type { PriceEntry } from "../types/source-card";
+import type {
+  PriceEntry,
+  SourceCardsFile,
+} from "../types/source-card";
 
 type TcgSet = { setNameId: number; active: boolean };
 type SetCatalogResponse = { results?: TcgSet[] };
 
-export type PriceBundle = {
+export type PriceBundle<TPrice = PriceEntry> = {
   generatedAt: string;
   setCount: number;
-  products: Record<string, PriceEntry[]>;
+  products: Record<string, TPrice[]>;
 };
+
+export type RuntimePriceEntry = Pick<
+  PriceEntry,
+  "condition" | "marketPrice" | "printing"
+>;
+export type RuntimePriceBundle = PriceBundle<RuntimePriceEntry>;
 
 const catalogUrl =
   "https://mpapi.tcgplayer.com/v2/Catalog/SetNames?categoryId=3&active=true";
 const priceGuideBaseUrl =
   "https://infinite-api.tcgplayer.com/priceguide/set";
+const pokeDbApiBaseUrl =
+  process.env.POKE_DB_API_BASE_URL ||
+  "https://poke-db-git-master-nestorplasencias-projects.vercel.app/api";
+const priceTtlMs = 24 * 60 * 60 * 1000;
+
+let cachedAllPrices: { expiresAt: number; bundle: PriceBundle } | null = null;
+let pendingAllPrices: Promise<PriceBundle> | null = null;
 
 const wait = (milliseconds: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
@@ -82,6 +98,59 @@ export const fetchAllPrices = async (): Promise<PriceBundle> => {
   return {
     generatedAt: new Date().toISOString(),
     setCount: setIds.length,
+    products,
+  };
+};
+
+const loadAllPrices = (): Promise<PriceBundle> => {
+  if (cachedAllPrices && cachedAllPrices.expiresAt > Date.now()) {
+    return Promise.resolve(cachedAllPrices.bundle);
+  }
+  if (pendingAllPrices) return pendingAllPrices;
+
+  pendingAllPrices = fetchAllPrices()
+    .then((bundle) => {
+      cachedAllPrices = { expiresAt: Date.now() + priceTtlMs, bundle };
+      return bundle;
+    })
+    .finally(() => {
+      pendingAllPrices = null;
+    });
+  return pendingAllPrices;
+};
+
+export const fetchPricesForSeries = async (
+  seriesId: number
+): Promise<RuntimePriceBundle> => {
+  if (!Number.isInteger(seriesId) || seriesId <= 0) {
+    throw new Error("seriesId must be a positive integer");
+  }
+
+  const [allPrices, source] = await Promise.all([
+    loadAllPrices(),
+    fetchJson<SourceCardsFile>(`${pokeDbApiBaseUrl}/cards?seriesId=${seriesId}`),
+  ]);
+  const productIds = new Set(
+    (source.items || [])
+      .map((card) => card.tcgPlayerProductId)
+      .filter((productId) => Number.isInteger(productId) && productId > 0)
+      .map(String)
+  );
+  const products: Record<string, RuntimePriceEntry[]> = {};
+  for (const productId of productIds) {
+    const prices = allPrices.products[productId];
+    if (prices) {
+      products[productId] = prices.map(({ condition, marketPrice, printing }) => ({
+        condition,
+        marketPrice,
+        printing,
+      }));
+    }
+  }
+
+  return {
+    generatedAt: allPrices.generatedAt,
+    setCount: allPrices.setCount,
     products,
   };
 };

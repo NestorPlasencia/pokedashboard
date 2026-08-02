@@ -88,22 +88,22 @@ Cards are generated in the browser after selecting a series. The runtime flow co
 - All active TCGPlayer prices indexed by `productID` and shared by every series.
 - Local collector and condition data.
 
-The consolidated TCGPlayer price catalog is downloaded once per browser every 24
-hours and persisted using the browser Cache API, which is available on GitHub
-Pages because it is served over HTTPS. Prices are indexed by `productID`.
+The browser requests the relevant TCGPlayer catalog from
+`/api/prices?seriesId=<id>` and
+persists it in the Cache API for at most 24 hours. Prices are indexed directly by
+`productID`, so loading a series does not require mapping Poke DB sets to
+TCGPlayer sets.
 
-Because TCGPlayer does not allow cross-origin browser requests, the scheduled
-GitHub Pages workflow runs `npm run refresh-prices` once per day and writes a
-single `dist/data/prices.json` into the deployment artifact. The repository does
-not store price files. The first browser load after its cache expires downloads
-the consolidated dataset.
+In production, `/api/prices` is a Vercel Function. It makes the cross-origin
+TCGPlayer requests server-side, keeps only products used by the requested series,
+and caches each series response in Vercel's CDN for 24 hours. The filtering keeps
+responses below Vercel's Function payload limit. The first request after
+expiration refreshes the catalog; no generated price file or scheduled
+deployment is required.
 
-Generated series are cached in memory for 15 minutes. No serverless endpoint is
-required by the dashboard.
-
-During local development, Vite serves `/data/prices.json` through a Node
-middleware that downloads and caches the consolidated catalog in memory for 24
-hours. It does not create price files in `public`.
+Generated series are cached in browser memory for 15 minutes. During local
+development, Vite serves the same `/api/prices` route with an in-memory 24-hour
+cache.
 
 Optional environment variables:
 
@@ -111,23 +111,29 @@ Optional environment variables:
 $env:VITE_POKE_DB_API_BASE_URL = "https://example.com/api"
 ```
 
-To generate the consolidated price artifact manually after a build:
+Run the production build locally:
 
 ```bash
-npm run refresh-prices -- --output dist/data/prices.json
+npm run build
 ```
 
-To build the complete production artifact and open its local preview with one
-command:
+Run the development server (including the local prices endpoint):
 
 ```bash
-npm run preview:prices
+npm run dev
 ```
+
+## Deploy to Vercel
+
+Import this repository in Vercel. The committed `vercel.json` selects Vite,
+builds with `npm run build`, publishes `dist`, configures SPA fallback routing,
+and gives the prices function enough time for a cold-cache refresh. No Vercel
+environment variables are required unless the Poke DB API URL is overridden.
 
 ## Data Sources
 
 - **Card Data**: Poke DB API, requested by series
-- **TCG Player Pricing**: TCGPlayer endpoints with a 24-hour browser cache
+- **TCG Player Pricing**: `/api/prices` with 24-hour Vercel CDN and browser caches
 - **Collection Data**: Dated collection snapshots in `public/data/collector/`
 - **Fix Data**: Manual corrections and patches in `public/data/fix/`
 

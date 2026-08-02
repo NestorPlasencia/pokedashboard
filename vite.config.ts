@@ -1,37 +1,53 @@
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
-import { fetchAllPrices, type PriceBundle } from './src/scripts/priceSource'
+import {
+  fetchPricesForSeries,
+  type RuntimePriceBundle,
+} from './src/scripts/priceSource'
 
 const priceTtlMs = 24 * 60 * 60 * 1000
-let priceBundleCache: { expiresAt: number; value: PriceBundle } | null = null
-let pendingPriceBundle: Promise<PriceBundle> | null = null
+const priceBundleCache = new Map<number, { expiresAt: number; value: RuntimePriceBundle }>()
+const pendingPriceBundles = new Map<number, Promise<RuntimePriceBundle>>()
 
-const loadPriceBundle = (): Promise<PriceBundle> => {
-  if (priceBundleCache && priceBundleCache.expiresAt > Date.now()) {
-    return Promise.resolve(priceBundleCache.value)
+const loadPriceBundle = (seriesId: number): Promise<RuntimePriceBundle> => {
+  const cached = priceBundleCache.get(seriesId)
+  if (cached && cached.expiresAt > Date.now()) {
+    return Promise.resolve(cached.value)
   }
-  if (pendingPriceBundle) return pendingPriceBundle
+  const pending = pendingPriceBundles.get(seriesId)
+  if (pending) return pending
 
-  pendingPriceBundle = fetchAllPrices()
+  const request = fetchPricesForSeries(seriesId)
     .then((value) => {
-      priceBundleCache = { expiresAt: Date.now() + priceTtlMs, value }
+      priceBundleCache.set(seriesId, {
+        expiresAt: Date.now() + priceTtlMs,
+        value,
+      })
       return value
     })
     .finally(() => {
-      pendingPriceBundle = null
+      pendingPriceBundles.delete(seriesId)
     })
-  return pendingPriceBundle
+  pendingPriceBundles.set(seriesId, request)
+  return request
 }
 
 const localPricesApi = (): Plugin => ({
   name: 'local-prices-api',
   configureServer(server) {
-    server.middlewares.use('/data/prices.json', async (_request, response) => {
+    server.middlewares.use('/api/prices', async (request, response) => {
       response.setHeader('Content-Type', 'application/json; charset=utf-8')
       response.setHeader('Cache-Control', 'no-store')
       try {
+        const requestUrl = new URL(request.url || '/', 'http://localhost')
+        const seriesId = Number(requestUrl.searchParams.get('seriesId'))
+        if (!Number.isInteger(seriesId) || seriesId <= 0) {
+          response.statusCode = 400
+          response.end(JSON.stringify({ error: 'seriesId must be a positive integer' }))
+          return
+        }
         response.statusCode = 200
-        response.end(JSON.stringify(await loadPriceBundle()))
+        response.end(JSON.stringify(await loadPriceBundle(seriesId)))
       } catch (error) {
         server.config.logger.error(String(error))
         response.statusCode = 502
@@ -43,7 +59,7 @@ const localPricesApi = (): Plugin => ({
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: './',
+  base: '/',
   plugins: [react(), localPricesApi()],
   server: {
     proxy: {

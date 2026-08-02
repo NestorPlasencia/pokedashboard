@@ -18,17 +18,22 @@ type ConditionsMap = Map<
 >;
 type CollectionIndexEntry = { collectionName: string; card: CollectorCard };
 type PriceCacheMetadata = {
-  version: 2;
+  version: 3;
+  seriesId: number;
   expiresAt: number;
 };
+type RuntimePriceEntry = Pick<
+  PriceEntry,
+  "condition" | "marketPrice" | "printing"
+>;
 type PriceBundle = {
   generatedAt: string;
   setCount: number;
-  products: Record<string, PriceEntry[]>;
+  products: Record<string, RuntimePriceEntry[]>;
 };
 type AllPricesSnapshot = {
   expiresAt: number;
-  priceMap: Map<number, PriceEntry[]>;
+  priceMap: Map<number, RuntimePriceEntry[]>;
   setCount: number;
 };
 
@@ -50,12 +55,12 @@ const pokeDbDeploymentUrl =
 const pokeDbApiBaseUrl =
   import.meta.env.VITE_POKE_DB_API_BASE_URL ||
   (import.meta.env.DEV ? "/poke-db-api" : `${pokeDbDeploymentUrl}/api`);
-const priceCacheName = "pokereg-tcg-prices-v2";
+const priceCacheName = "pokedashboard-tcg-prices-v3";
 const priceTtlMs = 24 * 60 * 60 * 1000;
 const seriesTtlMs = 15 * 60 * 1000;
 
-let allPricesSnapshot: AllPricesSnapshot | null = null;
-let pendingAllPrices: Promise<AllPricesSnapshot> | null = null;
+const pricesBySeries = new Map<number, AllPricesSnapshot>();
+const pendingPricesBySeries = new Map<number, Promise<AllPricesSnapshot>>();
 let collectionIndexPromise: Promise<Map<number, CollectionIndexEntry[]>> | null = null;
 let conditionsPromise: Promise<ConditionsMap> | null = null;
 const seriesCache = new Map<
@@ -115,11 +120,12 @@ const mapWithConcurrency = async <T, R>(
 };
 
 const cacheUrl = (key: string) =>
-  new URL(`/__pokereg_cache__/${key}`, window.location.origin).toString();
+  new URL(`/__pokedashboard_cache__/${key}`, window.location.origin).toString();
 
 const openPriceCache = async (): Promise<Cache | null> => {
   if (!("caches" in window)) return null;
   await window.caches.delete("pokereg-tcg-prices-v1");
+  await window.caches.delete("pokereg-tcg-prices-v2");
   return window.caches.open(priceCacheName);
 };
 
@@ -149,18 +155,19 @@ const getPriceExpiration = (bundle: PriceBundle): number => {
   return Math.min(Date.now() + priceTtlMs, sourceExpiration);
 };
 
-const fetchAndCacheAllPrices = async (cache: Cache | null) => {
+const fetchAndCachePrices = async (cache: Cache | null, seriesId: number) => {
   const bundle = await fetchJson<PriceBundle>(
-    publicDataUrl("prices.json"),
+    new URL(`/api/prices?seriesId=${seriesId}`, window.location.origin).toString(),
     10 * 60 * 1000
   );
   const metadata: PriceCacheMetadata = {
-    version: 2,
+    version: 3,
+    seriesId,
     expiresAt: getPriceExpiration(bundle),
   };
   if (cache) {
-    await writeCachedJson(cache, "bundle", bundle);
-    await writeCachedJson(cache, "metadata", metadata);
+    await writeCachedJson(cache, `bundle-${seriesId}`, bundle);
+    await writeCachedJson(cache, `metadata-${seriesId}`, metadata);
   }
   return { metadata, bundle };
 };
@@ -169,7 +176,7 @@ const buildPriceSnapshot = (
   metadata: PriceCacheMetadata,
   bundle: PriceBundle
 ): AllPricesSnapshot => {
-  const priceMap = new Map<number, PriceEntry[]>();
+  const priceMap = new Map<number, RuntimePriceEntry[]>();
   for (const [productId, prices] of Object.entries(bundle.products)) {
     priceMap.set(Number(productId), prices);
   }
@@ -180,33 +187,43 @@ const buildPriceSnapshot = (
   };
 };
 
-const loadAllPrices = async (): Promise<AllPricesSnapshot> => {
-  if (allPricesSnapshot && allPricesSnapshot.expiresAt > Date.now()) {
-    return allPricesSnapshot;
+const loadPricesForSeries = async (
+  seriesId: number
+): Promise<AllPricesSnapshot> => {
+  const current = pricesBySeries.get(seriesId);
+  if (current && current.expiresAt > Date.now()) {
+    return current;
   }
-  if (pendingAllPrices) return pendingAllPrices;
+  const pending = pendingPricesBySeries.get(seriesId);
+  if (pending) return pending;
 
-  pendingAllPrices = (async () => {
+  const request = (async () => {
     const cache = await openPriceCache();
     const metadata = cache
-      ? await readCachedJson<PriceCacheMetadata>(cache, "metadata")
+      ? await readCachedJson<PriceCacheMetadata>(cache, `metadata-${seriesId}`)
       : null;
-    if (cache && metadata?.version === 2 && metadata.expiresAt > Date.now()) {
-      const bundle = await readCachedJson<PriceBundle>(cache, "bundle");
+    if (
+      cache &&
+      metadata?.version === 3 &&
+      metadata.seriesId === seriesId &&
+      metadata.expiresAt > Date.now()
+    ) {
+      const bundle = await readCachedJson<PriceBundle>(cache, `bundle-${seriesId}`);
       if (bundle) return buildPriceSnapshot(metadata, bundle);
     }
 
-    const refreshed = await fetchAndCacheAllPrices(cache);
+    const refreshed = await fetchAndCachePrices(cache, seriesId);
     return buildPriceSnapshot(refreshed.metadata, refreshed.bundle);
   })()
     .then((snapshot) => {
-      allPricesSnapshot = snapshot;
+      pricesBySeries.set(seriesId, snapshot);
       return snapshot;
     })
     .finally(() => {
-      pendingAllPrices = null;
+      pendingPricesBySeries.delete(seriesId);
     });
-  return pendingAllPrices;
+  pendingPricesBySeries.set(seriesId, request);
+  return request;
 };
 
 const extractCondition = (condition: string): ConditionKey | null => {
@@ -220,7 +237,7 @@ const extractCondition = (condition: string): ConditionKey | null => {
 
 const createDashboardCard = (
   sourceCard: SourceCard,
-  priceMap: Map<number, PriceEntry[]>
+  priceMap: Map<number, RuntimePriceEntry[]>
 ): Card | null => {
   if (!sourceCard.sets || sourceCard.sets.length === 0) return null;
   const sourceSets = sourceCard.sets.map((entry) => entry.set);
@@ -354,7 +371,7 @@ const addCollections = async (cards: Card[]): Promise<void> => {
 const generateUncached = async (seriesId: number): Promise<RuntimeCardsResult> => {
   const [source, prices] = await Promise.all([
     fetchJson<SourceCardsFile>(`${pokeDbApiBaseUrl}/cards?seriesId=${seriesId}`),
-    loadAllPrices(),
+    loadPricesForSeries(seriesId),
   ]);
   const sourceCards = source.items || [];
   const cards = sourceCards
@@ -383,7 +400,7 @@ export const generateCardsForSeries = (
   }
   const cached = seriesCache.get(seriesId);
   const pricesAreCurrent =
-    allPricesSnapshot !== null && allPricesSnapshot.expiresAt > Date.now();
+    (pricesBySeries.get(seriesId)?.expiresAt || 0) > Date.now();
   if (cached && cached.expiresAt > Date.now() && pricesAreCurrent) {
     return Promise.resolve(cached.result);
   }
