@@ -1,4 +1,4 @@
-import { fetchPricesForSeries } from "../src/scripts/priceSource";
+import { fetchPricesForSeries } from "../src/scripts/priceSource.js";
 
 const json = (
   body: unknown,

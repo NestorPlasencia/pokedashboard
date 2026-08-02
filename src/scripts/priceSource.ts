@@ -1,7 +1,7 @@
 import type {
   PriceEntry,
   SourceCardsFile,
-} from "../types/source-card";
+} from "../types/source-card.js";
 
 type TcgSet = { setNameId: number; active: boolean };
 type SetCatalogResponse = { results?: TcgSet[] };
