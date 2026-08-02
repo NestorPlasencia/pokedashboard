@@ -63,10 +63,10 @@ export default defineConfig({
   plugins: [react(), localPricesApi()],
   server: {
     proxy: {
-      '/poke-db-api': {
+      '/api/poke-db': {
         target: 'https://poke-db-git-master-nestorplasencias-projects.vercel.app',
         changeOrigin: true,
-        rewrite: (requestPath) => requestPath.replace(/^\/poke-db-api/, '/api'),
+        rewrite: (requestPath) => requestPath.replace(/^\/api\/poke-db/, '/api'),
       },
     },
   },

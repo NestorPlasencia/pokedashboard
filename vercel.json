@@ -10,6 +10,10 @@
   },
   "rewrites": [
     {
+      "source": "/api/poke-db/:path*",
+      "destination": "https://poke-db-git-master-nestorplasencias-projects.vercel.app/api/:path*"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

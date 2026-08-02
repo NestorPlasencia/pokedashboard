@@ -101,6 +101,10 @@ responses below Vercel's Function payload limit. The first request after
 expiration refreshes the catalog; no generated price file or scheduled
 deployment is required.
 
+Poke DB browser requests use the same-origin `/api/poke-db/*` reverse proxy.
+Vercel forwards that route to the Poke DB deployment, avoiding browser CORS
+restrictions. Vite exposes the same route during local development.
+
 Generated series are cached in browser memory for 15 minutes. During local
 development, Vite serves the same `/api/prices` route with an in-memory 24-hour
 cache.

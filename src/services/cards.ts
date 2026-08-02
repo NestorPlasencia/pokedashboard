@@ -2,11 +2,9 @@ import { loadJSONFile } from "../utils/utils";
 import type { Set, PokemonFormData } from "../types/dashboard";
 import type { HierarchySerie } from "../types/source-card";
 
-const POKE_DB_DEPLOYMENT_URL =
-  "https://poke-db-git-master-nestorplasencias-projects.vercel.app";
 const API_BASE_URL =
   import.meta.env.VITE_POKE_DB_API_BASE_URL ||
-  (import.meta.env.DEV ? "/poke-db-api" : `${POKE_DB_DEPLOYMENT_URL}/api`);
+  "/api/poke-db";
 
 let hierarchyPromise: Promise<HierarchySerie[]> | null = null;
 let pokemonFormsPromise: Promise<PokemonFormData[]> | null = null;

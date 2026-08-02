@@ -50,11 +50,9 @@ export type RuntimeCardsResult = {
   };
 };
 
-const pokeDbDeploymentUrl =
-  "https://poke-db-git-master-nestorplasencias-projects.vercel.app";
 const pokeDbApiBaseUrl =
   import.meta.env.VITE_POKE_DB_API_BASE_URL ||
-  (import.meta.env.DEV ? "/poke-db-api" : `${pokeDbDeploymentUrl}/api`);
+  "/api/poke-db";
 const priceCacheName = "pokedashboard-tcg-prices-v3";
 const priceTtlMs = 24 * 60 * 60 * 1000;
 const seriesTtlMs = 15 * 60 * 1000;
