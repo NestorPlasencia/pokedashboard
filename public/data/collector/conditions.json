@@ -1,0 +1,32 @@
+[
+  {
+    "id": "783152",
+    "product_id": 42372,
+    "product_name": "Ivysaur",
+    "collection": "Pokedex Borde Amarillo",
+    "conditions": {
+      "Near Mint": 0,
+      "Lightly Played": 1
+    }
+  },
+  {
+    "id": "783166",
+    "product_id": 42387,
+    "product_name": "Bulbasaur",
+    "collection": "Pokedex Borde Amarillo",
+    "conditions": {
+      "Near Mint": 0,
+      "Lightly Played": 1
+    }
+  },
+  {
+    "id": "783805",
+    "product_id": 42507,
+    "product_name": "Ivysaur",
+    "collection": "Pokedex Borde Amarillo",
+    "conditions": {
+      "Near Mint": 0,
+      "Lightly Played": 1
+    }
+  }
+]
