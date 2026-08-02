@@ -19,6 +19,10 @@ body {
   /* overflow: hidden; eliminado para permitir scroll en sidebar */
 }
 
+#root {
+  height: 100%;
+}
+
 *,
 *::before,
 *::after {
@@ -1380,237 +1384,6 @@ th[scope="row"] {
   transform: translateY(0);
 }
 
-/* ─── ConditionEditor ─────────────────────────────────────────────────────── */
-
-/* ─── Layout ─────────────────────────────────────────────────────────────── */
-.condition-editor {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  width: 100%;
-  min-width: 0;
-  overflow: hidden;
-  background: #fff;
-}
-
-.condition-editor__toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  background: #f4f4f4;
-  border-bottom: 1px solid #e0e0e0;
-  flex-shrink: 0;
-}
-
-.condition-editor__toolbar-title {
-  font-weight: bold;
-  font-size: 1.1em;
-  margin-right: 8px;
-  white-space: nowrap;
-}
-
-.condition-editor__collection-select {
-  padding: 5px 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 0.95em;
-  background: #fff;
-  cursor: pointer;
-  min-width: 180px;
-}
-
-.condition-editor__search {
-  padding: 5px 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 0.95em;
-  min-width: 200px;
-}
-
-.condition-editor__btn {
-  padding: 5px 14px;
-  border: 1px solid #999;
-  border-radius: 4px;
-  background: #fff;
-  cursor: pointer;
-  font-size: 0.9em;
-  white-space: nowrap;
-  transition: background 0.15s, color 0.15s;
-}
-
-.condition-editor__btn:hover { background: #e8e8e8; }
-
-.condition-editor__btn--primary {
-  background: #1a73e8;
-  color: #fff;
-  border-color: #1a73e8;
-}
-.condition-editor__btn--primary:hover { background: #1558b0; }
-
-.condition-editor__btn--danger {
-  background: #d32f2f;
-  color: #fff;
-  border-color: #d32f2f;
-}
-.condition-editor__btn--danger:hover { background: #b71c1c; }
-
-.condition-editor__btn--success {
-  background: #2e7d32;
-  color: #fff;
-  border-color: #2e7d32;
-}
-.condition-editor__btn--success:hover { background: #1b5e20; }
-
-.condition-editor__count {
-  font-size: 0.88em;
-  color: #555;
-  margin-left: auto;
-  white-space: nowrap;
-}
-
-/* ─── Bulk panel ─────────────────────────────────────────────────────────── */
-.condition-editor__bulk-panel {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
-  background: #fff3cd;
-  border-bottom: 1px solid #ffc107;
-  flex-shrink: 0;
-}
-
-.condition-editor__bulk-label {
-  font-weight: bold;
-  font-size: 0.9em;
-  color: #6d4c00;
-}
-
-.condition-editor__bulk-inputs {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.condition-editor__bulk-input-group {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.85em;
-}
-
-.condition-editor__bulk-input-group label {
-  font-weight: 600;
-  color: #444;
-  white-space: nowrap;
-}
-
-.condition-editor__bulk-input-group input {
-  width: 52px;
-  padding: 3px 5px;
-  border: 1px solid #ccc;
-  border-radius: 3px;
-  font-size: 0.9em;
-  text-align: center;
-}
-
-/* ─── Table ──────────────────────────────────────────────────────────────── */
-.condition-editor__table-wrapper {
-  flex: 1;
-  overflow: auto;
-  min-width: 0;
-}
-
-.condition-editor__table {
-  width: max-content;
-  min-width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9em;
-}
-
-.condition-editor__table thead tr {
-  background: #f4f4f4;
-  position: sticky;
-  top: 0;
-  z-index: 2;
-}
-
-.condition-editor__table th,
-.condition-editor__table td {
-  border: 1px solid #e0e0e0;
-  padding: 5px 8px;
-  white-space: nowrap;
-  vertical-align: middle;
-}
-
-.condition-editor__table th {
-  font-size: 0.85em;
-  font-weight: 600;
-  color: #333;
-  cursor: default;
-  user-select: none;
-}
-
-.condition-editor__table th.sortable {
-  cursor: pointer;
-}
-.condition-editor__table th.sortable:hover { background: #e8e8e8; }
-
-.condition-editor__table tbody tr:hover { background: #f9f9f9; }
-
-.condition-editor__table tbody tr.selected { background: #e8f0fe !important; }
-
-.condition-editor__table tbody tr.has-overrides td.col-card-name {
-  font-weight: bold;
-}
-
-/* thumbnail */
-.condition-editor__thumb {
-  width: 64px;
-  height: auto;
-  border-radius: 3px;
-  display: block;
-}
-
-/* condition input */
-.condition-editor__cond-input {
-  width: 52px;
-  padding: 3px 4px;
-  border: 1px solid #ccc;
-  border-radius: 3px;
-  font-size: 0.9em;
-  text-align: center;
-}
-
-.condition-editor__cond-input:focus {
-  outline: none;
-  border-color: #1a73e8;
-  box-shadow: 0 0 0 2px rgba(26,115,232,0.2);
-}
-
-.condition-editor__cond-input.modified {
-  background: #e8f5e9;
-  border-color: #43a047;
-}
-
-/* totals */
-.cond-total--original { color: #888; font-size: 0.85em; }
-.cond-total--edited   { color: #2e7d32; font-weight: bold; }
-
-/* empty state */
-.condition-editor__empty {
-  padding: 40px;
-  text-align: center;
-  color: #888;
-  font-size: 1em;
-}
-
-/* import hidden input */
-.condition-editor__import-input { display: none; }
-
 .price-range-container {
   display: flex;
   flex-direction: column;
@@ -1733,61 +1506,9 @@ th[scope="row"] {
   text-align: center;
 }
 
-.app-shell {
-  display: flex;
-  flex-direction: column;
-  height: 100dvh;
-  overflow: hidden;
-}
-
-.app-nav {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  background: #262626;
-  padding: 0 16px;
-  height: 38px;
-  flex-shrink: 0;
-}
-
-.app-tab {
-  padding: 0 18px;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  background: transparent;
-  color: #ccc;
-  font-weight: 400;
-  font-size: 0.9em;
-  border: none;
-  border-bottom: 2px solid transparent;
-  transition: background 0.15s, color 0.15s;
-  white-space: nowrap;
-}
-
-.app-tab.is-active {
-  background: #1a73e8;
-  color: #fff;
-  font-weight: 700;
-  border-bottom-color: #fff;
-}
-
-.app-view {
-  flex: 1 1 0;
-  overflow: hidden;
-  min-height: 0;
-  min-width: 0;
-}
-
-.app-loading,
 .main-status-message {
   padding: 20px;
   text-align: center;
-}
-
-.app-loading {
-  padding: 40px;
 }
 
 .main-status-message--error {
@@ -2138,28 +1859,6 @@ th[scope="row"] {
 .card-group-empty-message {
   color: #999;
   font-size: 14px;
-}
-
-.condition-editor__col-select {
-  width: 32px;
-}
-
-.condition-editor__col-image {
-  width: 76px;
-}
-
-.condition-editor__col-number,
-.condition-editor__col-qty {
-  width: 60px;
-}
-
-.condition-editor__col-center {
-  text-align: center;
-}
-
-.condition-editor__thumb-empty {
-  color: #bbb;
-  font-size: 0.8em;
 }
 
 .is-hidden {
