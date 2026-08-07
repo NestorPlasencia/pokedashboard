@@ -14,7 +14,12 @@ export type PriceBundle<TPrice = PriceEntry> = {
 
 export type RuntimePriceEntry = Pick<
   PriceEntry,
-  "condition" | "marketPrice" | "printing"
+  | "condition"
+  | "marketPrice"
+  | "printing"
+  | "productName"
+  | "number"
+  | "setAbbrv"
 >;
 export type RuntimePriceBundle = PriceBundle<RuntimePriceEntry>;
 
@@ -72,14 +77,10 @@ const mapWithConcurrency = async <T, R>(
 
 export const fetchAllPrices = async (): Promise<PriceBundle> => {
   const catalog = await fetchJson<SetCatalogResponse>(catalogUrl);
-  const setIds = Array.from(
-    new Set(
-      (catalog.results || [])
-        .filter((set) => set.active)
-        .map((set) => set.setNameId)
-    )
-  ).sort((left, right) => left - right);
-
+  const activeSets = (catalog.results || []).filter((set) => set.active);
+  const setIds = Array.from(new Set(activeSets.map((set) => set.setNameId))).sort(
+    (left, right) => left - right
+  );
   const pricesBySet = await mapWithConcurrency(setIds, 4, async (setId) => {
     const response = await fetchJson<{ result?: PriceEntry[] }>(
       `${priceGuideBaseUrl}/${setId}/cards/?rows=10000&productTypeID=1`
@@ -140,11 +141,16 @@ export const fetchPricesForSeries = async (
   for (const productId of productIds) {
     const prices = allPrices.products[productId];
     if (prices) {
-      products[productId] = prices.map(({ condition, marketPrice, printing }) => ({
-        condition,
-        marketPrice,
-        printing,
-      }));
+      products[productId] = prices.map(
+        ({ condition, marketPrice, printing, productName, number, setAbbrv }) => ({
+          condition,
+          marketPrice,
+          printing,
+          productName,
+          number,
+          setAbbrv,
+        })
+      );
     }
   }
 

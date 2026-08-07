@@ -92,7 +92,9 @@ The browser requests the relevant TCGPlayer catalog from
 `/api/prices?seriesId=<id>` and
 persists it in the Cache API for at most 24 hours. Prices are indexed directly by
 `productID`, so loading a series does not require mapping Poke DB sets to
-TCGPlayer sets.
+TCGPlayer sets. Each product entry also retains TCGPlayer's exact `productName`,
+collector `number`, and price-guide `setAbbrv`. Mass Entry uses TCGPlayer's
+canonical format `1 Hisuian Zoroark VSTAR [SWSH11] 147/196` for every series.
 
 In production, `/api/prices` is a Vercel Function. It makes the cross-origin
 TCGPlayer requests server-side, keeps only products used by the requested series,

@@ -15,6 +15,7 @@ import { useUrlFilters } from "../hooks/useUrlFilters";
 import { useCardFilters } from "../hooks/useCardFilters";
 import { Summary } from "./ui/Summary";
 import { PrintButton } from "./ui/PrintButton";
+import { MassEntryButton } from "./ui/MassEntryButton";
 
 // Lazy load heavy view components
 const CardList = lazy(() => import("./views/CardList").then(module => ({ default: module.CardList })));
@@ -51,6 +52,7 @@ export const Main: React.FC = () => {
         <Collections />
         <PokemonGroupingFilter />
         <ViewOptionsComponent />
+        <MassEntryButton />
         <PrintButton />
       </Sidebar>
       <div className="card-view">

@@ -3,6 +3,10 @@ import { useCardContext } from "../../context/CardContext";
 import { CollapsibleFieldset } from "../ui/CollapsibleFieldset";
 import { updateUrlParams, parseUrlParams } from "../../utils/urlParams";
 
+// The inputs use a normalized logarithmic scale. Prices stored in context and
+// in the URL remain regular dollar amounts.
+const PRICE_SLIDER_STEPS = 1000;
+
 export const PriceRangeFilter = () => {
   const { filteredCards, priceRange, setPriceRange, conditionsFilter } = useCardContext();
   
@@ -58,10 +62,29 @@ export const PriceRangeFilter = () => {
   // Check if we have valid price data
   const hasValidPrices = globalMin !== Infinity && globalMax > 0 && globalMin <= globalMax;
 
+  const priceToSliderValue = useCallback((price: number) => {
+    const priceSpan = globalMax - globalMin;
+    if (priceSpan <= 0) return 0;
+
+    const clampedPrice = Math.min(globalMax, Math.max(globalMin, price));
+    const ratio = Math.log1p(clampedPrice - globalMin) / Math.log1p(priceSpan);
+    return Math.round(ratio * PRICE_SLIDER_STEPS);
+  }, [globalMin, globalMax]);
+
+  const sliderValueToPrice = useCallback((sliderValue: number) => {
+    const priceSpan = globalMax - globalMin;
+    if (priceSpan <= 0) return globalMin;
+
+    const ratio = sliderValue / PRICE_SLIDER_STEPS;
+    const price = globalMin + Math.expm1(ratio * Math.log1p(priceSpan));
+    return Math.round(price * 100) / 100;
+  }, [globalMin, globalMax]);
+
   const handleMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newMin = Number(e.target.value);
+    const sliderValue = Number(e.target.value);
+    const newMin = sliderValueToPrice(sliderValue);
     // Allow setting to globalMin (resetting)
-    if (newMin === globalMin) {
+    if (sliderValue === 0) {
       setPriceRange(prev => ({ ...prev, min: null }));
     } else if (newMin <= (priceRange.max !== null ? priceRange.max : globalMax)) {
       setPriceRange(prev => ({ ...prev, min: newMin }));
@@ -69,9 +92,10 @@ export const PriceRangeFilter = () => {
   };
 
   const handleMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newMax = Number(e.target.value);
+    const sliderValue = Number(e.target.value);
+    const newMax = sliderValueToPrice(sliderValue);
     // Allow setting to globalMax (resetting)
-    if (newMax === globalMax) {
+    if (sliderValue === PRICE_SLIDER_STEPS) {
       setPriceRange(prev => ({ ...prev, max: null }));
     } else if (newMax >= (priceRange.min !== null ? priceRange.min : globalMin)) {
       setPriceRange(prev => ({ ...prev, max: newMax }));
@@ -118,6 +142,8 @@ export const PriceRangeFilter = () => {
   const maxValue = priceRange.max !== null ? priceRange.max : globalMax;
   const hasActiveMin = priceRange.min !== null;
   const hasActiveMax = priceRange.max !== null;
+  const minSliderValue = priceToSliderValue(minValue);
+  const maxSliderValue = priceToSliderValue(maxValue);
 
   const collapsedSummary = (hasActiveMin || hasActiveMax)
     ? (
@@ -179,25 +205,37 @@ export const PriceRangeFilter = () => {
         </div>
 
         <div className="price-range-sliders">
+          <span
+            className="price-range-selection"
+            style={{
+              left: `${(minSliderValue / PRICE_SLIDER_STEPS) * 100}%`,
+              right: `${100 - (maxSliderValue / PRICE_SLIDER_STEPS) * 100}%`,
+            }}
+          />
           <input
             type="range"
-            min={globalMin}
-            max={globalMax}
-            step="0.01"
-            value={minValue}
+            min={0}
+            max={PRICE_SLIDER_STEPS}
+            step={1}
+            value={minSliderValue}
             onChange={handleMinChange}
             className="price-range-slider price-range-slider-min"
+            aria-label="Minimum price"
+            aria-valuetext={`$${minValue.toFixed(2)}`}
           />
           <input
             type="range"
-            min={globalMin}
-            max={globalMax}
-            step="0.01"
-            value={maxValue}
+            min={0}
+            max={PRICE_SLIDER_STEPS}
+            step={1}
+            value={maxSliderValue}
             onChange={handleMaxChange}
             className="price-range-slider price-range-slider-max"
+            aria-label="Maximum price"
+            aria-valuetext={`$${maxValue.toFixed(2)}`}
           />
         </div>
+        <span className="price-range-scale-label">Logarithmic scale</span>
       </div>
       )}
     </CollapsibleFieldset>

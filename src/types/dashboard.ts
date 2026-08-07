@@ -12,6 +12,10 @@ export type PickCardPropertiesFromTcgData = Pick<CardTcgData, 'id' | 'name' | 't
 
 export type AddAndCardUpdatePropertiesCard = {
   productId?: number;
+  /** Exact TCGPlayer metadata used by Mass Entry. */
+  tcgPlayerName?: string;
+  tcgPlayerNumber?: string;
+  tcgPlayerSetAbbreviation?: string;
   catalogGroupId?: number;
   rarities?: string[];
   setNames?: string[];
@@ -27,6 +31,7 @@ export type PickAndCardUpdatePropertiesCard = PickCardPropertiesFromTcgData & Ad
 export interface Card extends PickAndCardUpdatePropertiesCard {
   
   setSeries: string;
+  setSeriesOrder?: number;
   setSeriesNames?: string[];
 
   setId: string;

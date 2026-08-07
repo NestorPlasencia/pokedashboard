@@ -18,13 +18,18 @@ type ConditionsMap = Map<
 >;
 type CollectionIndexEntry = { collectionName: string; card: CollectorCard };
 type PriceCacheMetadata = {
-  version: 3;
+  version: 5;
   seriesId: number;
   expiresAt: number;
 };
 type RuntimePriceEntry = Pick<
   PriceEntry,
-  "condition" | "marketPrice" | "printing"
+  | "condition"
+  | "marketPrice"
+  | "printing"
+  | "productName"
+  | "number"
+  | "setAbbrv"
 >;
 type PriceBundle = {
   generatedAt: string;
@@ -53,7 +58,7 @@ export type RuntimeCardsResult = {
 const pokeDbApiBaseUrl =
   import.meta.env.VITE_POKE_DB_API_BASE_URL ||
   "/api/poke-db";
-const priceCacheName = "pokedashboard-tcg-prices-v3";
+const priceCacheName = "pokedashboard-tcg-prices-v5";
 const priceTtlMs = 24 * 60 * 60 * 1000;
 const seriesTtlMs = 15 * 60 * 1000;
 
@@ -124,6 +129,8 @@ const openPriceCache = async (): Promise<Cache | null> => {
   if (!("caches" in window)) return null;
   await window.caches.delete("pokereg-tcg-prices-v1");
   await window.caches.delete("pokereg-tcg-prices-v2");
+  await window.caches.delete("pokedashboard-tcg-prices-v3");
+  await window.caches.delete("pokedashboard-tcg-prices-v4");
   return window.caches.open(priceCacheName);
 };
 
@@ -159,7 +166,7 @@ const fetchAndCachePrices = async (cache: Cache | null, seriesId: number) => {
     10 * 60 * 1000
   );
   const metadata: PriceCacheMetadata = {
-    version: 3,
+    version: 5,
     seriesId,
     expiresAt: getPriceExpiration(bundle),
   };
@@ -202,7 +209,7 @@ const loadPricesForSeries = async (
       : null;
     if (
       cache &&
-      metadata?.version === 3 &&
+      metadata?.version === 5 &&
       metadata.seriesId === seriesId &&
       metadata.expiresAt > Date.now()
     ) {
@@ -264,6 +271,7 @@ const createDashboardCard = (
     setId: String(primarySet.id),
     setName: primarySet.name,
     setSeries: primarySet.serie.name,
+    setSeriesOrder: primarySet.serie.order,
     setSeriesNames: Array.from(new Set(sourceSets.map((set) => set.serie.name))),
     cardType: sourceCard.supertype?.name || "",
     prices: {
@@ -282,7 +290,15 @@ const createDashboardCard = (
     setNames: Array.from(new Set(sourceSets.map((set) => set.name))),
     collections: [],
   };
-  for (const price of priceMap.get(sourceCard.tcgPlayerProductId) || []) {
+  const productPrices = priceMap.get(sourceCard.tcgPlayerProductId) || [];
+  const productMetadata =
+    productPrices.find((price) => price.printing === printing) || productPrices[0];
+  if (productMetadata) {
+    card.tcgPlayerName = productMetadata.productName;
+    card.tcgPlayerNumber = productMetadata.number;
+    card.tcgPlayerSetAbbreviation = productMetadata.setAbbrv;
+  }
+  for (const price of productPrices) {
     if (price.printing !== printing) continue;
     const condition = extractCondition(price.condition);
     if (condition) card.prices[condition] = price.marketPrice;

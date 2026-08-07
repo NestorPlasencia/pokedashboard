@@ -1461,6 +1461,22 @@ th[scope="row"] {
   border-radius: 999px;
 }
 
+.price-range-selection {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: #5b89d8;
+  pointer-events: none;
+}
+
+.price-range-scale-label {
+  align-self: flex-end;
+  margin-top: -2px;
+  color: #7f8da6;
+  font-size: 0.68rem;
+}
+
 .price-range-slider {
   position: absolute;
   width: 100%;
@@ -2283,6 +2299,7 @@ th[scope="row"],
 }
 
 .card-list-table-export-btn,
+.mass-entry-btn,
 .print-btn {
   border: none;
   background: var(--accent);
@@ -2291,7 +2308,29 @@ th[scope="row"],
 }
 
 .card-list-table-export-btn:hover,
+.mass-entry-btn:hover:not(:disabled),
 .print-btn:hover {
+  background: var(--accent-hover);
+}
+
+.mass-entry-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.section-sidebar .mass-entry-btn {
+  width: 100%;
+  padding: 12px 20px;
+  margin-top: 12px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.section-sidebar .mass-entry-btn:hover:not(:disabled) {
   background: var(--accent-hover);
 }
 
