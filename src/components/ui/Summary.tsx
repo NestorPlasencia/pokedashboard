@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, type CSSProperties } from "react";
 import { useCardContext } from "../../context/CardContext";
 import type { Card, ConditionKey } from "../../types/dashboard";
 import { calculatePriceSummary } from "../../utils/utils";
@@ -303,8 +303,8 @@ export const Summary = () => {
     const normalized = Math.max(0, Math.min(100, percent));
     const hue = Math.round((normalized / 100) * 130);
     return {
-      backgroundColor: `hsl(${hue}, 72%, 82%)`
-    };
+      "--set-progress-hue": hue
+    } as CSSProperties;
   };
 
   return (

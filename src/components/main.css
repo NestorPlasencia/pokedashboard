@@ -1276,8 +1276,15 @@ th[scope="row"] {
 .set-progress-cell {
   position: relative;
   min-width: 42px;
+  background: hsl(var(--set-progress-hue) 72% 82%);
+  color: #172033;
   text-align: center;
   font-weight: 700;
+}
+
+:root[data-theme="dark"] .set-progress-cell {
+  background: hsl(var(--set-progress-hue) 48% 27%);
+  color: #f8fafc;
 }
 
 .set-progress-tooltip {
