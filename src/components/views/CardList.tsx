@@ -7,7 +7,15 @@ import { CardGroup } from "./CardGroup";
 import { groupCardsByForm, sliceFormGroups, shouldIncludePokemonForm } from "../../utils/filters";
 
 const CardListComponent: React.FC = () => {
-  const { visibleCards, pokemonGrouping, collectionFilter, pokemonFormsData, seriesSelection } = useCardContext();
+  const {
+    visibleCards,
+    pokemonGrouping,
+    collectionFilter,
+    pokemonFormsData,
+    seriesSelection,
+    setSeriesSelection,
+    sets
+  } = useCardContext();
   const { } = useOptionsContext();
 
   const [displayedCards, setDisplayedCards] = useState<Card[]>([]);
@@ -15,6 +23,11 @@ const CardListComponent: React.FC = () => {
   const [itemsToShow, setItemsToShow] = useState<number>(20);
 
   const isFormsGrouping = pokemonGrouping.enabled;
+
+  const availableSeries = useMemo(
+    () => Array.from(new Set(sets.map((set) => set.series).filter(Boolean))),
+    [sets]
+  );
 
   // Memoize filtered actual cards (without placeholders)
   const actualCards = useMemo(() => {
@@ -141,7 +154,27 @@ const CardListComponent: React.FC = () => {
     <div className="card-list">
       {isEmpty && (
         <div className="card-list-empty">
-          {isAwaitingSeries ? 'Select a series to start exploring cards.' : 'No cards match your current filters.'}
+          {isAwaitingSeries ? (
+            <>
+              <p className="series-starter__title">Select a series to start exploring cards.</p>
+              <div className="series-starter">
+                <div className="series-starter__options" aria-label="Select a Pokémon card series">
+                  {availableSeries.map((series) => (
+                    <button
+                      key={series}
+                      type="button"
+                      onClick={() => setSeriesSelection({ included: [series], excluded: [] })}
+                    >
+                      {series}
+                    </button>
+                  ))}
+                </div>
+                <p className="series-starter__hint">
+                  Want to select more than one series? Open the Filters panel to build a multi-series selection.
+                </p>
+              </div>
+            </>
+          ) : 'No cards match your current filters.'}
         </div>
       )}
       {isFormsGrouping &&

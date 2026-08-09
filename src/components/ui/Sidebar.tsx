@@ -1,4 +1,4 @@
-import React, { ReactNode, useState } from 'react';
+import React, { ReactNode, useEffect, useState } from 'react';
 
 interface SidebarProps {
     children: ReactNode;
@@ -6,9 +6,24 @@ interface SidebarProps {
 }
 
 const SidebarComponent: React.FC<SidebarProps> = ({ children, position = 'left' }) => {
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
+        () => position === 'right' || (
+            typeof window !== 'undefined' && window.matchMedia('(max-width: 760px)').matches
+        )
+    );
+
+    useEffect(() => {
+        const mobileQuery = window.matchMedia('(max-width: 760px)');
+        const updateForViewport = (event: MediaQueryListEvent) => {
+            setIsSidebarCollapsed(event.matches || position === 'right');
+        };
+
+        mobileQuery.addEventListener('change', updateForViewport);
+        return () => mobileQuery.removeEventListener('change', updateForViewport);
+    }, [position]);
+
     const toggleSidebar = () => {
-        setIsSidebarCollapsed(!isSidebarCollapsed);
+        setIsSidebarCollapsed((collapsed) => !collapsed);
     };
 
     const isLeft = position === 'left';

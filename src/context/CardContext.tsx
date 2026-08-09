@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useMemo, ReactNode } from "react";
 import { Card, PokemonWithoutCard, PokemonFormWithoutCard, PokemonFormData, PokemonGroupingOptions, CollectionFilterOptions, ViewOptions, SortConfig, Set } from "../types/dashboard";
+import { initializeFiltersFromUrl } from "../utils/urlParams";
 
 export type SeriesSelection = {
   included: string[];
@@ -90,9 +91,12 @@ export const CardProvider: React.FC<{ children: ReactNode }> = ({
   const [groupedCards, setGroupedCards] = useState<(Card | PokemonWithoutCard | PokemonFormWithoutCard)[]>([]);
   const [visibleCards, setVisibleCards] = useState<(Card | PokemonWithoutCard | PokemonFormWithoutCard)[]>([]);
   const [sets, setSets] = useState<Set[]>([]);
-  const [seriesSelection, setSeriesSelection] = useState<SeriesSelection>({
-    included: [],
-    excluded: [],
+  const [seriesSelection, setSeriesSelection] = useState<SeriesSelection>(() => {
+    const initialSeries = initializeFiltersFromUrl().series || [];
+    return {
+      included: initialSeries.filter((series) => series !== 'All'),
+      excluded: [],
+    };
   });
 
   // ========== Filter States ==========

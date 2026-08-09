@@ -61,6 +61,7 @@ export const Filters = () => {
     setCollectionFilter,
     setSortConfig,
     setViewOptions,
+    seriesSelection,
     setSeriesSelection
   } = useCardContext();
 
@@ -173,6 +174,30 @@ export const Filters = () => {
       return { included, excluded };
     });
   }, [excludedSeriesValues, selectedSeriesValues, setSeriesSelection]);
+
+  useEffect(() => {
+    setFilters((currentFilters) => {
+      const seriesFilter = currentFilters.find((filter) => filter.property === 'setSeries');
+      if (
+        seriesFilter &&
+        arraysEqual(seriesFilter.includedValues, seriesSelection.included) &&
+        arraysEqual(seriesFilter.excludedValues, seriesSelection.excluded)
+      ) {
+        return currentFilters;
+      }
+
+      return currentFilters.map((filter) =>
+        filter.property === 'setSeries'
+          ? {
+              ...filter,
+              includedValues: seriesSelection.included,
+              excludedValues: seriesSelection.excluded
+            }
+          : filter
+      );
+    });
+  }, [seriesSelection]);
+
   useEffect(() => {
     if (hierarchyRef.current.length === 0) return;
 
