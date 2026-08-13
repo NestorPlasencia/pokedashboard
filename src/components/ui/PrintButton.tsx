@@ -293,47 +293,75 @@ export const PrintButton: React.FC = () => {
 
             .counters {
               position: absolute;
-              top: 8px;
-              right: 8px;
+              top: 6px;
+              right: 6px;
               display: flex;
+              align-items: center;
               gap: 4px;
+              padding: 3px 4px 3px 7px;
+              border-radius: 999px;
+              background: rgba(13, 20, 36, 0.82);
               z-index: 3;
+            }
+
+            .counters__label {
+              color: white;
+              font-size: 7px;
+              font-weight: 800;
+              text-transform: uppercase;
             }
 
             .counter {
               display: flex;
               justify-content: center;
               align-items: center;
-              width: 26px;
-              height: 26px;
+              min-width: 20px;
+              height: 20px;
+              padding: 0 4px;
               border-radius: 50%;
-              background-color: #4a5f8f;
+              background-color: #5b68a9;
               color: white;
               font-weight: 700;
-              font-size: 0.9em;
-              box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+              font-size: 11px;
             }
 
             .counter--high {
-              background-color: red;
+              background-color: #19875f;
             }
 
             .missing-box {
               position: absolute;
-              bottom: 10px;
+              bottom: 8px;
               right: 8px;
-              width: 28px;
-              height: 28px;
-              background-color: #8b3a3a;
-              color: white;
-              font-weight: bold;
-              font-size: 0.9em;
-              display: flex;
-              justify-content: center;
+              display: inline-flex;
               align-items: center;
-              border-radius: 50%;
+              gap: 4px;
+              min-height: 26px;
+              padding: 3px 5px 3px 7px;
+              border-radius: 999px;
+              background: #a92d39;
+              color: white;
               box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
               z-index: 3;
+            }
+
+            .missing-box__label {
+              font-size: 8px;
+              font-weight: 800;
+              text-transform: uppercase;
+            }
+
+            .missing-box__value {
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              min-width: 18px;
+              height: 18px;
+              padding: 0 4px;
+              border-radius: 999px;
+              background: white;
+              color: #8f1f2c;
+              font-size: 11px;
             }
 
             @media print {
@@ -416,8 +444,8 @@ export const PrintButton: React.FC = () => {
                     <div class="card-tag">${card.setName}</div>
                   </div>
                   ${nearMintPrice !== null ? `<div class="prices">${formatCurrency(nearMintPrice)}</div>` : ''}
-                  ${countersHtml ? `<div class="counters">${countersHtml}</div>` : ''}
-                  ${(missing > 0 && collectionFilter.enabled) ? `<div class="missing-box">${missing}</div>` : ''}
+                  ${countersHtml ? `<div class="counters"><span class="counters__label">Owned</span>${countersHtml}</div>` : ''}
+                  ${(missing > 0 && collectionFilter.enabled) ? `<div class="missing-box"><span class="missing-box__label">Missing</span><strong class="missing-box__value">${missing}</strong></div>` : ''}
                 </div>
               `;
       }).join('')}

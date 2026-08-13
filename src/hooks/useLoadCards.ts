@@ -47,6 +47,7 @@ export function useLoadCards(
       setError(null);
       setIsCardsLoading(true);
       try {
+        console.info("[cards] Loading selected series", { seriesSelection });
         const hierarchy = await loadHierarchy();
         const selectedNames = seriesSelection.included.length > 0
           ? seriesSelection.included
@@ -64,6 +65,10 @@ export function useLoadCards(
         const seriesIds = hierarchy
           .filter((series) => selectedNames.includes(series.name))
           .map((series) => series.id);
+        console.info("[cards] Resolved series selection", {
+          selectedNames,
+          seriesIds,
+        });
         const responses = await Promise.all(seriesIds.map(generateCardsForSeries));
         const uniqueCards = new Map<string, Card>();
         responses
@@ -75,7 +80,11 @@ export function useLoadCards(
           searchErrorsInCollections(cards);
           setAllCards(cards);
         }
-      } catch {
+      } catch (error) {
+        console.error("[cards] Unable to generate selected series", {
+          seriesSelection,
+          error,
+        });
         if (!cancelled) {
           setError("Unable to generate cards for the selected series.");
           setAllCards([]);

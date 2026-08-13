@@ -22,6 +22,18 @@ const CardViewComponent: React.FC<{
       .reduce((sum, c) => sum + getCollectionTotalQuantity(c), 0);
   }, [card.collections, collectionFilter.selectedCollections]);
 
+  const ownedCounters = useMemo(() => {
+    return collectionFilter.selectedCollections
+      .map((collection) => {
+        const match = card.collections?.find((item) => item.name === collection);
+        return {
+          collection,
+          quantity: match ? getCollectionTotalQuantity(match) : 0
+        };
+      })
+      .filter((item) => item.quantity > 0);
+  }, [card.collections, collectionFilter.selectedCollections]);
+
   // Memoize missing to limit
   const missingToLimit = useMemo(() => {
     return Math.max(0, collectionFilter.limit - ownedSum);
@@ -57,6 +69,13 @@ const CardViewComponent: React.FC<{
         data-executed="false"
       />
       <div className="card-tags">
+        <div
+          className="variant-label card-variant-label card-name-label card-name-tag"
+          title={card.name}
+          aria-label={`Card name ${card.name}`}
+        >
+          {card.name}
+        </div>
         <div className="variant-label card-variant-label">
           {variantName}
         </div>
@@ -120,23 +139,26 @@ const CardViewComponent: React.FC<{
           </div>
         </div>
       )}
-      {collectionFilter.selectedCollections.length > 0 && <div className="counters">
-        {collectionFilter.selectedCollections.map((collection, i) => {
-          const col = card.collections?.find(c => c.name === collection);
-          const quantity = col ? getCollectionTotalQuantity(col) : 0;
-          if (quantity > 0) {
-            return <span className={`counter ${quantity >= 3 ? 'counter--high' : ''}`} key={i}>{quantity}</span>
-          }
-          return null;
-        })}
+      {ownedCounters.length > 0 && <div className="counters" aria-label="Owned quantities by selected collection">
+        {ownedCounters.map(({ collection, quantity }) => (
+          <span
+            className={`counter ${quantity >= 3 ? 'counter--high' : ''}`}
+            key={collection}
+            title={`${collection}: ${quantity} owned`}
+            aria-label={`${collection}: ${quantity} owned`}
+          >
+            {quantity}
+          </span>
+        ))}
       </div>}
       {missingToLimit > 0 && collectionFilter.enabled && (
         <div
           className="missing-box"
-          title={`${missingToLimit} more needed to reach the limit`}
-          aria-label={`${missingToLimit} more needed to reach the limit`}
+          title={`${missingToLimit} ${missingToLimit === 1 ? 'copy' : 'copies'} missing to reach the target`}
+          aria-label={`${missingToLimit} ${missingToLimit === 1 ? 'copy' : 'copies'} missing to reach the target`}
         >
-          {missingToLimit}
+          <span className="missing-box__label">Missing</span>
+          <strong className="missing-box__value">{missingToLimit}</strong>
         </div>
       )}
       </div>

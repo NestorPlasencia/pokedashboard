@@ -36,29 +36,36 @@ export const DEFAULT_POKEDEX_REGIONS_ORDER = [
 
 export const COLLECTIONS: string[] = [
   "Hits",
+
   "Sets_Standard",
-  "Sets_Reverse",
   "SV_Standard_Repeat",
+  
+  "Sets_Reverse",
   "SV_Reverse_Repeat",
   "SAS_Pokedex_Reverse",
+  
+  
   "SV_Holo_Fosa",
   "SV_Holo_Fosa_DC",
+  
   "SV_Reverse_Fosa",
   "SV_Reverse_Fosa_DC",
-  "SAS_Holo_Fosa",
+  
   "SAS_Holo_Fosa_DC",
-  "SAS_Reverse_Fosa",
   "SAS_Reverse_Fosa_DC",
-  "Pokedex_Aqua_Binder",
-  "Pokedex_Aqua_Paldea",
-  "Pokedex_Aqua_Complement",
-  "Pokedex_Aqua_Reserva",
-  "BuyList_Dex_smss",
+  
+  "Pokedex_SMSWSH_Binder",
+  "Pokedex_SMSWSH_Paldea",
+  "Pokedex_SMSWSH_Complement",
+  "Pokedex_SMSWSH_Reserva",
+
   "Pokedex_BW_XY",
   "Pokedex_Ex_DP",
   "Pokedex_E-card",
   "Pokedex_Neo",
   "Pokedex_WoC",
+
+  "Orders",
 ];
 
 

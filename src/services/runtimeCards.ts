@@ -60,6 +60,7 @@ const pokeDbApiBaseUrl =
   "/api/poke-db";
 const priceCacheName = "pokedashboard-tcg-prices-v5";
 const priceTtlMs = 24 * 60 * 60 * 1000;
+const unavailablePriceTtlMs = 5 * 60 * 1000;
 const seriesTtlMs = 15 * 60 * 1000;
 
 const pricesBySeries = new Map<number, AllPricesSnapshot>();
@@ -82,6 +83,11 @@ const fetchJson = async <T>(
   let lastError: unknown;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
+      console.debug("[cards] Fetching JSON", {
+        url,
+        attempt: attempt + 1,
+        timeoutMilliseconds,
+      });
       const response = await fetch(url, {
         headers: {
           accept: "application/json, text/plain, */*",
@@ -90,12 +96,29 @@ const fetchJson = async <T>(
         cache: "no-store",
         signal: AbortSignal.timeout(timeoutMilliseconds),
       });
-      if (response.ok) return (await response.json()) as T;
+      if (response.ok) {
+        console.debug("[cards] JSON request succeeded", {
+          url,
+          status: response.status,
+          attempt: attempt + 1,
+        });
+        return (await response.json()) as T;
+      }
+      console.warn("[cards] JSON request returned an error", {
+        url,
+        status: response.status,
+        attempt: attempt + 1,
+      });
       if (response.status !== 429 && response.status < 500) {
         throw new Error(`${url} returned ${response.status}`);
       }
       lastError = new Error(`${url} returned ${response.status}`);
     } catch (error) {
+      console.warn("[cards] JSON request attempt failed", {
+        url,
+        attempt: attempt + 1,
+        error,
+      });
       lastError = error;
     }
     if (attempt < 2) await wait(500 * 2 ** attempt);
@@ -197,10 +220,14 @@ const loadPricesForSeries = async (
 ): Promise<AllPricesSnapshot> => {
   const current = pricesBySeries.get(seriesId);
   if (current && current.expiresAt > Date.now()) {
+    console.debug("[cards] Using in-memory prices", { seriesId });
     return current;
   }
   const pending = pendingPricesBySeries.get(seriesId);
-  if (pending) return pending;
+  if (pending) {
+    console.debug("[cards] Reusing pending price request", { seriesId });
+    return pending;
+  }
 
   const request = (async () => {
     const cache = await openPriceCache();
@@ -214,9 +241,13 @@ const loadPricesForSeries = async (
       metadata.expiresAt > Date.now()
     ) {
       const bundle = await readCachedJson<PriceBundle>(cache, `bundle-${seriesId}`);
-      if (bundle) return buildPriceSnapshot(metadata, bundle);
+      if (bundle) {
+        console.debug("[cards] Using browser-cached prices", { seriesId });
+        return buildPriceSnapshot(metadata, bundle);
+      }
     }
 
+    console.info("[cards] Refreshing prices", { seriesId });
     const refreshed = await fetchAndCachePrices(cache, seriesId);
     return buildPriceSnapshot(refreshed.metadata, refreshed.bundle);
   })()
@@ -229,6 +260,29 @@ const loadPricesForSeries = async (
     });
   pendingPricesBySeries.set(seriesId, request);
   return request;
+};
+
+const loadPricesOrEmpty = async (
+  seriesId: number
+): Promise<AllPricesSnapshot> => {
+  try {
+    return await loadPricesForSeries(seriesId);
+  } catch (error) {
+    // Pricing enriches cards but should never prevent the card catalog from
+    // loading. Cache the empty snapshot briefly so a failed upstream service
+    // is not hammered while still allowing an automatic retry soon.
+    console.error("[cards] Prices unavailable; continuing without prices", {
+      seriesId,
+      error,
+    });
+    const snapshot: AllPricesSnapshot = {
+      expiresAt: Date.now() + unavailablePriceTtlMs,
+      priceMap: new Map(),
+      setCount: 0,
+    };
+    pricesBySeries.set(seriesId, snapshot);
+    return snapshot;
+  }
 };
 
 const extractCondition = (condition: string): ConditionKey | null => {
@@ -309,13 +363,42 @@ const createDashboardCard = (
 const publicDataUrl = (path: string) =>
   new URL(`data/${path}`, document.baseURI).toString();
 
+const loadOptionalPublicJson = async <T>(
+  path: string,
+  fallback: T
+): Promise<T> => {
+  const url = publicDataUrl(path);
+  try {
+    const response = await fetch(url);
+    const contentType = response.headers.get("content-type") || "";
+    if (!response.ok || !contentType.toLowerCase().includes("application/json")) {
+      console.warn("[cards] Optional JSON data is unavailable; skipping it", {
+        path,
+        url,
+        status: response.status,
+        contentType,
+      });
+      return fallback;
+    }
+    return (await response.json()) as T;
+  } catch (error) {
+    console.warn("[cards] Optional JSON data could not be parsed; skipping it", {
+      path,
+      url,
+      error,
+    });
+    return fallback;
+  }
+};
+
 const loadConditions = async (): Promise<ConditionsMap> => {
   if (conditionsPromise) return conditionsPromise;
   conditionsPromise = (async () => {
     const map: ConditionsMap = new Map();
-    const response = await fetch(publicDataUrl("collector/conditions.json"));
-    if (!response.ok) return map;
-    const entries = (await response.json()) as ConditionsEntry[];
+    const entries = await loadOptionalPublicJson<ConditionsEntry[]>(
+      "collector/conditions.json",
+      []
+    );
     for (const entry of entries) {
       if (!map.has(entry.id)) map.set(entry.id, new Map());
       map.get(entry.id)!.set(entry.collection, entry.conditions);
@@ -332,9 +415,10 @@ const loadCollectionIndex = async (): Promise<
   collectionIndexPromise = (async () => {
     const index = new Map<number, CollectionIndexEntry[]>();
     await mapWithConcurrency(COLLECTIONS, 8, async (collectionName) => {
-      const response = await fetch(publicDataUrl(`collector/${collectionName}.json`));
-      if (!response.ok) return;
-      const cards = (await response.json()) as CollectorCard[];
+      const cards = await loadOptionalPublicJson<CollectorCard[]>(
+        `collector/${collectionName}.json`,
+        []
+      );
       for (const card of cards) {
         const productId = Number(card.product_id);
         if (!Number.isInteger(productId)) continue;
@@ -383,15 +467,23 @@ const addCollections = async (cards: Card[]): Promise<void> => {
 };
 
 const generateUncached = async (seriesId: number): Promise<RuntimeCardsResult> => {
+  console.info("[cards] Generating cards", { seriesId });
   const [source, prices] = await Promise.all([
     fetchJson<SourceCardsFile>(`${pokeDbApiBaseUrl}/cards?seriesId=${seriesId}`),
-    loadPricesForSeries(seriesId),
+    loadPricesOrEmpty(seriesId),
   ]);
   const sourceCards = source.items || [];
   const cards = sourceCards
     .map((sourceCard) => createDashboardCard(sourceCard, prices.priceMap))
     .filter((card): card is Card => card !== null);
   await addCollections(cards);
+  console.info("[cards] Card generation completed", {
+    seriesId,
+    sourceCards: sourceCards.length,
+    generatedCards: cards.length,
+    priceSets: prices.setCount,
+    priceProducts: prices.priceMap.size,
+  });
   return {
     items: cards,
     meta: {

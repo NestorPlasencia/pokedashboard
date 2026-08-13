@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties } from "react";
+import { useMemo, type ClipboardEvent, type CSSProperties } from "react";
 import { useCardContext } from "../../context/CardContext";
 import type { Card, ConditionKey } from "../../types/dashboard";
 import { calculatePriceSummary } from "../../utils/utils";
@@ -26,6 +26,7 @@ interface SetProgressThreshold {
 
 interface SetProgressRow {
   setName: string;
+  setLogo?: string;
   totalCards: number;
   thresholds: SetProgressThreshold[];
 }
@@ -46,7 +47,8 @@ export const Summary = () => {
     collectionFilteredCards, 
     pokemonGrouping, 
     collectionFilter,
-    pokemonFormsData
+    pokemonFormsData,
+    sets
   } = useCardContext();
   
   // Memoize price summary calculation
@@ -76,6 +78,9 @@ export const Summary = () => {
     const selectedConditions = collectionFilter.conditionsFilter.includes("All")
       ? CONDITION_KEYS
       : CONDITION_KEYS.filter((condition) => collectionFilter.conditionsFilter.includes(condition));
+    const setLogoByName = new Map(
+      sets.map((set) => [set.name, set.images?.symbol || set.symbolImage || ""])
+    );
 
     const getOwnedQuantity = (card: Card) => {
       if (selectedCollections.length === 0) return 0;
@@ -104,6 +109,7 @@ export const Summary = () => {
       const ownedQuantities = cards.map(getOwnedQuantity);
       return {
         setName,
+        setLogo: setLogoByName.get(setName),
         totalCards: cards.length,
         thresholds: thresholds.map((threshold) => {
           const required = cards.length;
@@ -144,7 +150,8 @@ export const Summary = () => {
     filteredCards,
     collectionFilter.limit,
     collectionFilter.selectedCollections,
-    collectionFilter.conditionsFilter
+    collectionFilter.conditionsFilter,
+    sets
   ]);
 
   // Memoize Pokemon + Pokemon Forms statistics per region
@@ -307,6 +314,27 @@ export const Summary = () => {
     } as CSSProperties;
   };
 
+  const handleSetProgressCopy = (event: ClipboardEvent<HTMLTableElement>) => {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    const rows = Array.from(event.currentTarget.rows)
+      .map((row) => Array.from(row.cells).filter((cell) => range.intersectsNode(cell)))
+      .filter((cells) => cells.length > 0);
+
+    if (rows.length === 0) return;
+
+    const tabSeparatedValues = rows
+      .map((cells) => cells
+        .map((cell) => cell.dataset.copyValue ?? cell.textContent?.trim() ?? "")
+        .join("\t"))
+      .join("\r\n");
+
+    event.preventDefault();
+    event.clipboardData.setData("text/plain", tabSeparatedValues);
+  };
+
   return (
     <div className="summary-content">
       {/* Global Information */}
@@ -390,26 +418,40 @@ export const Summary = () => {
         <div className="set-progress-report">
           <h4>Progress by set</h4>
           <div className="set-progress-table-wrap">
-            <table className="summary-table set-progress-table">
+            <table className="summary-table set-progress-table" onCopy={handleSetProgressCopy}>
               <thead>
                 <tr>
-                  <th>Set</th>
-                  <th>Total</th>
+                  <th data-copy-value="Set">Set</th>
+                  <th data-copy-value="Total">Total</th>
                   {setProgress.thresholds.map((threshold) => (
-                    <th key={threshold}>{threshold}</th>
+                    <th key={threshold} data-copy-value={String(threshold)}>{threshold}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {setProgress.rows.map((row) => (
                   <tr key={row.setName}>
-                    <td className="set-progress-name" title={row.setName}>{row.setName}</td>
-                    <td>{row.totalCards}</td>
+                    <td className="set-progress-name" title={row.setName} data-copy-value={row.setName}>
+                      <span className="set-progress-name__content">
+                        {row.setLogo && (
+                          <img
+                            className="set-progress-name__logo"
+                            src={row.setLogo}
+                            alt=""
+                            loading="lazy"
+                            onError={(event) => event.currentTarget.classList.add('is-hidden')}
+                          />
+                        )}
+                        <span className="set-progress-name__label">{row.setName}</span>
+                      </span>
+                    </td>
+                    <td data-copy-value={String(row.totalCards)}>{row.totalCards}</td>
                     {row.thresholds.map((item) => (
                       <td
                         key={item.threshold}
                         className="set-progress-cell"
                         style={getProgressCellStyle(item.percent)}
+                        data-copy-value={`${item.percent.toFixed(2)}%`}
                       >
                         {item.percent.toFixed(2)}%
                         <span className="set-progress-tooltip">
@@ -423,13 +465,14 @@ export const Summary = () => {
                 ))}
                 {setProgress.totalRow && (
                   <tr className="set-progress-total-row">
-                    <td className="set-progress-name">{setProgress.totalRow.setName}</td>
-                    <td>{setProgress.totalRow.totalCards}</td>
+                    <td className="set-progress-name" data-copy-value={setProgress.totalRow.setName}>{setProgress.totalRow.setName}</td>
+                    <td data-copy-value={String(setProgress.totalRow.totalCards)}>{setProgress.totalRow.totalCards}</td>
                     {setProgress.totalRow.thresholds.map((item) => (
                       <td
                         key={item.threshold}
                         className="set-progress-cell"
                         style={getProgressCellStyle(item.percent)}
+                        data-copy-value={`${item.percent.toFixed(2)}%`}
                       >
                         {item.percent.toFixed(2)}%
                         <span className="set-progress-tooltip">
