@@ -6,6 +6,7 @@ interface CollapsibleFieldsetProps {
   defaultCollapsed?: boolean;
   persistKey?: string;
   collapsedSummary?: ReactNode;
+  onBeforeExpand?: () => boolean;
 }
 
 export const CollapsibleFieldset: React.FC<CollapsibleFieldsetProps> = ({
@@ -13,7 +14,8 @@ export const CollapsibleFieldset: React.FC<CollapsibleFieldsetProps> = ({
   children,
   defaultCollapsed = false,
   persistKey,
-  collapsedSummary
+  collapsedSummary,
+  onBeforeExpand,
 }) => {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
@@ -30,6 +32,7 @@ export const CollapsibleFieldset: React.FC<CollapsibleFieldsetProps> = ({
   }, [persistKey]);
 
   const toggleCollapse = () => {
+    if (collapsed && onBeforeExpand && !onBeforeExpand()) return;
     setCollapsed((prev) => {
       const nextValue = !prev;
       if (persistKey) {

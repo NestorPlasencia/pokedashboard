@@ -86,7 +86,7 @@ Cards are generated in the browser after selecting a series. The runtime flow co
 
 - Poke DB cards filtered by `seriesId`.
 - All active TCGPlayer prices indexed by `productID` and shared by every series.
-- Local collector and condition data.
+- Authenticated Collectr inventory from Supabase.
 
 The browser requests the relevant TCGPlayer catalog from
 `/api/prices?seriesId=<id>` and
@@ -117,6 +117,19 @@ Optional environment variables:
 $env:VITE_POKE_DB_API_BASE_URL = "https://example.com/api"
 ```
 
+Supabase configuration (required only for the private Collections feature):
+
+```powershell
+$env:VITE_SUPABASE_URL = "https://your-project-ref.supabase.co"
+$env:VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_your_key"
+```
+
+The public catalog, prices, search, and non-collection filters work without a
+session. Opening Collections prompts the user to sign in through Supabase Auth;
+Row Level Security then limits inventory queries to the signed-in owner. Use
+only the browser-safe publishable key. Never put a service-role key, database
+password, or connection string in this app.
+
 Run the production build locally:
 
 ```bash
@@ -133,21 +146,23 @@ npm run dev
 
 Import this repository in Vercel. The committed `vercel.json` selects Vite,
 builds with `npm run build`, publishes `dist`, configures SPA fallback routing,
-and gives the prices function enough time for a cold-cache refresh. No Vercel
-environment variables are required unless the Poke DB API URL is overridden.
+and gives the prices function enough time for a cold-cache refresh. Configure
+`VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in every Vercel
+environment where Collections should be available. The public application can
+still run without them; the Poke DB URL remains optional.
 
 ## Data Sources
 
 - **Card Data**: Poke DB API, requested by series
 - **TCG Player Pricing**: `/api/prices` with 24-hour Vercel CDN and browser caches
-- **Collection Data**: Dated collection snapshots in `public/data/collector/`
+- **Collection Data**: Supabase `card_copies`, `collectr_collections`, and `collectr_cards` behind Auth and RLS
 - **Fix Data**: Manual corrections and patches in `public/data/fix/`
 
 ## Data Flow
 
 1. **Load Phase**: 
    - `useLoadCards` derives sets from the hierarchy API and fetches cards only for selected series
-   - Personal collection data is loaded based on collection date
+   - Active physical copies and active collection names are loaded from Supabase
 
 2. **Processing Phase**:
    - Cards are expanded to show variants (standard, reverse, etc.)
@@ -195,10 +210,10 @@ Manages UI options and settings like table/list view toggle and collection selec
 2. Add to card processing in data generation
 3. Update display components (list/table views)
 
-### Load Different Collection
-1. Update collection path in `services/collector.ts`
-2. Adjust date or collection name as needed
-3. Regenerate processed data if needed
+### Refresh Collection Data
+1. Synchronize Collectr through Collectr Toolkit.
+2. Reload the dashboard after the mirror sync completes.
+3. The dashboard reads active copies only and never invokes private sync RPCs.
 
 ## Notes
 

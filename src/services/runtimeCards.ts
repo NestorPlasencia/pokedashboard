@@ -1,22 +1,10 @@
-import { COLLECTIONS } from "../constants/constants";
 import type { Card, ConditionKey } from "../types/dashboard";
 import type {
-  CollectorCard,
   PriceEntry,
   SourceCard,
   SourceCardsFile,
 } from "../types/source-card";
-
-type ConditionsEntry = {
-  id: string;
-  collection: string;
-  conditions: Partial<Record<ConditionKey, number>>;
-};
-type ConditionsMap = Map<
-  string,
-  Map<string, Partial<Record<ConditionKey, number>>>
->;
-type CollectionIndexEntry = { collectionName: string; card: CollectorCard };
+import { describeInventoryError, loadInventory } from "./inventory";
 type PriceCacheMetadata = {
   version: 5;
   seriesId: number;
@@ -65,13 +53,12 @@ const seriesTtlMs = 15 * 60 * 1000;
 
 const pricesBySeries = new Map<number, AllPricesSnapshot>();
 const pendingPricesBySeries = new Map<number, Promise<AllPricesSnapshot>>();
-let collectionIndexPromise: Promise<Map<number, CollectionIndexEntry[]>> | null = null;
-let conditionsPromise: Promise<ConditionsMap> | null = null;
 const seriesCache = new Map<
   number,
   { expiresAt: number; result: RuntimeCardsResult }
 >();
 const pendingSeries = new Map<number, Promise<RuntimeCardsResult>>();
+let runtimeCacheGeneration = 0;
 
 const wait = (milliseconds: number) =>
   new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
@@ -124,25 +111,6 @@ const fetchJson = async <T>(
     if (attempt < 2) await wait(500 * 2 ** attempt);
   }
   throw lastError;
-};
-
-const mapWithConcurrency = async <T, R>(
-  values: T[],
-  concurrency: number,
-  task: (value: T) => Promise<R>
-): Promise<R[]> => {
-  const results = new Array<R>(values.length);
-  let nextIndex = 0;
-  const worker = async () => {
-    while (nextIndex < values.length) {
-      const index = nextIndex++;
-      results[index] = await task(values[index]);
-    }
-  };
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, values.length) }, worker)
-  );
-  return results;
 };
 
 const cacheUrl = (key: string) =>
@@ -360,83 +328,16 @@ const createDashboardCard = (
   return card;
 };
 
-const publicDataUrl = (path: string) =>
-  new URL(`data/${path}`, document.baseURI).toString();
-
-const loadOptionalPublicJson = async <T>(
-  path: string,
-  fallback: T
-): Promise<T> => {
-  const url = publicDataUrl(path);
-  try {
-    const response = await fetch(url);
-    const contentType = response.headers.get("content-type") || "";
-    if (!response.ok || !contentType.toLowerCase().includes("application/json")) {
-      console.warn("[cards] Optional JSON data is unavailable; skipping it", {
-        path,
-        url,
-        status: response.status,
-        contentType,
-      });
-      return fallback;
-    }
-    return (await response.json()) as T;
-  } catch (error) {
-    console.warn("[cards] Optional JSON data could not be parsed; skipping it", {
-      path,
-      url,
-      error,
-    });
-    return fallback;
-  }
-};
-
-const loadConditions = async (): Promise<ConditionsMap> => {
-  if (conditionsPromise) return conditionsPromise;
-  conditionsPromise = (async () => {
-    const map: ConditionsMap = new Map();
-    const entries = await loadOptionalPublicJson<ConditionsEntry[]>(
-      "collector/conditions.json",
-      []
-    );
-    for (const entry of entries) {
-      if (!map.has(entry.id)) map.set(entry.id, new Map());
-      map.get(entry.id)!.set(entry.collection, entry.conditions);
-    }
-    return map;
-  })();
-  return conditionsPromise;
-};
-
-const loadCollectionIndex = async (): Promise<
-  Map<number, CollectionIndexEntry[]>
-> => {
-  if (collectionIndexPromise) return collectionIndexPromise;
-  collectionIndexPromise = (async () => {
-    const index = new Map<number, CollectionIndexEntry[]>();
-    await mapWithConcurrency(COLLECTIONS, 8, async (collectionName) => {
-      const cards = await loadOptionalPublicJson<CollectorCard[]>(
-        `collector/${collectionName}.json`,
-        []
-      );
-      for (const card of cards) {
-        const productId = Number(card.product_id);
-        if (!Number.isInteger(productId)) continue;
-        const entries = index.get(productId) || [];
-        entries.push({ collectionName, card });
-        index.set(productId, entries);
-      }
-    });
-    return index;
-  })();
-  return collectionIndexPromise;
-};
-
 const addCollections = async (cards: Card[]): Promise<void> => {
-  const [collectionIndex, conditionsMap] = await Promise.all([
-    loadCollectionIndex(),
-    loadConditions(),
-  ]);
+  let inventory;
+  try {
+    inventory = await loadInventory();
+  } catch (error) {
+    console.error(
+      `[collections] Supabase inventory is unavailable; continuing without it: ${describeInventoryError(error)}`
+    );
+    return;
+  }
   const cardsByProduct = new Map<number, Card[]>();
   for (const card of cards) {
     if (!card.productId) continue;
@@ -445,22 +346,23 @@ const addCollections = async (cards: Card[]): Promise<void> => {
     cardsByProduct.set(card.productId, candidates);
   }
   for (const [productId, candidates] of cardsByProduct) {
-    for (const entry of collectionIndex.get(productId) || []) {
-      const wantsReverse = entry.collectionName.toLowerCase().includes("reverse");
-      const preferred = wantsReverse
+    for (const entry of inventory.entriesByProductId.get(productId) || []) {
+      const printing = entry.printing?.trim().toLowerCase();
+      const exactPrinting = printing
+        ? candidates.find((card) => card.variant.toLowerCase() === printing)
+        : undefined;
+      const wantsReverse = printing
+        ? printing.includes("reverse")
+        : entry.collectionName.toLowerCase().includes("reverse");
+      const preferred = exactPrinting ?? (wantsReverse
         ? candidates.find((card) => card.variant === "Reverse Holo")
-        : candidates.find((card) => card.variant !== "Reverse Holo");
+        : candidates.find((card) => card.variant !== "Reverse Holo"));
       const card = preferred || candidates[0];
-      const override =
-        conditionsMap.get(card.id)?.get(entry.collectionName) ??
-        conditionsMap
-          .get(card.id)
-          ?.get(entry.collectionName.split("_").join(" "));
       card.collections ||= [];
       card.collections.push({
         name: entry.collectionName,
-        collectorName: entry.card.product_name,
-        quantity: override ?? { "Near Mint": Number(entry.card.quantity) || 0 },
+        collectorName: entry.productName,
+        quantity: entry.conditions,
       });
     }
   }
@@ -512,15 +414,28 @@ export const generateCardsForSeries = (
   }
   const pending = pendingSeries.get(seriesId);
   if (pending) return pending;
+  const cacheGeneration = runtimeCacheGeneration;
   const generation = generateUncached(seriesId)
     .then((result) => {
-      seriesCache.set(seriesId, {
-        expiresAt: Date.now() + seriesTtlMs,
-        result,
-      });
+      if (cacheGeneration === runtimeCacheGeneration) {
+        seriesCache.set(seriesId, {
+          expiresAt: Date.now() + seriesTtlMs,
+          result,
+        });
+      }
       return result;
     })
-    .finally(() => pendingSeries.delete(seriesId));
+    .finally(() => {
+      if (pendingSeries.get(seriesId) === generation) {
+        pendingSeries.delete(seriesId);
+      }
+    });
   pendingSeries.set(seriesId, generation);
   return generation;
+};
+
+export const clearRuntimeCardsCache = () => {
+  runtimeCacheGeneration += 1;
+  seriesCache.clear();
+  pendingSeries.clear();
 };

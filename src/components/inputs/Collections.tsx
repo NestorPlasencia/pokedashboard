@@ -3,13 +3,24 @@ import { useOptionsContext } from "../../context/OptionsContext";
 import { useCardContext } from "../../context/CardContext";
 import { CollapsibleFieldset } from "../ui/CollapsibleFieldset";
 import { updateUrlParams, parseUrlParams } from "../../utils/urlParams";
-import type { ConditionKey } from "../../types/dashboard";
+import type { CollectionFilterOptions, ConditionKey } from "../../types/dashboard";
+import { useAuth } from "../../context/AuthContext";
 
 const CONDITION_KEYS: ConditionKey[] = ["Near Mint", "Lightly Played", "Moderately Played", "Damaged", "Heavily Played"];
 
 export const Collections = () => {
   const { collections } = useOptionsContext();
   const { collectionFilter, setCollectionFilter } = useCardContext();
+  const { session, isAuthLoading, refreshInventory, requestSignIn } = useAuth();
+
+  const requireSession = () => {
+    if (session) {
+      refreshInventory();
+      return true;
+    }
+    if (!isAuthLoading) requestSignIn();
+    return false;
+  };
 
   // Track if this is the first render to avoid clearing collections on mount
   const isFirstRenderRef = useRef(true);
@@ -25,7 +36,7 @@ export const Collections = () => {
     if (params.viewCollectionOption && params.viewCollectionOption !== 'none' && collectionFilter.mode === 'none') {
       setCollectionFilter(prev => ({ 
         ...prev, 
-        mode: params.viewCollectionOption as any 
+        mode: params.viewCollectionOption as CollectionFilterOptions["mode"]
       }));
     }
     
@@ -54,7 +65,19 @@ export const Collections = () => {
     }
     
     isFirstRenderRef.current = false;
-  }, []); // Only run on mount
+    // URL state is intentionally read once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (session) return;
+    setCollectionFilter(prev => ({
+      ...prev,
+      enabled: false,
+      selectedCollections: [],
+      conditionsFilter: ["All"],
+    }));
+  }, [session, setCollectionFilter]);
 
   // Sync URL when collection filter changes
   useEffect(() => {
@@ -103,13 +126,18 @@ export const Collections = () => {
 
   return (
     <div className="section-sidebar">
-      <CollapsibleFieldset legend="Collections" defaultCollapsed={true}>
+      <CollapsibleFieldset
+        legend="Collections"
+        defaultCollapsed={true}
+        onBeforeExpand={requireSession}
+      >
         <label>
           <input
             type="checkbox"
             value="ownedCards"
             checked={collectionFilter.enabled}
             onChange={() => {
+              if (!requireSession()) return;
               setCollectionFilter(prev => ({
                 ...prev,
                 enabled: !prev.enabled
@@ -127,7 +155,7 @@ export const Collections = () => {
               onChange={(e) => {
                 setCollectionFilter(prev => ({
                   ...prev,
-                  mode: e.target.value as any
+                  mode: e.target.value as CollectionFilterOptions["mode"]
                 }));
               }}
               aria-label="Select collection filter mode"

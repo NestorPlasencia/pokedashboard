@@ -16,6 +16,8 @@ import { useCardFilters } from "../hooks/useCardFilters";
 import { Summary } from "./ui/Summary";
 import { PrintButton } from "./ui/PrintButton";
 import { MassEntryButton } from "./ui/MassEntryButton";
+import { useAuth } from "../context/AuthContext";
+import { clearInventoryCache } from "../services/inventory";
 
 // Lazy load heavy view components
 const CardList = lazy(() => import("./views/CardList").then(module => ({ default: module.CardList })));
@@ -27,8 +29,14 @@ export const Main: React.FC = () => {
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>('cards');
   const { setAllCards, viewOptions, setSets, setPokemonFormsData, seriesSelection } = useCardContext();
   const { setCollections } = useOptionsContext();
+  const { session, signOut } = useAuth();
 
-  const { isLoading, error } = useLoadCards(
+  const handleSignOut = async () => {
+    clearInventoryCache();
+    await signOut();
+  };
+
+  const { isLoading, isInventoryEmpty, inventoryError, error } = useLoadCards(
     setAllCards,
     setCollections,
     setSets,
@@ -66,8 +74,20 @@ export const Main: React.FC = () => {
       </Sidebar>
       <div className="card-view">
         <Search />
+        {session && (
+          <div className="session-bar">
+            <span>{session.user.email}</span>
+            <button type="button" onClick={handleSignOut}>Sign out</button>
+          </div>
+        )}
         {isLoading && <div className="main-status-message">Loading cards...</div>}
         {error && <div className="main-status-message main-status-message--error">{error}</div>}
+        {inventoryError && <div className="main-status-message main-status-message--warning">{inventoryError}</div>}
+        {!isLoading && !error && isInventoryEmpty && (
+          <div className="main-status-message main-status-message--warning">
+            Your Supabase inventory has no active card copies.
+          </div>
+        )}
         {!isLoading && !error && (
           <Suspense fallback={<div className="main-status-message">Loading view...</div>}>
             {showListTable ? <CardListTable /> : <CardList />}
