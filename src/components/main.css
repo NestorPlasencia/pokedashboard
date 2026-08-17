@@ -318,8 +318,10 @@ th[scope="row"] {
   transition: transform 0.2s ease, filter 0.2s ease;
 }
 
-.card:hover {
+.card:hover,
+.card:focus-within {
   transform: scale(1.02);
+  z-index: 20;
 }
 
 .card img {
