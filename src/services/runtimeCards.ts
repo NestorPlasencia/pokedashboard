@@ -4,7 +4,7 @@ import type {
   SourceCard,
   SourceCardsFile,
 } from "../types/source-card";
-import { describeInventoryError, loadInventory } from "./inventory";
+import type { InventorySnapshot } from "./inventory";
 type PriceCacheMetadata = {
   version: 5;
   seriesId: number;
@@ -328,18 +328,13 @@ const createDashboardCard = (
   return card;
 };
 
-const addCollections = async (cards: Card[]): Promise<void> => {
-  let inventory;
-  try {
-    inventory = await loadInventory();
-  } catch (error) {
-    console.error(
-      `[collections] Supabase inventory is unavailable; continuing without it: ${describeInventoryError(error)}`
-    );
-    return;
-  }
+export const applyInventoryToCards = (
+  cards: Card[],
+  inventory: InventorySnapshot
+): Card[] => {
+  const enrichedCards = cards.map((card) => ({ ...card, collections: [] }));
   const cardsByProduct = new Map<number, Card[]>();
-  for (const card of cards) {
+  for (const card of enrichedCards) {
     if (!card.productId) continue;
     const candidates = cardsByProduct.get(card.productId) || [];
     candidates.push(card);
@@ -366,6 +361,7 @@ const addCollections = async (cards: Card[]): Promise<void> => {
       });
     }
   }
+  return enrichedCards;
 };
 
 const generateUncached = async (seriesId: number): Promise<RuntimeCardsResult> => {
@@ -378,7 +374,6 @@ const generateUncached = async (seriesId: number): Promise<RuntimeCardsResult> =
   const cards = sourceCards
     .map((sourceCard) => createDashboardCard(sourceCard, prices.priceMap))
     .filter((card): card is Card => card !== null);
-  await addCollections(cards);
   console.info("[cards] Card generation completed", {
     seriesId,
     sourceCards: sourceCards.length,

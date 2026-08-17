@@ -68,6 +68,25 @@ export type InventorySnapshot = {
   collectionNames: string[];
   entriesByProductId: Map<number, InventoryEntry[]>;
   activeCopyCount: number;
+  fetchedAt: number | null;
+};
+
+type StoredInventorySnapshot = {
+  version: 1;
+  userId: string;
+  collectionNames: string[];
+  entriesByProductId: Array<[number, InventoryEntry[]]>;
+  activeCopyCount: number;
+  fetchedAt: number;
+};
+
+type LoadInventoryOptions = {
+  forceRefresh?: boolean;
+};
+
+type ClearInventoryCacheOptions = {
+  userId?: string;
+  includePersistent?: boolean;
 };
 
 const conditionKeys = new Set<ConditionKey>([
@@ -78,7 +97,12 @@ const conditionKeys = new Set<ConditionKey>([
   "Damaged",
 ]);
 const pageSize = 1000;
-let inventoryPromise: Promise<InventorySnapshot> | null = null;
+const inventoryStoragePrefix = "pokedashboard:inventory:v1:";
+let inventoryCache: { userId: string; snapshot: InventorySnapshot } | null = null;
+let inventoryPromise: {
+  userId: string;
+  promise: Promise<InventorySnapshot>;
+} | null = null;
 
 export const COLLECTION_PRINTING_ORDER = [
   "Holofoil",
@@ -100,7 +124,60 @@ const emptyInventory = (): InventorySnapshot => ({
   collectionNames: [],
   entriesByProductId: new Map(),
   activeCopyCount: 0,
+  fetchedAt: null,
 });
+
+const inventoryStorageKey = (userId: string) =>
+  `${inventoryStoragePrefix}${userId}`;
+
+const readStoredInventory = (userId: string): InventorySnapshot | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(inventoryStorageKey(userId));
+    if (!raw) return null;
+    const stored = JSON.parse(raw) as Partial<StoredInventorySnapshot>;
+    if (
+      stored.version !== 1 ||
+      stored.userId !== userId ||
+      !Array.isArray(stored.collectionNames) ||
+      !Array.isArray(stored.entriesByProductId) ||
+      typeof stored.activeCopyCount !== "number" ||
+      typeof stored.fetchedAt !== "number"
+    ) {
+      window.sessionStorage.removeItem(inventoryStorageKey(userId));
+      return null;
+    }
+    return {
+      collectionNames: stored.collectionNames,
+      entriesByProductId: new Map(stored.entriesByProductId),
+      activeCopyCount: stored.activeCopyCount,
+      fetchedAt: stored.fetchedAt,
+    };
+  } catch (error) {
+    console.warn("[collections] Unable to read the session inventory cache", error);
+    return null;
+  }
+};
+
+const writeStoredInventory = (userId: string, snapshot: InventorySnapshot) => {
+  if (typeof window === "undefined" || snapshot.fetchedAt === null) return;
+  const stored: StoredInventorySnapshot = {
+    version: 1,
+    userId,
+    collectionNames: snapshot.collectionNames,
+    entriesByProductId: [...snapshot.entriesByProductId],
+    activeCopyCount: snapshot.activeCopyCount,
+    fetchedAt: snapshot.fetchedAt,
+  };
+  try {
+    window.sessionStorage.setItem(
+      inventoryStorageKey(userId),
+      JSON.stringify(stored)
+    );
+  } catch (error) {
+    console.warn("[collections] Unable to persist the session inventory cache", error);
+  }
+};
 
 const fetchAllCopies = async (): Promise<CopyRow[]> => {
   if (!supabase) throw new Error("Supabase is not configured.");
@@ -180,11 +257,6 @@ const fetchProductNames = async (productIds: number[]) => {
 };
 
 const createSnapshot = async (): Promise<InventorySnapshot> => {
-  if (!supabase) throw new Error("Supabase is not configured.");
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError) throwInventoryError("session", sessionError);
-  if (!sessionData.session) return emptyInventory();
-
   const [copies, activeCollections, collectionPrintings] = await Promise.all([
     fetchAllCopies(),
     fetchActiveCollections(),
@@ -230,21 +302,53 @@ const createSnapshot = async (): Promise<InventorySnapshot> => {
       ])
     ),
     activeCopyCount: copies.length,
+    fetchedAt: Date.now(),
   };
 };
 
-export const loadInventory = (): Promise<InventorySnapshot> => {
-  if (!inventoryPromise) {
-    inventoryPromise = createSnapshot().catch((error) => {
-      inventoryPromise = null;
-      throw error;
-    });
+export const loadInventory = async (
+  options: LoadInventoryOptions = {}
+): Promise<InventorySnapshot> => {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throwInventoryError("session", sessionError);
+  const userId = sessionData.session?.user.id;
+  if (!userId) return emptyInventory();
+
+  if (!options.forceRefresh) {
+    if (inventoryCache?.userId === userId) return inventoryCache.snapshot;
+    const stored = readStoredInventory(userId);
+    if (stored) {
+      inventoryCache = { userId, snapshot: stored };
+      return stored;
+    }
   }
-  return inventoryPromise;
+
+  if (inventoryPromise?.userId === userId) return inventoryPromise.promise;
+
+  const promise = createSnapshot()
+    .then((snapshot) => {
+      inventoryCache = { userId, snapshot };
+      writeStoredInventory(userId, snapshot);
+      return snapshot;
+    })
+    .finally(() => {
+      if (inventoryPromise?.promise === promise) inventoryPromise = null;
+    });
+  inventoryPromise = { userId, promise };
+  return promise;
 };
 
-export const clearInventoryCache = () => {
+export const clearInventoryCache = (
+  options: ClearInventoryCacheOptions = {}
+) => {
+  const cachedUserId = inventoryCache?.userId;
   inventoryPromise = null;
+  inventoryCache = null;
+  if (options.includePersistent && typeof window !== "undefined") {
+    const userId = options.userId ?? cachedUserId;
+    if (userId) window.sessionStorage.removeItem(inventoryStorageKey(userId));
+  }
 };
 
 export const describeInventoryError = (error: unknown): string => {

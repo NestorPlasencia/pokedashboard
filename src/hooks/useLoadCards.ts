@@ -1,26 +1,46 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { loadHierarchy, loadSets, loadPokemonForms } from "../services/cards";
-import { generateCardsForSeries } from "../services/runtimeCards";
+import {
+  applyInventoryToCards,
+  generateCardsForSeries,
+} from "../services/runtimeCards";
 import { searchErrorsInCollections } from "../utils/helpers";
 import type { Card, Set, PokemonFormData, OptionsCollection } from "../types/dashboard";
 import type { SeriesSelection } from "../context/CardContext";
 import { convertToCollectionObjects } from "../utils/utils";
-import { describeInventoryError, loadInventory } from "../services/inventory";
+import {
+  describeInventoryError,
+  loadInventory,
+  type InventorySnapshot,
+} from "../services/inventory";
 import { useAuth } from "../context/AuthContext";
+
+export type InventoryStatus =
+  | "idle"
+  | "loading"
+  | "ready"
+  | "refreshing"
+  | "error";
 
 export function useLoadCards(
   setAllCards: (cards: Card[]) => void,
   setCollections: (collections: OptionsCollection[]) => void,
   setSets: (sets: Set[]) => void,
   setPokemonFormsData: (forms: PokemonFormData[]) => void,
-  seriesSelection: SeriesSelection
+  seriesSelection: SeriesSelection,
+  inventoryRequired: boolean
 ) {
   const [isMetadataLoading, setIsMetadataLoading] = useState(true);
   const [isCardsLoading, setIsCardsLoading] = useState(false);
+  const [baseCards, setBaseCards] = useState<Card[]>([]);
+  const [inventory, setInventory] = useState<InventorySnapshot | null>(null);
+  const [inventoryStatus, setInventoryStatus] = useState<InventoryStatus>("idle");
   const [isInventoryEmpty, setIsInventoryEmpty] = useState(false);
   const [inventoryError, setInventoryError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { session, inventoryRevision } = useAuth();
+  const userId = session?.user.id;
+  const handledInventoryRevision = useRef(inventoryRevision);
 
   useEffect(() => {
     const fetchMetadata = async () => {
@@ -44,34 +64,59 @@ export function useLoadCards(
   }, []);
 
   useEffect(() => {
+    setInventory(null);
+    setCollections([]);
+    setIsInventoryEmpty(false);
+    setInventoryError(null);
+    setInventoryStatus("idle");
+    handledInventoryRevision.current = 0;
+  }, [userId, setCollections]);
+
+  useEffect(() => {
     let cancelled = false;
-    if (!session) {
-      setCollections([]);
-      setIsInventoryEmpty(false);
+    if (!inventoryRequired || !userId) {
+      setInventoryStatus("idle");
       setInventoryError(null);
       return;
     }
 
+    const forceRefresh = inventoryRevision !== handledInventoryRevision.current;
+    setInventoryStatus((current) =>
+      current === "ready" ? "refreshing" : "loading"
+    );
     setInventoryError(null);
-    loadInventory()
+    loadInventory({ forceRefresh })
       .then((inventory) => {
         if (cancelled) return;
+        handledInventoryRevision.current = inventoryRevision;
+        setInventory(inventory);
         setCollections(convertToCollectionObjects(inventory.collectionNames));
         setIsInventoryEmpty(inventory.activeCopyCount === 0);
+        setInventoryStatus("ready");
       })
       .catch((inventoryLoadError) => {
         const description = describeInventoryError(inventoryLoadError);
         console.error(`[collections] Unable to load Supabase inventory: ${description}`);
         if (!cancelled) {
-          setCollections([]);
           setInventoryError(`Unable to load your Supabase collections (${description}).`);
+          setInventoryStatus("error");
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [session, inventoryRevision, setCollections]);
+  }, [inventoryRequired, inventoryRevision, userId, setCollections]);
+
+  useEffect(() => {
+    if (!inventoryRequired || !inventory) {
+      setAllCards(baseCards);
+      return;
+    }
+    const enrichedCards = applyInventoryToCards(baseCards, inventory);
+    searchErrorsInCollections(enrichedCards);
+    setAllCards(enrichedCards);
+  }, [baseCards, inventory, inventoryRequired, setAllCards]);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,7 +124,7 @@ export function useLoadCards(
     const fetchCards = async () => {
       setError(null);
       setIsCardsLoading(true);
-      setAllCards([]);
+      setBaseCards([]);
       try {
         console.info("[cards] Loading selected series", { seriesSelection });
         const hierarchy = await loadHierarchy();
@@ -92,7 +137,7 @@ export function useLoadCards(
             : [];
 
         if (selectedNames.length === 0) {
-          if (!cancelled) setAllCards([]);
+          if (!cancelled) setBaseCards([]);
           return;
         }
 
@@ -111,8 +156,7 @@ export function useLoadCards(
         const cards = [...uniqueCards.values()];
 
         if (!cancelled) {
-          searchErrorsInCollections(cards);
-          setAllCards(cards);
+          setBaseCards(cards);
         }
       } catch (error) {
         console.error("[cards] Unable to generate selected series", {
@@ -121,7 +165,7 @@ export function useLoadCards(
         });
         if (!cancelled) {
           setError("Unable to generate cards for the selected series.");
-          setAllCards([]);
+          setBaseCards([]);
         }
       } finally {
         if (!cancelled) setIsCardsLoading(false);
@@ -132,11 +176,13 @@ export function useLoadCards(
     return () => {
       cancelled = true;
     };
-  }, [seriesSelection, session?.user.id, inventoryRevision, setAllCards]);
+  }, [seriesSelection]);
 
   return {
     isLoading: isMetadataLoading || isCardsLoading,
     isInventoryEmpty,
+    inventoryStatus,
+    inventoryUpdatedAt: inventory?.fetchedAt ?? null,
     inventoryError,
     error,
   };

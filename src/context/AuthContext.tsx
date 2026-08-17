@@ -10,7 +10,6 @@ import {
 import type { Session } from "@supabase/supabase-js";
 import { isSupabaseConfigured, supabase } from "../services/supabase";
 import { clearInventoryCache } from "../services/inventory";
-import { clearRuntimeCardsCache } from "../services/runtimeCards";
 
 type AuthContextValue = {
   session: Session | null;
@@ -100,7 +99,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, next) => {
       clearInventoryCache();
-      clearRuntimeCardsCache();
       setSession(next);
       setIsAuthLoading(false);
       if (next) setIsSignInOpen(false);
@@ -117,13 +115,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       isAuthLoading,
       inventoryRevision,
       refreshInventory: () => {
-        clearInventoryCache();
-        clearRuntimeCardsCache();
         setInventoryRevision((current) => current + 1);
       },
       requestSignIn: () => setIsSignInOpen(true),
       signOut: async () => {
-        if (supabase) await supabase.auth.signOut();
+        if (supabase) {
+          clearInventoryCache({
+            userId: session?.user.id,
+            includePersistent: true,
+          });
+          await supabase.auth.signOut();
+        }
       },
     }),
     [session, isAuthLoading, inventoryRevision]

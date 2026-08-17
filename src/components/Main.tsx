@@ -17,7 +17,6 @@ import { Summary } from "./ui/Summary";
 import { PrintButton } from "./ui/PrintButton";
 import { MassEntryButton } from "./ui/MassEntryButton";
 import { useAuth } from "../context/AuthContext";
-import { clearInventoryCache } from "../services/inventory";
 
 // Lazy load heavy view components
 const CardList = lazy(() => import("./views/CardList").then(module => ({ default: module.CardList })));
@@ -27,21 +26,40 @@ type MobilePanel = 'filters' | 'cards' | 'summary';
 
 export const Main: React.FC = () => {
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>('cards');
-  const { setAllCards, viewOptions, setSets, setPokemonFormsData, seriesSelection } = useCardContext();
+  const {
+    setAllCards,
+    viewOptions,
+    setSets,
+    setPokemonFormsData,
+    seriesSelection,
+    collectionFilter,
+    pokemonGrouping,
+  } = useCardContext();
   const { setCollections } = useOptionsContext();
   const { session, signOut } = useAuth();
 
   const handleSignOut = async () => {
-    clearInventoryCache();
     await signOut();
   };
 
-  const { isLoading, isInventoryEmpty, inventoryError, error } = useLoadCards(
+  const inventoryRequired =
+    collectionFilter.enabled ||
+    (pokemonGrouping.enabled && pokemonGrouping.filterByCollection !== "all");
+
+  const {
+    isLoading,
+    isInventoryEmpty,
+    inventoryStatus,
+    inventoryUpdatedAt,
+    inventoryError,
+    error,
+  } = useLoadCards(
     setAllCards,
     setCollections,
     setSets,
     setPokemonFormsData,
-    seriesSelection
+    seriesSelection,
+    inventoryRequired
   );
 
   // Sincronizar filtros con URL
@@ -66,7 +84,10 @@ export const Main: React.FC = () => {
         <Filters />
         <PriceRangeFilter />
         <Orders />
-        <Collections />
+        <Collections
+          inventoryStatus={inventoryStatus}
+          inventoryUpdatedAt={inventoryUpdatedAt}
+        />
         <PokemonGroupingFilter />
         <ViewOptionsComponent />
         <MassEntryButton />

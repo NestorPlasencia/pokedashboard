@@ -1,95 +1,55 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useOptionsContext } from "../../context/OptionsContext";
 import { useCardContext } from "../../context/CardContext";
 import { CollapsibleFieldset } from "../ui/CollapsibleFieldset";
-import { updateUrlParams, parseUrlParams } from "../../utils/urlParams";
+import { updateUrlParams } from "../../utils/urlParams";
 import type { CollectionFilterOptions, ConditionKey } from "../../types/dashboard";
 import { useAuth } from "../../context/AuthContext";
+import type { InventoryStatus } from "../../hooks/useLoadCards";
 
 const CONDITION_KEYS: ConditionKey[] = ["Near Mint", "Lightly Played", "Moderately Played", "Damaged", "Heavily Played"];
 
-export const Collections = () => {
+type CollectionsProps = {
+  inventoryStatus: InventoryStatus;
+  inventoryUpdatedAt: number | null;
+};
+
+export const Collections = ({
+  inventoryStatus,
+  inventoryUpdatedAt,
+}: CollectionsProps) => {
   const { collections } = useOptionsContext();
   const { collectionFilter, setCollectionFilter } = useCardContext();
   const { session, isAuthLoading, refreshInventory, requestSignIn } = useAuth();
 
   const requireSession = () => {
-    if (session) {
-      refreshInventory();
-      return true;
-    }
+    if (session) return true;
     if (!isAuthLoading) requestSignIn();
     return false;
   };
 
-  // Track if this is the first render to avoid clearing collections on mount
-  const isFirstRenderRef = useRef(true);
-
-  // Initialize from URL on component mount
-  useEffect(() => {
-    const params = parseUrlParams();
-    
-    if (params.filterByCollections === 'true' && !collectionFilter.enabled) {
-      setCollectionFilter(prev => ({ ...prev, enabled: true }));
-    }
-    
-    if (params.viewCollectionOption && params.viewCollectionOption !== 'none' && collectionFilter.mode === 'none') {
-      setCollectionFilter(prev => ({ 
-        ...prev, 
-        mode: params.viewCollectionOption as CollectionFilterOptions["mode"]
-      }));
-    }
-    
-    // Initialize collections from URL
-    if (params.collections && params.collections.length > 0 && collectionFilter.selectedCollections.length === 0) {
-      setCollectionFilter(prev => ({ 
-        ...prev, 
-        selectedCollections: params.collections || []
-      }));
-    }
-    
-    // Initialize limit from URL
-    if (params.limit && params.limit !== '1') {
-      setCollectionFilter(prev => ({ 
-        ...prev, 
-        limit: Number(params.limit) 
-      }));
-    }
-
-    // Initialize conditions from URL
-    if (params.conditions && params.conditions.length > 0) {
-      setCollectionFilter(prev => ({
-        ...prev,
-        conditionsFilter: params.conditions!
-      }));
-    }
-    
-    isFirstRenderRef.current = false;
-    // URL state is intentionally read once on mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const isInventoryLoading =
+    inventoryStatus === "loading" || inventoryStatus === "refreshing";
 
   useEffect(() => {
-    if (session) return;
+    if (isAuthLoading || session) return;
     setCollectionFilter(prev => ({
       ...prev,
       enabled: false,
       selectedCollections: [],
       conditionsFilter: ["All"],
     }));
-  }, [session, setCollectionFilter]);
+  }, [isAuthLoading, session, setCollectionFilter]);
 
   // Sync URL when collection filter changes
   useEffect(() => {
-    if (!isFirstRenderRef.current) {
-      updateUrlParams({ 
-        filterByCollections: collectionFilter.enabled ? 'true' : 'false',
-        viewCollectionOption: collectionFilter.mode,
-        collections: collectionFilter.selectedCollections,
-        limit: String(collectionFilter.limit),
-        conditions: collectionFilter.conditionsFilter
-      });
-    }
+    updateUrlParams({ 
+      filterByCollections: collectionFilter.enabled ? 'true' : 'false',
+      viewCollectionOption: collectionFilter.mode,
+      collections: collectionFilter.selectedCollections,
+      limit: String(collectionFilter.limit),
+      conditions: collectionFilter.conditionsFilter
+    });
   }, [collectionFilter]);
 
   const handleCollectionsChange = (collection: string): void => {
@@ -129,7 +89,6 @@ export const Collections = () => {
       <CollapsibleFieldset
         legend="Collections"
         defaultCollapsed={true}
-        onBeforeExpand={requireSession}
       >
         <label>
           <input
@@ -149,6 +108,28 @@ export const Collections = () => {
         </label>
         {collectionFilter.enabled && (
           <>
+            <div className="collections-inventory-actions">
+              <button
+                type="button"
+                onClick={refreshInventory}
+                disabled={isInventoryLoading}
+              >
+                {inventoryStatus === "refreshing"
+                  ? "Refreshing collections..."
+                  : "Refresh collections"}
+              </button>
+              {inventoryStatus === "loading" && (
+                <span role="status">Loading collections...</span>
+              )}
+              {inventoryStatus === "error" && (
+                <span role="alert">Collections could not be loaded.</span>
+              )}
+              {inventoryStatus === "ready" && inventoryUpdatedAt && (
+                <small>
+                  Updated {new Date(inventoryUpdatedAt).toLocaleTimeString()}
+                </small>
+              )}
+            </div>
             <select
               id="filterByCollections"
               value={collectionFilter.mode}
@@ -186,7 +167,9 @@ export const Collections = () => {
               Clear collection selection
             </button>
             <p>Select collections:</p>
-            {collections.length === 0 && <span>No collections available</span>}
+            {!isInventoryLoading && collections.length === 0 && (
+              <span>No collections available</span>
+            )}
             {collections.map((collection) => (
               <label key={collection.name} className="collections-checkbox-label">
                 <input

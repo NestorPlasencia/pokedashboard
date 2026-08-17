@@ -104,12 +104,17 @@ export const CardProvider: React.FC<{ children: ReactNode }> = ({
   const [conditionsFilter, setConditionsFilter] = useState<string[]>(["All"]);
   const [priceRange, setPriceRange] = useState<{ min: number | null; max: number | null }>({ min: null, max: null });
 
-  const [collectionFilter, setCollectionFilter] = useState<CollectionFilterOptions>({
-    enabled: false,
-    mode: 'none',
-    selectedCollections: [],
-    limit: 1,
-    conditionsFilter: ["All"]
+  const [collectionFilter, setCollectionFilter] = useState<CollectionFilterOptions>(() => {
+    const initialFilters = initializeFiltersFromUrl();
+    return {
+      enabled: initialFilters.filterByCollections === "true",
+      mode: (initialFilters.viewCollectionOption || "none") as CollectionFilterOptions["mode"],
+      selectedCollections: initialFilters.collections || [],
+      limit: Number(initialFilters.limit || "1"),
+      conditionsFilter: initialFilters.conditions?.length
+        ? initialFilters.conditions
+        : ["All"],
+    };
   });
 
   const [pokemonGrouping, setPokemonGrouping] = useState<PokemonGroupingOptions>({
