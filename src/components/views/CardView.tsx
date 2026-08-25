@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { Card } from "../../types/dashboard";
 import { useCardContext } from "../../context/CardContext";
 import { getCardPriceBreakdown, getCollectionTotalQuantity } from "../../utils/utils";
+import { buildPriceExplorerUrl } from "../../utils/priceExplorer";
 
 const formatCurrency = (value: number) => {
   return value.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
@@ -47,6 +48,11 @@ const CardViewComponent: React.FC<{
   const priceBreakdown = useMemo(() => {
     return getCardPriceBreakdown(card);
   }, [card]);
+
+  const priceExplorerUrl = useMemo(
+    () => buildPriceExplorerUrl([card.productId]),
+    [card.productId]
+  );
 
   const setSymbol = useMemo(() => {
     const byId = sets.find((set) => set.id === card.setId);
@@ -151,6 +157,19 @@ const CardViewComponent: React.FC<{
           </span>
         ))}
       </div>}
+      {priceExplorerUrl && (
+        <a
+          className="card-price-explorer-link"
+          href={priceExplorerUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={`Explore price history for ${card.name}`}
+          aria-label={`Explore price history for ${card.name}`}
+          onClick={(event) => event.stopPropagation()}
+        >
+          ↗ Prices
+        </a>
+      )}
       {missingToLimit > 0 && collectionFilter.enabled && (
         <div
           className="missing-box"

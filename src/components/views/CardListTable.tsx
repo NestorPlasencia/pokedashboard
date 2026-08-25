@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useCardContext } from "../../context/CardContext";
 import { Card } from "../../types/dashboard";
 import { getCollectionTotalQuantity } from "../../utils/utils";
+import { buildPriceExplorerUrl } from "../../utils/priceExplorer";
 
 const formatCurrency = (value: number | undefined | null) => {
   if (value === undefined || value === null) return '-';
@@ -177,6 +178,7 @@ const CardListTableComponent: React.FC = () => {
             <th>Quantity</th>
             <th>Missing</th>
             <th>Price</th>
+            <th>Explorer</th>
           </tr>
         </thead>
         <tbody>
@@ -186,6 +188,7 @@ const CardListTableComponent: React.FC = () => {
             const missing = getMissingToLimit(card);
             const price = getPrice(card);
             const setSymbol = getSetSymbol(card);
+            const priceExplorerUrl = buildPriceExplorerUrl([card.productId]);
 
             return (
               <tr key={`${card.id}-${index}`} className={card.shadow ? 'shadowed-row' : ''}>
@@ -222,6 +225,21 @@ const CardListTableComponent: React.FC = () => {
                   {missing}
                 </td>
                 <td>{formatCurrency(price)}</td>
+                <td>
+                  {priceExplorerUrl ? (
+                    <a
+                      className="card-list-table-explorer-link"
+                      href={priceExplorerUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Explore price history for ${card.name}`}
+                    >
+                      Explore
+                    </a>
+                  ) : (
+                    '-'
+                  )}
+                </td>
               </tr>
             );
           })}

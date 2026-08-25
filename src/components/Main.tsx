@@ -16,6 +16,7 @@ import { useCardFilters } from "../hooks/useCardFilters";
 import { Summary } from "./ui/Summary";
 import { PrintButton } from "./ui/PrintButton";
 import { MassEntryButton } from "./ui/MassEntryButton";
+import { PriceExplorerButton } from "./ui/PriceExplorerButton";
 import { useAuth } from "../context/AuthContext";
 
 // Lazy load heavy view components
@@ -90,6 +91,7 @@ export const Main: React.FC = () => {
         />
         <PokemonGroupingFilter />
         <ViewOptionsComponent />
+        <PriceExplorerButton />
         <MassEntryButton />
         <PrintButton />
       </Sidebar>

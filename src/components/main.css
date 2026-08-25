@@ -388,6 +388,27 @@ th[scope="row"] {
   z-index: 11;
 }
 
+.card-price-explorer-link {
+  position: absolute;
+  bottom: 8px;
+  left: 6px;
+  z-index: 12;
+  padding: 4px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 999px;
+  background: rgba(13, 20, 36, 0.86);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+}
+
+.card-price-explorer-link:hover {
+  background: var(--accent);
+}
+
 .missing-box__label {
   font-size: 8px;
   font-weight: 800;
@@ -1947,6 +1968,16 @@ th[scope="row"] {
   max-width: calc(100% - 68px);
 }
 
+.card-list-table-explorer-link {
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.card-list-table-explorer-link:hover {
+  text-decoration: underline;
+}
+
 .card-variant-label {
   background: rgba(0, 0, 0, 0.7);
   color: white;
@@ -2515,6 +2546,7 @@ th[scope="row"],
 
 .card-list-table-export-btn,
 .mass-entry-btn,
+.price-explorer-btn,
 .print-btn {
   border: none;
   background: var(--accent);
@@ -2524,13 +2556,48 @@ th[scope="row"],
 
 .card-list-table-export-btn:hover,
 .mass-entry-btn:hover:not(:disabled),
+.price-explorer-btn:hover:not(:disabled),
 .print-btn:hover {
   background: var(--accent-hover);
 }
 
-.mass-entry-btn:disabled {
+.mass-entry-btn:disabled,
+.price-explorer-btn:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+.price-explorer-batch {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.price-explorer-batch__selector {
+  display: grid;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.section-sidebar .price-explorer-batch__selector select {
+  width: 100%;
+}
+
+.section-sidebar .price-explorer-btn {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 12px 20px;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
 }
 
 .section-sidebar .mass-entry-btn {
