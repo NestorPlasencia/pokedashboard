@@ -10,6 +10,10 @@
   },
   "rewrites": [
     {
+      "source": "/api/trend-points",
+      "destination": "http://150.136.113.246/api/v1/data/trend-points"
+    },
+    {
       "source": "/api/poke-db/:path*",
       "destination": "https://poke-db-git-master-nestorplasencias-projects.vercel.app/api/:path*"
     },

@@ -191,11 +191,25 @@ export interface CollectionFilterOptions {
 
 // Opciones de visualización
 export interface ViewOptions {
-  displayMode: 'tableGrouped' | 'tableUngrouped' | 'cardsGrouped' | 'cardsUngrouped';
+  displayMode: 'tableGrouped' | 'tableUngrouped' | 'cardsGrouped' | 'cardsUngrouped' | 'trendGrouped' | 'trendUngrouped';
+  trendSortDirection: 'asc' | 'desc';
+  trendXAxisScale: 'normal' | 'sectors';
+}
+
+export type TrendRole = 'start' | 'end' | 'minimum' | 'maximum';
+export interface TrendPoint { date: string; price: number; segment: string; roles: TrendRole[]; }
+export interface TrendSeries {
+  productId: number;
+  printing: string;
+  condition: string;
+  latest: { date: string; price: number } | null;
+  points: TrendPoint[];
+  buyTimingScore: number | null;
+  buyTimingLabel: string;
 }
 
 // Configuración de ordenamiento
 export interface SortConfig {
-  field: 'number' | 'pokedex' | 'energy' | 'rarity' | 'energyAndName' | 'energyAndPokedex' | 'price' | 'name' | 'setAndNumber';
+  field: 'number' | 'pokedex' | 'energy' | 'rarity' | 'energyAndName' | 'energyAndPokedex' | 'price' | 'name' | 'setAndNumber' | 'buyTimingScore';
   direction: 'asc' | 'desc';
 }

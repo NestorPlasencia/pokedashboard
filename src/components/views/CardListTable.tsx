@@ -15,7 +15,7 @@ const escapeCsvValue = (value: string | number | null | undefined): string => {
 };
 
 const CardListTableComponent: React.FC = () => {
-  const { visibleCards, collectionFilter, sets, seriesSelection } = useCardContext();
+  const { renderCards, collectionFilter, sets, seriesSelection } = useCardContext();
   const [itemsToShow, setItemsToShow] = useState<number>(50);
 
   // Memoize the load more callback
@@ -49,8 +49,8 @@ const CardListTableComponent: React.FC = () => {
 
   // Filter out placeholders - only show actual cards
   const actualCards = useMemo(() => {
-    return visibleCards.filter(card => !('isPlaceholder' in card)) as Card[];
-  }, [visibleCards]);
+    return renderCards.filter(card => !('isPlaceholder' in card)) as Card[];
+  }, [renderCards]);
 
   // Display data is always actualCards (no pokedex grouping)
   const displayData = actualCards;

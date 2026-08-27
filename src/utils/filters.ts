@@ -592,7 +592,7 @@ import {
 
 export const applySorting = (
   cards: Card[],
-  sortField: 'number' | 'pokedex' | 'energy' | 'rarity' | 'energyAndName' | 'energyAndPokedex' | 'price' | 'name' | 'setAndNumber',
+  sortField: 'number' | 'pokedex' | 'energy' | 'rarity' | 'energyAndName' | 'energyAndPokedex' | 'price' | 'name' | 'setAndNumber' | 'buyTimingScore',
   sortDirection: 'asc' | 'desc',
   variantsFilter: string[] = ['All']
 ): Card[] => {

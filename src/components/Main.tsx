@@ -18,6 +18,7 @@ import { PrintButton } from "./ui/PrintButton";
 import { MassEntryButton } from "./ui/MassEntryButton";
 import { PriceExplorerButton } from "./ui/PriceExplorerButton";
 import { useAuth } from "../context/AuthContext";
+import { useTrendPoints } from "../hooks/useTrendPoints";
 
 // Lazy load heavy view components
 const CardList = lazy(() => import("./views/CardList").then(module => ({ default: module.CardList })));
@@ -69,6 +70,7 @@ export const Main: React.FC = () => {
   // Activate hierarchical filter cascade (Levels 2-6)
   // Level 1 is handled by Filters component
   useCardFilters();
+  const { trendError } = useTrendPoints();
 
   // Determine which view to show based on displayMode
   const showListTable = viewOptions.displayMode.includes('table');
@@ -106,6 +108,7 @@ export const Main: React.FC = () => {
         {isLoading && <div className="main-status-message">Loading cards...</div>}
         {error && <div className="main-status-message main-status-message--error">{error}</div>}
         {inventoryError && <div className="main-status-message main-status-message--warning">{inventoryError}</div>}
+        {trendError && viewOptions.displayMode.includes('trend') && <div className="main-status-message main-status-message--warning">{trendError}</div>}
         {!isLoading && !error && isInventoryEmpty && (
           <div className="main-status-message main-status-message--warning">
             Your Supabase inventory has no active card copies.

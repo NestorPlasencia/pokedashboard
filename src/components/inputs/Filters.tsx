@@ -603,9 +603,10 @@ export const Filters = () => {
       field: 'number',
       direction: 'asc'
     });
-    setViewOptions({
-      displayMode: 'cardsUngrouped'
-    });
+    setViewOptions(prev => ({
+      ...prev,
+      displayMode: 'cardsUngrouped',
+    }));
 
     // Clear all URL parameters
     updateUrlParams({

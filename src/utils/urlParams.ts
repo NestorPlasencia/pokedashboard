@@ -21,6 +21,7 @@ export interface FilterParams {
   order?: string;
   showTable?: string;
   showListTable?: string;
+  showTrendPoints?: string;
   groupByPokedex?: string;
   hideNotOwnPokedex?: string;
   hideObtainedPokedex?: string;
@@ -85,7 +86,7 @@ export const parseUrlParams = (): FilterParams => {
   }
   
   // Parse boolean parameters (stored as "true" or "false")
-  const booleanParams = ['showTable', 'showListTable', 'groupByPokedex', 'hideNotOwnPokedex', 'hideObtainedPokedex', 'showOnlyMissing', 'showOnlyIncomplete', 'filterByCollections', 'pokedexEnabled', 'includeWithoutCards', 'groupByForms', 'pokemonGroupingEnabled', 'formsFallbackToDefault'];
+  const booleanParams = ['showTable', 'showListTable', 'showTrendPoints', 'groupByPokedex', 'hideNotOwnPokedex', 'hideObtainedPokedex', 'showOnlyMissing', 'showOnlyIncomplete', 'filterByCollections', 'pokedexEnabled', 'includeWithoutCards', 'groupByForms', 'pokemonGroupingEnabled', 'formsFallbackToDefault'];
   booleanParams.forEach(param => {
     const value = params.get(param);
     if (value) {
@@ -196,6 +197,9 @@ export const generateUrlParams = (filters: Partial<FilterParams>): string => {
   }
   if (filters.showListTable === 'true') {
     queryParts.push('showListTable=true');
+  }
+  if (filters.showTrendPoints === 'true') {
+    queryParts.push('showTrendPoints=true');
   }
   if (filters.groupByPokedex === 'true') {
     queryParts.push('groupByPokedex=true');
@@ -331,6 +335,7 @@ export const initializeFiltersFromUrl = (): FilterParams => {
     order: urlParams.order || 'None',
     showTable: urlParams.showTable || 'false',
     showListTable: urlParams.showListTable || 'false',
+    showTrendPoints: urlParams.showTrendPoints || 'false',
     groupByPokedex: urlParams.groupByPokedex || 'false',
     hideNotOwnPokedex: urlParams.hideNotOwnPokedex || 'false',
     hideObtainedPokedex: urlParams.hideObtainedPokedex || 'false',

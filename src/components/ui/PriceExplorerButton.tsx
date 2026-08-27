@@ -53,22 +53,26 @@ export const PriceExplorerButton: React.FC = () => {
       )}
       {explorerUrl ? (
         <a
-          className="price-explorer-btn"
+          className="price-explorer-btn sidebar-action-btn"
           href={explorerUrl}
           target="_blank"
           rel="noopener noreferrer"
           title={`Explore price history for filtered products ${batchStart}-${batchEnd} of ${totalIds}`}
         >
-          Explore prices{batches.length > 1 ? ` (${batchStart}-${batchEnd})` : ` (${totalIds})`}
+          <span className="sidebar-action-btn__icon" aria-hidden="true">↗</span>
+          <span className="sidebar-action-btn__label">Explore prices</span>
+          <span className="sidebar-action-btn__count" aria-label={`${totalIds} products`}>{totalIds}</span>
         </a>
       ) : (
         <button
-          className="price-explorer-btn"
+          className="price-explorer-btn sidebar-action-btn"
           type="button"
           disabled
           title="No visible cards have a TCGplayer product ID"
         >
-          Explore prices
+          <span className="sidebar-action-btn__icon" aria-hidden="true">↗</span>
+          <span className="sidebar-action-btn__label">Explore prices</span>
+          <span className="sidebar-action-btn__count" aria-label="0 products">0</span>
         </button>
       )}
     </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Card, PokemonWithoutCard, PokemonFormWithoutCard } from "../../types/dashboard";
 import { CardView } from "./CardView"
+import { TrendCardView } from "./TrendCardView";
 import { cardBack } from "../../utils/helpers";
 import { useCardContext } from "../../context/CardContext";
 
@@ -12,7 +13,8 @@ interface CardGroupProps {
 }
 
 const CardGroupComponent: React.FC<CardGroupProps> = ({ cards, pokedexNumber, groupName, groupImage }) => {
-  const { pokemonGrouping, collectionFilter } = useCardContext();
+  const { pokemonGrouping, collectionFilter, viewOptions } = useCardContext();
+  const CardComponent = viewOptions.displayMode.includes('trend') ? TrendCardView : CardView;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [pokemonName, setPokemonName] = useState<string>('');
 
@@ -174,7 +176,7 @@ const CardGroupComponent: React.FC<CardGroupProps> = ({ cards, pokedexNumber, gr
       {!(isEmpty && hideEmptyGroups) && (
         <>
           <div className="card-group" onClick={handleOpenModal} tabIndex={0} role="button" aria-label="Open card group">
-            {!isEmpty && (cards.length > 0) && <CardView card={(firstNonShadowedCard || sortedCards[0]) as Card} key="group-preview" />}
+            {!isEmpty && (cards.length > 0) && <CardComponent card={(firstNonShadowedCard || sortedCards[0]) as Card} key="group-preview" />}
             <div className="length">
               {isEmpty ? '0' : cards.filter(c => !('isPlaceholder' in c)).length}
               {!isEmpty && collectionFilter.enabled && (() => {
@@ -195,7 +197,7 @@ const CardGroupComponent: React.FC<CardGroupProps> = ({ cards, pokedexNumber, gr
                 <h2>{isFormsMode ? groupName : 'Card list'}</h2>
                 <ul className="card-group-modal">
                   {!isEmpty && sortedCards.filter(card => !('isPlaceholder' in card)).map((card, index) => (
-                    <CardView card={card as Card} key={`${card.id}-${index}`} />
+                    <CardComponent card={card as Card} key={`${card.id}-${index}`} />
                   ))}
                 </ul>
               </div>

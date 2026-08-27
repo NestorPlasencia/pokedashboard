@@ -4,12 +4,13 @@ import { updateUrlParams, parseUrlParams } from "../../utils/urlParams";
 import { CollapsibleFieldset } from "../ui/CollapsibleFieldset";
 
 export const Orders = () => {
+  const { viewOptions, setViewOptions, setSortConfig } = useCardContext();
   const orders = ["None", "Number", "Set and Number", "Pokedex", "Energy", "Rarities", "Energy and Name", "Energy and Pokedex", "Price ↑", "Price ↓"];
+  const trendOrders = viewOptions.displayMode.includes('trend') ? ["Trend score ↑", "Trend score ↓"] : [];
   const [checkedOrder, setCheckedOrder] = useState<string>(() => {
     const params = parseUrlParams();
     return params.order || "None";
   });
-  const { setSortConfig } = useCardContext();
 
   // Map order names to sortConfig
   const orderToSortConfig = (order: string) => {
@@ -32,6 +33,10 @@ export const Orders = () => {
         return { field: 'price' as const, direction: 'asc' as const };
       case "Price ↓":
         return { field: 'price' as const, direction: 'desc' as const };
+      case "Trend score ↑":
+        return { field: 'buyTimingScore' as const, direction: 'asc' as const };
+      case "Trend score ↓":
+        return { field: 'buyTimingScore' as const, direction: 'desc' as const };
       default:
         return { field: 'number' as const, direction: 'asc' as const };
     }
@@ -50,6 +55,9 @@ export const Orders = () => {
 
   const handleCheckboxChange = (order: string): void => {
     setCheckedOrder(order);
+    if (order.startsWith('Trend score')) {
+      setViewOptions(prev => ({ ...prev, displayMode: prev.displayMode.includes('Grouped') ? 'trendGrouped' : 'trendUngrouped', trendSortDirection: order.endsWith('↑') ? 'asc' : 'desc' }));
+    }
     updateUrlParams({ order });
   };
 
@@ -61,7 +69,7 @@ export const Orders = () => {
   return (
     <div className="section-sidebar">
       <CollapsibleFieldset legend="Sort cards" defaultCollapsed={true}>
-        {orders.map((order) => (
+        {[...orders, ...trendOrders].map((order) => (
           <label key={order} className="orders-option-label">
             <input
               type="radio"

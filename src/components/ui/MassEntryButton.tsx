@@ -95,9 +95,9 @@ export const MassEntryButton: React.FC = () => {
 
   const label =
     status === "copied"
-      ? `Copied ${lines.length}`
+      ? "Copied"
       : status === "partial"
-        ? `Copied ${lines.length}; skipped ${skipped}`
+        ? `Copied · ${skipped} skipped`
         : status === "error"
           ? "Copy failed"
           : "Copy Mass Entry";
@@ -105,12 +105,14 @@ export const MassEntryButton: React.FC = () => {
   return (
     <button
       type="button"
-      className="mass-entry-btn"
+      className="mass-entry-btn sidebar-action-btn"
       onClick={handleCopy}
       disabled={lines.length === 0}
-      title="Copy visible cards in TCGPlayer Mass Entry format"
+      title={`Copy ${lines.length} visible cards in TCGPlayer Mass Entry format`}
     >
-      {label}
+      <span className="sidebar-action-btn__icon" aria-hidden="true">{status === "copied" || status === "partial" ? "✓" : "⧉"}</span>
+      <span className="sidebar-action-btn__label">{label}</span>
+      <span className="sidebar-action-btn__count" aria-label={`${lines.length} cards`}>{lines.length}</span>
     </button>
   );
 };

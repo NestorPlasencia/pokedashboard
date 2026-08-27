@@ -1,10 +1,59 @@
 import React, { useMemo } from "react";
 import { useCardContext } from "../../context/CardContext";
-import { Card } from "../../types/dashboard";
+import { Card, TrendSeries } from "../../types/dashboard";
 import { getCollectionTotalQuantity } from "../../utils/utils";
 
+const escapeHtml = (value: string | number) => String(value).replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character] || character);
+const getTimingTone = (score: number | null | undefined) => score === null || score === undefined ? 'unknown' : score >= 70 ? 'good' : score >= 40 ? 'fair' : 'bad';
+
+const buildPrintableTrendChart = (trend: TrendSeries, xAxisScale: 'normal' | 'sectors'): string => {
+  if (trend.points.length < 2) return '<div class="no-trend">Not enough trend data</div>';
+  const points = [...trend.points].sort((a, b) => a.date.localeCompare(b.date));
+  const prices = points.map(point => point.price);
+  const min = Math.min(...prices); const max = Math.max(...prices);
+  const width = 620; const height = 250; const left = 48; const right = 72; const top = 18; const bottom = 18;
+  const padding = Math.max((max - min) * 0.1, Math.max(max, 1) * 0.005);
+  const domainMin = Math.max(0, min - padding); const domainMax = max + padding; const domainRange = domainMax - domainMin || 1;
+  const times = points.map(point => new Date(`${point.date}T00:00:00`).getTime());
+  const timeMin = Math.min(...times); const timeMax = Math.max(...times); const timeRange = timeMax - timeMin || 1;
+  const guideDefinitions = [
+    { segment: '6m_to_1y', label: '1 year' },
+    { segment: '1m_to_6m', label: '6 months' },
+    { segment: '1w_to_1m', label: '1 month' },
+    { segment: 'latest_to_1w', label: '1 week' },
+  ];
+  const sectorGuides = guideDefinitions.flatMap(guide => {
+    const pointIndex = points.findIndex(point => point.segment === guide.segment);
+    return pointIndex < 0 ? [] : [{ ...guide, timestamp: times[pointIndex] }];
+  }).filter((guide, index, guides) => guide.timestamp > timeMin && guide.timestamp < timeMax && guides.findIndex(candidate => candidate.timestamp === guide.timestamp) === index);
+  const scaleBreaks = [timeMin, ...sectorGuides.map(guide => guide.timestamp), timeMax].sort((a, b) => a - b);
+  const x = (time: number) => {
+    if (xAxisScale === 'sectors' && scaleBreaks.length > 2) {
+      const intervalCount = scaleBreaks.length - 1;
+      const intervalIndex = Math.min(intervalCount - 1, Math.max(0, scaleBreaks.findIndex((_, index) => index < intervalCount && time <= scaleBreaks[index + 1])));
+      const intervalStart = scaleBreaks[intervalIndex];
+      const intervalEnd = scaleBreaks[intervalIndex + 1];
+      const intervalProgress = (time - intervalStart) / (intervalEnd - intervalStart || 1);
+      return left + ((intervalIndex + intervalProgress) / intervalCount) * (width - left - right);
+    }
+    return left + ((time - timeMin) / timeRange) * (width - left - right);
+  };
+  const y = (price: number) => top + ((domainMax - price) / domainRange) * (height - top - bottom);
+  const finalPoint = points[points.length - 1]; const finalX = x(times[times.length - 1]); const finalY = y(finalPoint.price); const finalLabelY = finalY < top + 20 ? finalY + 15 : finalY - 7;
+  const path = points.map((point, index) => `${index ? 'L' : 'M'} ${x(times[index]).toFixed(1)} ${y(point.price).toFixed(1)}`).join(' ');
+  const yTicks = Array.from({ length: 5 }, (_, index) => domainMin + ((domainMax - domainMin) * index) / 4);
+  const timingTone = getTimingTone(trend.buyTimingScore);
+  return `<svg class="trend-chart timing-${timingTone}" viewBox="0 0 ${width} ${height}" role="img">
+    ${yTicks.map((tick, index) => `<line class="grid" x1="${left}" x2="${width - right}" y1="${y(tick)}" y2="${y(tick)}"/>${index < yTicks.length - 1 ? `<text class="tick" x="${left - 7}" y="${y(tick) + 4}" text-anchor="end">$${tick.toFixed(0)}</text>` : ''}`).join('')}
+    ${sectorGuides.map(guide => { const position = x(guide.timestamp); return `<line class="sector-line" x1="${position}" x2="${position}" y1="${top}" y2="${height - bottom}"/><text class="sector-label" x="${position + 5}" y="${top + 12}" transform="rotate(-90 ${position + 5} ${top + 12})">${escapeHtml(guide.label)}</text>`; }).join('')}
+    <line class="limit max" x1="${left}" x2="${width - right}" y1="${y(max)}" y2="${y(max)}"/><line class="limit min" x1="${left}" x2="${width - right}" y1="${y(min)}" y2="${y(min)}"/>
+    <text class="limit-label max-text" x="${left + 7}" y="${y(max) - 5}">$${max.toFixed(2)}</text><text class="limit-label min-text" x="${left + 7}" y="${y(min) + 13}">$${min.toFixed(2)}</text>
+    <path class="trend-line" d="${path}"/>${points.map((point, index) => `<circle class="point" cx="${x(times[index])}" cy="${y(point.price)}" r="3"/>`).join('')}<circle class="final-point" cx="${finalX}" cy="${finalY}" r="4.5"/><text class="final-label" x="${finalX + 9}" y="${finalLabelY}" text-anchor="start">$${finalPoint.price.toFixed(2)}</text>
+  </svg>`;
+};
+
 export const PrintButton: React.FC = () => {
-  const { visibleCards, collectionFilter, viewOptions, sets } = useCardContext();
+  const { renderCards, collectionFilter, viewOptions, sets, trendByProductId, trendLoading } = useCardContext();
 
   const setSymbolById = useMemo(() => {
     return new Map(sets.map((set) => [set.id, set.images?.symbol || set.symbolImage || ""]));
@@ -16,8 +65,8 @@ export const PrintButton: React.FC = () => {
 
   // Filter out placeholders - only print actual cards
   const actualCards = useMemo(() => {
-    return visibleCards.filter(card => !('isPlaceholder' in card)) as Card[];
-  }, [visibleCards]);
+    return renderCards.filter(card => !('isPlaceholder' in card)) as Card[];
+  }, [renderCards]);
 
   const getOwnedQuantity = (card: Card) => {
     return (card.collections || [])
@@ -48,8 +97,48 @@ export const PrintButton: React.FC = () => {
     if (!printWindow) return;
 
     const showListTable = viewOptions.displayMode.includes('table');
+    const showTrendPoints = viewOptions.displayMode.includes('trend');
 
-    if (showListTable) {
+    if (showTrendPoints) {
+      const trendHTML = `<!DOCTYPE html><html><head><title>Print - Trend Points</title><style>
+        *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact} body{font-family:Arial,sans-serif;margin:0;padding:12px;color:#172033;background:#fff} h1{font-size:18px;margin:0 0 8px}
+        .timing-dot{display:inline-block;width:7px;height:7px;border-radius:50%}.timing-dot--good{background:#43a66c}.timing-dot--fair{background:#d99a22}.timing-dot--bad{background:#d9534f}
+        .trend-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.trend-row{display:grid;grid-template-columns:76px minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:8px;align-items:stretch;min-width:0;padding:7px;border:1px solid #ccd4df;border-radius:8px;break-inside:avoid;page-break-inside:avoid}.print-left{grid-column:1;grid-row:1;display:grid;grid-template-rows:109px minmax(0,1fr);gap:5px;min-height:0;overflow:hidden}.card-image{width:76px;height:109px;object-fit:contain;border-radius:5px}.print-info{display:flex;align-content:flex-start;align-items:center;flex-wrap:wrap;gap:3px 5px;min-height:0;padding:5px;border:1px solid #d9e0e9;border-radius:5px;color:#657080;font-size:7px;overflow:hidden}.set-row{display:flex;align-items:center;gap:3px;min-width:0;max-width:52px}.set-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.set-symbol{width:10px;height:10px;object-fit:contain}.card-number{margin-left:auto;white-space:nowrap}.info-price{color:#172033;font-size:9px;font-weight:800}.missing{padding:2px 4px;border-radius:999px;background:#d9534f;color:#fff;font-size:6px;font-weight:800;text-transform:uppercase}.owned{flex-basis:100%;font-size:6px}.prices-label{padding:2px 4px;border:1px solid #9aa6b5;border-radius:999px;color:#354154;font-size:6px;font-weight:700}.print-main{grid-column:2;grid-row:1;display:flex;flex-direction:column;min-width:0;min-height:0;padding:5px;border:1px solid #d9e0e9;border-radius:6px;overflow:hidden}.heading{display:flex;justify-content:space-between;gap:8px;min-width:0;font-size:11px;font-weight:700}.heading span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.score{font-size:15px;white-space:nowrap}.label{display:flex;align-items:center;gap:4px;font-size:9px;font-weight:700;margin-top:1px}.label .timing-dot{width:6px;height:6px}.trend-row.timing-good .score,.trend-row.timing-good .label{color:#19875f}.trend-row.timing-fair .score,.trend-row.timing-fair .label{color:#a86f00}.trend-row.timing-bad .score,.trend-row.timing-bad .label{color:#c83f3f}.trend-row.timing-unknown .score,.trend-row.timing-unknown .label{color:#657080}.chart-footer{display:flex;justify-content:space-between;align-items:center;gap:5px;color:#657080;font-size:6px}.mini-legend{display:flex;align-items:center;gap:3px;white-space:nowrap}.mini-legend span{display:inline-flex;align-items:center;gap:1px}.mini-legend .timing-dot{width:4px;height:4px}
+        .trend-chart{display:block;width:100%;height:auto;flex:1;min-height:0}.grid{stroke:#dbe2ea;stroke-width:1}.tick{fill:#657080;font-size:10px}.sector-line{stroke:#94a3b8;stroke-width:1;stroke-dasharray:5 4}.sector-label{fill:#657080;font-size:9px}.limit{stroke-width:1.25;stroke-dasharray:5 4}.max{stroke:#d96b36}.min{stroke:#39966c}.limit-label{font-size:13px;font-weight:700}.max-text{fill:#bd5728}.min-text{fill:#25845c}.trend-line{fill:none;stroke:#8b5fc7;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}.point{fill:#8b5fc7}.final-point{fill:#fff;stroke:#8b5fc7;stroke-width:2}.final-label{fill:#172033;font-size:13px;font-weight:800;paint-order:stroke;stroke:#fff;stroke-width:4px}.no-trend{padding:35px;color:#777}
+        .trend-chart.timing-good .trend-line{stroke:#43a66c}.trend-chart.timing-good .point{fill:#43a66c}.trend-chart.timing-good .final-point{stroke:#43a66c}.trend-chart.timing-fair .trend-line{stroke:#d99a22}.trend-chart.timing-fair .point{fill:#d99a22}.trend-chart.timing-fair .final-point{stroke:#d99a22}.trend-chart.timing-bad .trend-line{stroke:#d9534f}.trend-chart.timing-bad .point{fill:#d9534f}.trend-chart.timing-bad .final-point{stroke:#d9534f}
+        @media screen and (max-width:850px){.trend-list{grid-template-columns:1fr}}
+        @media print{
+          @page{size:portrait;margin:6mm}
+          body{padding:0}
+          h1{display:none}
+          .trend-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:1.5mm 2.5mm}
+          .trend-row{grid-template-columns:18mm minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:1.5mm;min-height:0;height:45mm;padding:1mm;border-radius:2mm;overflow:hidden}
+          .print-left{grid-template-rows:29mm minmax(0,1fr);gap:.8mm}
+          .card-image{width:18mm;height:29mm}
+          .print-info{gap:.5mm 1mm;padding:.8mm;font-size:5.8px}
+          .set-row{max-width:12mm}.set-symbol{width:2.5mm;height:2.5mm}.info-price{font-size:7.5px}.missing,.owned,.prices-label{font-size:5.5px}
+          .print-main{padding:1mm}
+          .heading{gap:1mm;font-size:8.5px;line-height:1.05}
+          .score{font-size:11px}
+          .label{font-size:7.5px;line-height:1;margin-top:.5mm}
+          .trend-chart{width:100%;height:31mm;max-height:31mm}
+          .tick{font-size:8px}
+          .sector-label{font-size:7px}
+          .limit-label,.final-label{font-size:10px}
+          .chart-footer{font-size:5.5px}.mini-legend{gap:.7mm}.mini-legend .timing-dot{width:1mm;height:1mm}
+          .no-trend{padding:10mm 0;font-size:8px}
+        }
+      </style></head><body><h1>Trend points</h1><div class="trend-list">${actualCards.map(card => {
+        const trend = card.productId ? trendByProductId.get(card.productId) : undefined;
+        const timingTone = getTimingTone(trend?.buyTimingScore);
+        const timingDot = timingTone === 'unknown' ? '' : `<i class="timing-dot timing-dot--${timingTone}"></i>`;
+        const owned = getOwnedQuantity(card); const price = getPrice(card); const symbol = getSetSymbol(card);
+        const sortedTrendPoints = trend ? [...trend.points].sort((a, b) => a.date.localeCompare(b.date)) : [];
+        const startDate = sortedTrendPoints[0]?.date || '—'; const endDate = trend?.latest?.date || sortedTrendPoints[sortedTrendPoints.length - 1]?.date || '—';
+        return `<article class="trend-row timing-${timingTone}"><div class="print-left"><img class="card-image" src="${escapeHtml(card.image || '')}" alt=""><div class="print-info"><span class="set-row">${symbol ? `<img class="set-symbol" src="${escapeHtml(symbol)}" alt="">` : ''}<span>${escapeHtml(card.setName)}</span></span><span class="card-number">#${escapeHtml(card.number)}</span>${price !== null ? `<strong class="info-price">${escapeHtml(formatCurrency(price))}</strong>` : ''}${owned > 0 ? `<span class="owned">Owned ${owned}</span>` : ''}<span class="prices-label">↗ Prices</span></div></div><div class="print-main"><div class="heading"><span>${escapeHtml(card.name)} · ${escapeHtml(card.variant || 'Normal')}</span><span class="score">${trend?.buyTimingScore ?? '—'}/100</span></div><div class="label">${timingDot}${escapeHtml(trend?.buyTimingLabel || 'No trend data')}</div>${trend ? buildPrintableTrendChart(trend, viewOptions.trendXAxisScale) : '<div class="no-trend">No trend data</div>'}<div class="chart-footer"><span>${escapeHtml(startDate)} → ${escapeHtml(endDate)} · latest ${trend?.latest ? escapeHtml(formatCurrency(trend.latest.price)) : '—'}</span><span class="mini-legend"><span><i class="timing-dot timing-dot--good"></i>Bueno</span><span><i class="timing-dot timing-dot--fair"></i>Regular</span><span><i class="timing-dot timing-dot--bad"></i>Malo</span></span></div></div></article>`;
+      }).join('')}</div></body></html>`;
+      printWindow.document.write(trendHTML);
+    } else if (showListTable) {
       // Formato tabla
 
       const tableHTML = `
@@ -464,7 +553,7 @@ export const PrintButton: React.FC = () => {
   };
 
   return (
-    <button onClick={handlePrint} className="print-btn" title="Print">
+    <button onClick={handlePrint} className="print-btn" title={trendLoading ? "Wait for trend data to finish loading" : "Print"} disabled={viewOptions.displayMode.includes('trend') && trendLoading}>
       🖨️ Print
     </button>
   );

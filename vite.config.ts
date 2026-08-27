@@ -68,6 +68,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (requestPath) => requestPath.replace(/^\/api\/poke-db/, '/api'),
       },
+      '/api/trend-points': {
+        target: 'http://150.136.113.246',
+        changeOrigin: true,
+        rewrite: () => '/api/v1/data/trend-points',
+      },
     },
   },
 })

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useMemo, ReactNode } from "react";
-import { Card, PokemonWithoutCard, PokemonFormWithoutCard, PokemonFormData, PokemonGroupingOptions, CollectionFilterOptions, ViewOptions, SortConfig, Set } from "../types/dashboard";
+import { Card, PokemonWithoutCard, PokemonFormWithoutCard, PokemonFormData, PokemonGroupingOptions, CollectionFilterOptions, ViewOptions, SortConfig, Set, TrendSeries } from "../types/dashboard";
 import { initializeFiltersFromUrl } from "../utils/urlParams";
 
 export type SeriesSelection = {
@@ -36,6 +36,14 @@ interface CardContextType {
   // Final visible cards (after search)
   visibleCards: (Card | PokemonWithoutCard | PokemonFormWithoutCard)[];
   setVisibleCards: React.Dispatch<React.SetStateAction<(Card | PokemonWithoutCard | PokemonFormWithoutCard)[]>>;
+  renderCards: (Card | PokemonWithoutCard | PokemonFormWithoutCard)[];
+  setRenderCards: React.Dispatch<React.SetStateAction<(Card | PokemonWithoutCard | PokemonFormWithoutCard)[]>>;
+  trendByProductId: Map<number, TrendSeries>;
+  setTrendByProductId: React.Dispatch<React.SetStateAction<Map<number, TrendSeries>>>;
+  trendLoading: boolean;
+  setTrendLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  trendError: string | null;
+  setTrendError: React.Dispatch<React.SetStateAction<string | null>>;
 
   // Sets Data
   sets: Set[];
@@ -90,6 +98,10 @@ export const CardProvider: React.FC<{ children: ReactNode }> = ({
   const [collectionFilteredCards, setCollectionFilteredCards] = useState<Card[]>([]);
   const [groupedCards, setGroupedCards] = useState<(Card | PokemonWithoutCard | PokemonFormWithoutCard)[]>([]);
   const [visibleCards, setVisibleCards] = useState<(Card | PokemonWithoutCard | PokemonFormWithoutCard)[]>([]);
+  const [renderCards, setRenderCards] = useState<(Card | PokemonWithoutCard | PokemonFormWithoutCard)[]>([]);
+  const [trendByProductId, setTrendByProductId] = useState<Map<number, TrendSeries>>(new Map());
+  const [trendLoading, setTrendLoading] = useState(false);
+  const [trendError, setTrendError] = useState<string | null>(null);
   const [sets, setSets] = useState<Set[]>([]);
   const [seriesSelection, setSeriesSelection] = useState<SeriesSelection>(() => {
     const initialSeries = initializeFiltersFromUrl().series || [];
@@ -136,6 +148,8 @@ export const CardProvider: React.FC<{ children: ReactNode }> = ({
 
   const [viewOptions, setViewOptions] = useState<ViewOptions>({
     displayMode: 'cardsUngrouped',
+    trendSortDirection: 'desc',
+    trendXAxisScale: 'normal',
   });
 
   return (
@@ -156,6 +170,14 @@ export const CardProvider: React.FC<{ children: ReactNode }> = ({
         setGroupedCards,
         visibleCards,
         setVisibleCards,
+        renderCards,
+        setRenderCards,
+        trendByProductId,
+        setTrendByProductId,
+        trendLoading,
+        setTrendLoading,
+        trendError,
+        setTrendError,
 
         // Sets Data
         sets,
@@ -182,10 +204,10 @@ export const CardProvider: React.FC<{ children: ReactNode }> = ({
         setViewOptions
       }), [
         allCards, filteredCards, priceFilteredCards, sortedCards,
-        collectionFilteredCards, groupedCards, visibleCards, sets, seriesSelection,
+        collectionFilteredCards, groupedCards, visibleCards, renderCards, sets, seriesSelection,
         variantsFilter, conditionsFilter, priceRange,
         collectionFilter, pokemonGrouping, pokemonFormsData,
-        sortConfig, viewOptions
+        sortConfig, viewOptions, trendByProductId, trendLoading, trendError
       ])}
     >
       {children}

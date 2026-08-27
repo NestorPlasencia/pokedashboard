@@ -1,22 +1,22 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { CardView } from "./CardView";
+import { TrendCardView } from "./TrendCardView";
 import { useCardContext } from "../../context/CardContext";
-import { useOptionsContext } from "../../context/OptionsContext";
 import { Card, PokemonFormData, PokemonFormWithoutCard } from "../../types/dashboard";
 import { CardGroup } from "./CardGroup";
 import { groupCardsByForm, sliceFormGroups, shouldIncludePokemonForm } from "../../utils/filters";
 
 const CardListComponent: React.FC = () => {
   const {
-    visibleCards,
+    renderCards,
     pokemonGrouping,
     collectionFilter,
     pokemonFormsData,
     seriesSelection,
     setSeriesSelection,
-    sets
+    sets,
+    viewOptions
   } = useCardContext();
-  const { } = useOptionsContext();
 
   const [displayedCards, setDisplayedCards] = useState<Card[]>([]);
   const [displayedFormGroups, setDisplayedFormGroups] = useState<Record<string, { form: PokemonFormData; cards: (Card | PokemonFormWithoutCard)[] }>>({});
@@ -31,9 +31,9 @@ const CardListComponent: React.FC = () => {
 
   // Memoize filtered actual cards (without placeholders)
   const actualCards = useMemo(() => {
-    if (!visibleCards || visibleCards.length === 0) return [];
-    return visibleCards.filter(card => !('isPlaceholder' in card)) as Card[];
-  }, [visibleCards]);
+    if (!renderCards || renderCards.length === 0) return [];
+    return renderCards.filter(card => !('isPlaceholder' in card)) as Card[];
+  }, [renderCards]);
 
   // Memoize forms to show based on filter settings
   const formsToShow = useMemo(() => {
@@ -51,18 +51,18 @@ const CardListComponent: React.FC = () => {
 
   // Memoize grouped cards by form
   const groupedCardsByForm = useMemo(() => {
-    if (!isFormsGrouping || !visibleCards || visibleCards.length === 0) {
+    if (!isFormsGrouping || !renderCards || renderCards.length === 0) {
       return null;
     }
     return groupCardsByForm(
-      visibleCards as (Card | PokemonFormWithoutCard)[],
+      renderCards as (Card | PokemonFormWithoutCard)[],
       formsToShow,
       collectionFilter.selectedCollections,
       pokemonGrouping.filterByCollection
     );
   }, [
     isFormsGrouping,
-    visibleCards,
+    renderCards,
     formsToShow,
     collectionFilter.selectedCollections,
     pokemonGrouping.filterByCollection
@@ -147,11 +147,11 @@ const CardListComponent: React.FC = () => {
     return names;
   }, [isFormsGrouping, formsToShow, displayedFormGroups, pokemonGrouping.groupSortBy]);
 
-  const isEmpty = visibleCards.length === 0;
+  const isEmpty = renderCards.length === 0;
   const isAwaitingSeries = seriesSelection.included.length === 0 && seriesSelection.excluded.length === 0;
 
   return (
-    <div className="card-list">
+    <div className={`card-list${viewOptions.displayMode.includes('trend') ? ' card-list--trend' : ''}`}>
       {isEmpty && (
         <div className="card-list-empty">
           {isAwaitingSeries ? (
@@ -185,8 +185,9 @@ const CardListComponent: React.FC = () => {
             <CardGroup key={formName} cards={group.cards} groupName={group.form.name} groupImage={group.form.image} />
           );
         })}
-      {!isFormsGrouping &&
-        displayedCards.map((card, index) => <CardView key={`${card.id}-${index}`} card={card} />)}
+      {!isFormsGrouping && displayedCards.map((card, index) => viewOptions.displayMode.includes('trend')
+        ? <TrendCardView key={`${card.id}-${index}`} card={card} />
+        : <CardView key={`${card.id}-${index}`} card={card} />)}
       <div id="sentinel" className="card-list-sentinel" />
     </div>
   );
