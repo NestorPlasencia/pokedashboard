@@ -2,16 +2,19 @@ import React, { useEffect, useState, useRef } from "react";
 import { useCardContext } from "../../context/CardContext";
 import { updateUrlParams } from "../../utils/urlParams";
 import { Card } from "../../types/dashboard";
-import { ThemeSelector } from "../ui/ThemeSelector";
 
 export const Search: React.FC = () => {
   const [query, setQuery] = useState<string>("");
-  const { groupedCards, setVisibleCards } = useCardContext();
+  const { groupedCards, visibleCards, setVisibleCards } = useCardContext();
   const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(e.target.value);
   };
+
+  const handleClear = () => setQuery("");
+
+  const itemCount = visibleCards.filter((card) => !('isPlaceholder' in card)).length;
 
   // Sincronizar URL con debounce
   useEffect(() => {
@@ -78,18 +81,29 @@ export const Search: React.FC = () => {
 
   return (
     <div className="search-bar">
-      <div className="app-brand" aria-label="PokéDashboard home">
-        <span className="app-brand__mark" aria-hidden="true">P</span>
-        <span className="app-brand__name">PokéDashboard</span>
+      <div className="search-field">
+        <input
+          type="text"
+          value={query}
+          onChange={handleChange}
+          placeholder="Search by card name..."
+          aria-label="Search by card name"
+        />
+        {query && (
+          <button
+            type="button"
+            className="search-clear-button"
+            onClick={handleClear}
+            aria-label="Clear search"
+            title="Clear search"
+          >
+            ×
+          </button>
+        )}
       </div>
-      <input
-        type="text"
-        value={query}
-        onChange={handleChange}
-        placeholder="Search by card name..."
-        aria-label="Search by card name"
-      />
-      <ThemeSelector />
+      <span className="search-item-count" aria-live="polite">
+        {itemCount.toLocaleString()} items
+      </span>
     </div>
   );
 };

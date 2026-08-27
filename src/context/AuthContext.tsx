@@ -47,10 +47,6 @@ const AuthForm = ({ onClose }: { onClose: () => void }) => {
         <button className="auth-card__close" type="button" onClick={onClose} aria-label="Close sign in">
           ×
         </button>
-        <div className="app-brand auth-card__brand">
-          <span className="app-brand__mark" aria-hidden="true">P</span>
-          <span className="app-brand__name">PokéDashboard</span>
-        </div>
         <h1 id="auth-title">Sign in to Collections</h1>
         <p>Your Collectr inventory is private and requires a Supabase session.</p>
         <label>

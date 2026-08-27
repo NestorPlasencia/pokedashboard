@@ -29,6 +29,10 @@ export const PriceExplorerButton: React.FC = () => {
   const batchStart = batchIndex * PRICE_EXPLORER_MAX_IDS + 1;
   const batchEnd = batchStart + selectedBatch.length - 1;
 
+  if (visibleCards.filter((card) => !('isPlaceholder' in card)).length >= 500) {
+    return null;
+  }
+
   return (
     <div className="price-explorer-batch">
       {batches.length > 1 && (

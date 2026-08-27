@@ -15,6 +15,7 @@ import { useUrlFilters } from "../hooks/useUrlFilters";
 import { useCardFilters } from "../hooks/useCardFilters";
 import { Summary } from "./ui/Summary";
 import { PrintButton } from "./ui/PrintButton";
+import { ThemeSelector } from "./ui/ThemeSelector";
 import { MassEntryButton } from "./ui/MassEntryButton";
 import { PriceExplorerButton } from "./ui/PriceExplorerButton";
 import { useAuth } from "../context/AuthContext";
@@ -84,6 +85,12 @@ export const Main: React.FC = () => {
   return (
     <div className={`main mobile-panel--${mobilePanel}`}>
       <Sidebar position="left">
+        {session && (
+          <div className="session-bar sidebar-session-bar">
+            <span>{session.user.email}</span>
+            <button type="button" onClick={handleSignOut}>Sign out</button>
+          </div>
+        )}
         <Filters />
         <PriceRangeFilter />
         <Orders />
@@ -96,15 +103,10 @@ export const Main: React.FC = () => {
         <PriceExplorerButton />
         <MassEntryButton />
         <PrintButton />
+        <ThemeSelector />
       </Sidebar>
       <div className="card-view">
         <Search />
-        {session && (
-          <div className="session-bar">
-            <span>{session.user.email}</span>
-            <button type="button" onClick={handleSignOut}>Sign out</button>
-          </div>
-        )}
         {isLoading && <div className="main-status-message">Loading cards...</div>}
         {error && <div className="main-status-message main-status-message--error">{error}</div>}
         {inventoryError && <div className="main-status-message main-status-message--warning">{inventoryError}</div>}

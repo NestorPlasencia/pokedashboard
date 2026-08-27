@@ -10,6 +10,7 @@ import type { SeriesSelection } from "../context/CardContext";
 import { convertToCollectionObjects } from "../utils/utils";
 import {
   describeInventoryError,
+  loadCollectionNames,
   loadInventory,
   type InventorySnapshot,
 } from "../services/inventory";
@@ -41,6 +42,20 @@ export function useLoadCards(
   const { session, inventoryRevision } = useAuth();
   const userId = session?.user.id;
   const handledInventoryRevision = useRef(inventoryRevision);
+
+  const deferUntilIdle = (callback: () => void) => {
+    if (typeof window === "undefined") return () => undefined;
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    if (idleWindow.requestIdleCallback) {
+      const handle = idleWindow.requestIdleCallback(callback);
+      return () => idleWindow.cancelIdleCallback?.(handle);
+    }
+    const handle = window.setTimeout(callback, 0);
+    return () => window.clearTimeout(handle);
+  };
 
   useEffect(() => {
     const fetchMetadata = async () => {
@@ -74,9 +89,35 @@ export function useLoadCards(
 
   useEffect(() => {
     let cancelled = false;
-    if (!inventoryRequired || !userId) {
-      setInventoryStatus("idle");
-      setInventoryError(null);
+    if (!userId || isCardsLoading || isMetadataLoading) return;
+
+    const cancelDeferred = deferUntilIdle(() => {
+      loadCollectionNames()
+        .then((collectionNames) => {
+          if (!cancelled) {
+            setCollections(convertToCollectionObjects(collectionNames));
+          }
+        })
+        .catch((collectionLoadError) => {
+          console.error(
+            `[collections] Unable to load collection names: ${describeInventoryError(collectionLoadError)}`
+          );
+        });
+    });
+
+    return () => {
+      cancelled = true;
+      cancelDeferred();
+    };
+  }, [userId, isCardsLoading, isMetadataLoading, setCollections]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!userId || isCardsLoading || isMetadataLoading) {
+      if (!userId) {
+        setInventoryStatus("idle");
+        setInventoryError(null);
+      }
       return;
     }
 
@@ -85,28 +126,40 @@ export function useLoadCards(
       current === "ready" ? "refreshing" : "loading"
     );
     setInventoryError(null);
-    loadInventory({ forceRefresh })
-      .then((inventory) => {
-        if (cancelled) return;
-        handledInventoryRevision.current = inventoryRevision;
-        setInventory(inventory);
-        setCollections(convertToCollectionObjects(inventory.collectionNames));
-        setIsInventoryEmpty(inventory.activeCopyCount === 0);
-        setInventoryStatus("ready");
-      })
-      .catch((inventoryLoadError) => {
-        const description = describeInventoryError(inventoryLoadError);
-        console.error(`[collections] Unable to load Supabase inventory: ${description}`);
-        if (!cancelled) {
-          setInventoryError(`Unable to load your Supabase collections (${description}).`);
-          setInventoryStatus("error");
-        }
-      });
+    const cancelDeferred = deferUntilIdle(() => {
+      loadInventory({ forceRefresh })
+        .then((inventory) => {
+          if (cancelled) return;
+          handledInventoryRevision.current = inventoryRevision;
+          setInventory(inventory);
+          setCollections(convertToCollectionObjects(inventory.collectionNames));
+          setIsInventoryEmpty(inventory.activeCopyCount === 0);
+          setInventoryStatus("ready");
+        })
+        .catch((inventoryLoadError) => {
+          const description = describeInventoryError(inventoryLoadError);
+          console.error(`[collections] Unable to load Supabase inventory: ${description}`);
+          if (!cancelled) {
+            if (inventoryRequired) {
+              setInventoryError(`Unable to load your Supabase collections (${description}).`);
+            }
+            setInventoryStatus("error");
+          }
+        });
+    });
 
     return () => {
       cancelled = true;
+      cancelDeferred();
     };
-  }, [inventoryRequired, inventoryRevision, userId, setCollections]);
+  }, [
+    userId,
+    inventoryRevision,
+    inventoryRequired,
+    isCardsLoading,
+    isMetadataLoading,
+    setCollections,
+  ]);
 
   useEffect(() => {
     if (!inventoryRequired || !inventory) {

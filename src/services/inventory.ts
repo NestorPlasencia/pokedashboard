@@ -215,6 +215,17 @@ const fetchCollectionPrintings = async (): Promise<CollectionPrintingRow[]> => {
   return (data ?? []) as CollectionPrintingRow[];
 };
 
+export const loadCollectionNames = async (): Promise<string[]> => {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const [activeCollections, collectionPrintings] = await Promise.all([
+    fetchActiveCollections(),
+    fetchCollectionPrintings(),
+  ]);
+  return sortCollectionsByPrinting(activeCollections, collectionPrintings).map(
+    (collection) => collection.name
+  );
+};
+
 const sortCollectionsByPrinting = (
   collections: CollectionRow[],
   printings: CollectionPrintingRow[]
