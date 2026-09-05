@@ -83,6 +83,55 @@ export const ViewOptionsComponent = () => {
             <option value="trend">Trend points</option>
           </select>
         </div>
+        {currentView === 'table' && (
+          <div className="view-options-print-columns">
+            <small>Columns to include when printing:</small>
+            <label className="view-options-checkbox">
+              <input
+                type="checkbox"
+                checked={viewOptions.printTableImages}
+                onChange={(event) => setViewOptions(prev => ({
+                  ...prev,
+                  printTableImages: event.target.checked
+                }))}
+              />
+              Images
+            </label>
+            <label className="view-options-checkbox">
+              <input
+                type="checkbox"
+                checked={viewOptions.printTableQuantityMissing}
+                onChange={(event) => setViewOptions(prev => ({
+                  ...prev,
+                  printTableQuantityMissing: event.target.checked
+                }))}
+              />
+              Quantity and Missing
+            </label>
+            <label className="view-options-checkbox">
+              <input
+                type="checkbox"
+                checked={viewOptions.printTableType}
+                onChange={(event) => setViewOptions(prev => ({
+                  ...prev,
+                  printTableType: event.target.checked
+                }))}
+              />
+              Type
+            </label>
+            <label className="view-options-checkbox">
+              <input
+                type="checkbox"
+                checked={viewOptions.printTableVariant}
+                onChange={(event) => setViewOptions(prev => ({
+                  ...prev,
+                  printTableVariant: event.target.checked
+                }))}
+              />
+              Variant
+            </label>
+          </div>
+        )}
         {currentView === 'trend' && <small className="trend-view-hint">Requests only the currently filtered cards.</small>}
         {currentView === 'trend' && (
           <div className="trend-scale-control">

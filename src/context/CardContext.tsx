@@ -150,6 +150,10 @@ export const CardProvider: React.FC<{ children: ReactNode }> = ({
     displayMode: 'cardsUngrouped',
     trendSortDirection: 'desc',
     trendXAxisScale: 'normal',
+    printTableImages: false,
+    printTableQuantityMissing: false,
+    printTableType: true,
+    printTableVariant: true,
   });
 
   return (

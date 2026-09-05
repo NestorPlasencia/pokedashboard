@@ -194,6 +194,10 @@ export interface ViewOptions {
   displayMode: 'tableGrouped' | 'tableUngrouped' | 'cardsGrouped' | 'cardsUngrouped' | 'trendGrouped' | 'trendUngrouped';
   trendSortDirection: 'asc' | 'desc';
   trendXAxisScale: 'normal' | 'sectors';
+  printTableImages: boolean;
+  printTableQuantityMissing: boolean;
+  printTableType: boolean;
+  printTableVariant: boolean;
 }
 
 export type TrendRole = 'start' | 'end' | 'minimum' | 'maximum';

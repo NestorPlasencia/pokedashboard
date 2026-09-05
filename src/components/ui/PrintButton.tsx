@@ -141,6 +141,14 @@ export const PrintButton: React.FC = () => {
     } else if (showListTable) {
       // Formato tabla
 
+      const tableColumnCount = 6
+        + (viewOptions.printTableImages ? 1 : 0)
+        + (viewOptions.printTableVariant ? 1 : 0)
+        + (viewOptions.printTableType ? 1 : 0)
+        + (viewOptions.printTableQuantityMissing ? 2 : 0);
+      const printTableFontSize = Math.max(8, 11 - Math.max(0, tableColumnCount - 6) * 0.6);
+      const screenTableFontSize = printTableFontSize + 2;
+
       const tableHTML = `
         <!DOCTYPE html>
         <html>
@@ -159,7 +167,7 @@ export const PrintButton: React.FC = () => {
             table {
               width: 100%;
               border-collapse: collapse;
-              font-size: 10px;
+              font-size: ${screenTableFontSize}px;
             }
             th, td {
               border: 1px solid #ddd;
@@ -194,6 +202,22 @@ export const PrintButton: React.FC = () => {
               display: block;
               margin: 0 auto;
             }
+            .card-image-cell {
+              width: 56px;
+              min-width: 56px;
+              padding: 3px;
+              text-align: center;
+              line-height: 0;
+            }
+            .card-image-cell img {
+              display: block;
+              width: 50px;
+              max-width: 50px;
+              height: auto;
+              margin: 0 auto;
+              object-fit: contain;
+              border-radius: 4px;
+            }
             .owned-card {
               background-color: #e8f5e9 !important;
               border-left: 2px solid #4caf50;
@@ -213,7 +237,7 @@ export const PrintButton: React.FC = () => {
                 margin: 0;
               }
               table {
-                font-size: 8px;
+                font-size: ${printTableFontSize}px;
               }
               th, td {
                 padding: 0 3px;
@@ -227,6 +251,15 @@ export const PrintButton: React.FC = () => {
                 max-width: 12px;
                 max-height: 12px;
               }
+              .card-image-cell {
+                width: 15mm;
+                min-width: 15mm;
+                padding: 1mm;
+              }
+              .card-image-cell img {
+                width: 50px;
+                max-width: 50px;
+              }
             }
           </style>
         </head>
@@ -234,15 +267,15 @@ export const PrintButton: React.FC = () => {
           <table>
             <thead>
               <tr>
+                ${viewOptions.printTableImages ? '<th class="card-image-cell">Image</th>' : ''}
                 <th>Name</th>
                 <th>Set</th>
                 <th class="icon-cell">Icon</th>
                 <th>Number</th>
-                <th>Variant</th>
-                <th>Type</th>
+                ${viewOptions.printTableVariant ? '<th>Variant</th>' : ''}
+                ${viewOptions.printTableType ? '<th>Type</th>' : ''}
                 <th>Rarity</th>
-                <th class="number-cell">Quantity</th>
-                <th class="number-cell">Missing</th>
+                ${viewOptions.printTableQuantityMissing ? '<th class="number-cell">Quantity</th><th class="number-cell">Missing</th>' : ''}
                 <th class="number-cell">Price</th>
               </tr>
             </thead>
@@ -263,15 +296,15 @@ export const PrintButton: React.FC = () => {
 
         return `
                   <tr class="${rowClass}">
+                    ${viewOptions.printTableImages ? `<td class="card-image-cell">${card.image ? `<img src="${escapeHtml(card.image)}" alt="${escapeHtml(card.name)}" />` : '-'}</td>` : ''}
                     <td>${card.name}</td>
                     <td>${card.setName}</td>
                     ${iconCell}
                     <td>${card.number}</td>
-                    <td>${card.variant || '-'}</td>
-                    <td>${card.types?.join(', ') || '-'}</td>
+                    ${viewOptions.printTableVariant ? `<td>${card.variant || '-'}</td>` : ''}
+                    ${viewOptions.printTableType ? `<td>${card.types?.join(', ') || '-'}</td>` : ''}
                     <td>${card.rarity || '-'}</td>
-                    <td class="number-cell">${owned}</td>
-                    <td class="number-cell">${missing}</td>
+                    ${viewOptions.printTableQuantityMissing ? `<td class="number-cell">${owned}</td><td class="number-cell">${missing}</td>` : ''}
                     <td class="number-cell">${formatCurrency(price)}</td>
                   </tr>
                 `;
@@ -350,6 +383,10 @@ export const PrintButton: React.FC = () => {
               overflow: hidden;
               text-overflow: ellipsis;
               text-align: left;
+            }
+
+            .card-name-tag {
+              font-weight: 700;
             }
 
             .icon-tag {
@@ -527,6 +564,7 @@ export const PrintButton: React.FC = () => {
                 <div class="${cardClass}">
                   <img src="${imageUrl}" alt="${card.name}">
                   <div class="card-tags">
+                    <div class="card-tag card-name-tag">${escapeHtml(card.name)}</div>
                     <div class="card-tag">${topLevelVariant}</div>
                     ${setIcon ? `<div class="card-tag icon-tag"><img src="${setIcon}" alt="" class="set-symbol" /></div>` : ''}
                     <div class="card-tag">${card.number}</div>
