@@ -83,6 +83,10 @@ interface CardContextType {
   // View options
   viewOptions: ViewOptions;
   setViewOptions: React.Dispatch<React.SetStateAction<ViewOptions>>;
+
+  // Name of the Collectr collection being browsed on its own, "" when none.
+  viewedCollection: string;
+  setViewedCollection: React.Dispatch<React.SetStateAction<string>>;
 }
 
 const CardContext = createContext<CardContextType | undefined>(undefined);
@@ -146,6 +150,8 @@ export const CardProvider: React.FC<{ children: ReactNode }> = ({
     direction: 'asc'
   });
 
+  const [viewedCollection, setViewedCollection] = useState<string>("");
+
   const [viewOptions, setViewOptions] = useState<ViewOptions>({
     displayMode: 'cardsUngrouped',
     trendSortDirection: 'desc',
@@ -205,13 +211,16 @@ export const CardProvider: React.FC<{ children: ReactNode }> = ({
         sortConfig,
         setSortConfig,
         viewOptions,
-        setViewOptions
+        setViewOptions,
+        viewedCollection,
+        setViewedCollection
       }), [
         allCards, filteredCards, priceFilteredCards, sortedCards,
         collectionFilteredCards, groupedCards, visibleCards, renderCards, sets, seriesSelection,
         variantsFilter, conditionsFilter, priceRange,
         collectionFilter, pokemonGrouping, pokemonFormsData,
-        sortConfig, viewOptions, trendByProductId, trendLoading, trendError
+        sortConfig, viewOptions, trendByProductId, trendLoading, trendError,
+        viewedCollection
       ])}
     >
       {children}

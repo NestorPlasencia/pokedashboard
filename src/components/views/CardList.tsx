@@ -16,7 +16,8 @@ const CardListComponent: React.FC = () => {
     seriesSelection,
     setSeriesSelection,
     sets,
-    viewOptions
+    viewOptions,
+    viewedCollection
   } = useCardContext();
 
   const [displayedCards, setDisplayedCards] = useState<Card[]>([]);
@@ -24,7 +25,7 @@ const CardListComponent: React.FC = () => {
   const [itemsToShow, setItemsToShow] = useState<number>(20);
 
   const wishlists = useWishlists();
-  const isFormsGrouping = pokemonGrouping.enabled && !wishlists.viewing;
+  const isFormsGrouping = pokemonGrouping.enabled && !wishlists.viewing && !viewedCollection;
 
   const availableSeries = useMemo(
     () => Array.from(new Set(sets.map((set) => set.series).filter(Boolean))),
@@ -152,6 +153,13 @@ const CardListComponent: React.FC = () => {
   const isEmpty = renderCards.length === 0;
   const isAwaitingSeries = seriesSelection.included.length === 0 && seriesSelection.excluded.length === 0;
 
+  // Only a wishlist splits into titled sections; a collection renders as one flat list.
+  const sections = useMemo(() => {
+    if (!wishlists.viewing) return null;
+    return wishlists.groupCards(displayedCards);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wishlists.viewing, wishlists.wishlist, wishlists.subcollection, displayedCards]);
+
   return (
     <div className={`card-list${viewOptions.displayMode.includes('trend') ? ' card-list--trend' : ''}`}>
       {isEmpty && (
@@ -187,8 +195,8 @@ const CardListComponent: React.FC = () => {
             <CardGroup key={formName} cards={group.cards} groupName={group.form.name} groupImage={group.form.image} />
           );
         })}
-      {!isFormsGrouping && (wishlists.viewing
-        ? wishlists.groupCards(displayedCards).map(group => (
+      {!isFormsGrouping && (sections
+        ? sections.map(group => (
           <section className="wishlist-section" key={group.label}>
             <h3 className="wishlist-section__title">{group.label}<span className="wishlist-section__count">{group.cards.length}</span></h3>
             <div className={`wishlist-section__cards${viewOptions.displayMode.includes('trend') ? ' wishlist-section__cards--trend' : ''}`}>

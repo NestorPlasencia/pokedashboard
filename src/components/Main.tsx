@@ -47,6 +47,7 @@ export const Main: React.FC = () => {
     seriesSelection,
     collectionFilter,
     pokemonGrouping,
+    viewedCollection,
   } = useCardContext();
   const { setCollections } = useOptionsContext();
   const { session, signOut } = useAuth();
@@ -72,7 +73,8 @@ export const Main: React.FC = () => {
     setSets,
     setPokemonFormsData,
     wishlists.viewing ? wishlists.seriesSelection : seriesSelection,
-    inventoryRequired
+    inventoryRequired || Boolean(viewedCollection),
+    viewedCollection
   );
 
   // Sincronizar filtros con URL

@@ -1,10 +1,12 @@
 import { useEffect } from "react";
+import { Eye } from "lucide-react";
 import { useOptionsContext } from "../../context/OptionsContext";
 import { useCardContext } from "../../context/CardContext";
 import { CollapsibleFieldset } from "../ui/CollapsibleFieldset";
 import { updateUrlParams } from "../../utils/urlParams";
 import type { CollectionFilterOptions, ConditionKey } from "../../types/dashboard";
 import { useAuth } from "../../context/AuthContext";
+import { useWishlists } from "../../context/WishlistsContext";
 import type { InventoryStatus } from "../../hooks/useLoadCards";
 
 const CONDITION_KEYS: ConditionKey[] = ["Near Mint", "Lightly Played", "Moderately Played", "Damaged", "Heavily Played"];
@@ -27,8 +29,9 @@ export const Collections = ({
   inventoryUpdatedAt,
 }: CollectionsProps) => {
   const { collections } = useOptionsContext();
-  const { collectionFilter, setCollectionFilter } = useCardContext();
+  const { collectionFilter, setCollectionFilter, viewedCollection, setViewedCollection } = useCardContext();
   const { session, isAuthLoading, refreshInventory, requestSignIn } = useAuth();
+  const wishlists = useWishlists();
 
   const requireSession = () => {
     if (session) return true;
@@ -199,16 +202,32 @@ export const Collections = ({
               <span>No collections available</span>
             )}
             {collections.map((collection) => (
-              <label key={collection.name} className="collections-checkbox-label">
-                <input
-                  type="checkbox"
-                  value={collection.name}
-                  checked={collectionFilter.selectedCollections.includes(collection.name)}
-                  onChange={() => handleCollectionsChange(collection.name)}
-                  aria-label={`Select collection ${collection.name}`}
-                />
-                <span>{collection.name}</span>
-              </label>
+              <div key={collection.name} className="collections-row">
+                <label className="collections-checkbox-label">
+                  <input
+                    type="checkbox"
+                    value={collection.name}
+                    checked={collectionFilter.selectedCollections.includes(collection.name)}
+                    onChange={() => handleCollectionsChange(collection.name)}
+                    aria-label={`Select collection ${collection.name}`}
+                  />
+                  <span>{collection.name}</span>
+                </label>
+                <button
+                  type="button"
+                  className="collections-view-btn"
+                  title="View collection"
+                  aria-label={`View cards in ${collection.name}`}
+                  onClick={() => {
+                    const next = viewedCollection === collection.name ? '' : collection.name;
+                    if (next) wishlists.setViewing(false);
+                    setViewedCollection(next);
+                  }}
+                  aria-pressed={viewedCollection === collection.name}
+                >
+                  <Eye size={13} aria-hidden="true" /> View
+                </button>
+              </div>
             ))}
             {collectionFilter.selectedCollections.length > 0 && (
               <CollapsibleFieldset legend="Condition:" defaultCollapsed={false}>

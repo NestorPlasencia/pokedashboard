@@ -22,6 +22,7 @@ type CollectionPrintingRow = {
 type CatalogRow = {
   product_id: number;
   product_name: string;
+  catalog_group: string | null;
 };
 
 type InventoryStage =
@@ -62,6 +63,9 @@ export type InventoryEntry = {
   productName: string;
   printing: string | null;
   conditions: Partial<Record<ConditionKey, number>>;
+  /** Set name the product belongs to. Resolves an owned card to its series without
+   *  loading all 41 series first, the way a wishlist entry stores its era. */
+  catalogGroup: string | null;
 };
 
 export type InventorySnapshot = {
@@ -72,7 +76,7 @@ export type InventorySnapshot = {
 };
 
 type StoredInventorySnapshot = {
-  version: 1;
+  version: 3;
   userId: string;
   collectionNames: string[];
   entriesByProductId: Array<[number, InventoryEntry[]]>;
@@ -137,7 +141,7 @@ const readStoredInventory = (userId: string): InventorySnapshot | null => {
     if (!raw) return null;
     const stored = JSON.parse(raw) as Partial<StoredInventorySnapshot>;
     if (
-      stored.version !== 1 ||
+      stored.version !== 3 ||
       stored.userId !== userId ||
       !Array.isArray(stored.collectionNames) ||
       !Array.isArray(stored.entriesByProductId) ||
@@ -162,7 +166,7 @@ const readStoredInventory = (userId: string): InventorySnapshot | null => {
 const writeStoredInventory = (userId: string, snapshot: InventorySnapshot) => {
   if (typeof window === "undefined" || snapshot.fetchedAt === null) return;
   const stored: StoredInventorySnapshot = {
-    version: 1,
+    version: 3,
     userId,
     collectionNames: snapshot.collectionNames,
     entriesByProductId: [...snapshot.entriesByProductId],
@@ -251,17 +255,17 @@ const sortCollectionsByPrinting = (
 
 const fetchProductNames = async (productIds: number[]) => {
   if (!supabase) throw new Error("Supabase is not configured.");
-  const names = new Map<number, string>();
+  const names = new Map<number, CatalogRow>();
   if (productIds.length === 0) return names;
   const chunkSize = 200;
   for (let index = 0; index < productIds.length; index += chunkSize) {
     const { data, error } = await supabase
       .from("collectr_cards")
-      .select("product_id, product_name")
+      .select("product_id, product_name, catalog_group")
       .in("product_id", productIds.slice(index, index + chunkSize));
     if (error) throwInventoryError("collectr_cards", error);
     for (const row of (data ?? []) as CatalogRow[]) {
-      names.set(Number(row.product_id), row.product_name);
+      names.set(Number(row.product_id), row);
     }
   }
   return names;
@@ -293,9 +297,10 @@ const createSnapshot = async (): Promise<InventorySnapshot> => {
     const entryKey = `${collectionName}\u0000${copy.printing ?? ""}`;
     const entry = byCollection.get(entryKey) ?? {
       collectionName,
-      productName: productNames.get(productId) ?? "",
+      productName: productNames.get(productId)?.product_name ?? "",
       printing: copy.printing,
       conditions: {},
+      catalogGroup: productNames.get(productId)?.catalog_group ?? null,
     };
     if (conditionKeys.has(copy.condition as ConditionKey)) {
       const condition = copy.condition as ConditionKey;

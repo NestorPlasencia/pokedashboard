@@ -3572,12 +3572,22 @@ button.mass-entry-btn.sidebar-action-btn:disabled {
 .wishlist-section__cards--trend { display: grid; grid-template-columns: repeat(2, minmax(430px, 1fr)); align-items: stretch; gap: 12px; }
 @media (max-width: 1450px) { .wishlist-section__cards--trend { grid-template-columns: minmax(0, 1fr); } }
 
+/* A collection row pairs its checkbox with a way to open it on its own. */
+.collections-row { display: flex; align-items: center; gap: 6px; }
+.collections-row .collections-checkbox-label { flex: 1; min-width: 0; }
+.section-sidebar .collections-view-btn { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; margin: 0; padding: 4px 7px; border: 0; background: transparent; color: var(--accent); font-size: 11px; white-space: nowrap; cursor: pointer; }
+.section-sidebar .collections-view-btn:hover { background: var(--accent-soft); }
+.section-sidebar .collections-view-btn[aria-pressed="true"] { background: var(--accent-soft); }
+
 /* Mode indicator: a single tag in the search row, so it costs no vertical space. */
 .view-mode-badge { justify-self: start; max-width: 240px; padding: 3px 9px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-muted); color: var(--text-muted); font-size: 10px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
 /* In a wishlist the badge is also the way out, so it renders as a button. */
 /* The name is a proper noun, so it keeps its own casing unlike the "Catalog" label. */
 button.view-mode-badge--wishlist { display: inline-flex; align-items: center; gap: 6px; margin: 0; border-color: var(--wishlist); background: var(--wishlist); color: #fff; cursor: pointer; font: inherit; font-size: 11px; font-weight: 700; letter-spacing: 0; text-transform: none; }
 button.view-mode-badge--wishlist:hover { filter: brightness(1.12); }
+/* A collection uses the app accent, keeping purple exclusive to wishlists. */
+button.view-mode-badge--collection { display: inline-flex; align-items: center; gap: 6px; margin: 0; border-color: var(--accent); background: var(--accent); color: #fff; cursor: pointer; font: inherit; font-size: 11px; font-weight: 700; letter-spacing: 0; text-transform: none; }
+button.view-mode-badge--collection:hover { filter: brightness(1.12); }
 .view-mode-badge__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .view-mode-badge__warning { padding: 0 5px; border-radius: 999px; background: rgba(255, 255, 255, 0.24); font-variant-numeric: tabular-nums; }
 .card-view--wishlist { box-shadow: inset 0 3px 0 var(--wishlist); }

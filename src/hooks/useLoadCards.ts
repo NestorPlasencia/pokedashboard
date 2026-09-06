@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { loadHierarchy, loadSets, loadPokemonForms } from "../services/cards";
 import {
   applyInventoryToCards,
@@ -29,11 +29,13 @@ export function useLoadCards(
   setSets: (sets: Set[]) => void,
   setPokemonFormsData: (forms: PokemonFormData[]) => void,
   seriesSelection: SeriesSelection,
-  inventoryRequired: boolean
+  inventoryRequired: boolean,
+  viewedCollection = ""
 ) {
   const [isMetadataLoading, setIsMetadataLoading] = useState(true);
   const [isCardsLoading, setIsCardsLoading] = useState(false);
   const [baseCards, setBaseCards] = useState<Card[]>([]);
+  const [setsMetadata, setSetsMetadata] = useState<Set[]>([]);
   const [inventory, setInventory] = useState<InventorySnapshot | null>(null);
   const [inventoryStatus, setInventoryStatus] = useState<InventoryStatus>("idle");
   const [isInventoryEmpty, setIsInventoryEmpty] = useState(false);
@@ -65,6 +67,7 @@ export function useLoadCards(
           loadPokemonForms(),
         ]);
         setSets(setsResponse);
+        setSetsMetadata(setsResponse);
         setPokemonFormsData(formsResponse);
       } catch {
         setError("Unable to load data. Please try again later.");
@@ -171,6 +174,45 @@ export function useLoadCards(
     setAllCards(enrichedCards);
   }, [baseCards, inventory, inventoryRequired, setAllCards]);
 
+  const seriesForCollection = useMemo(() => {
+    if (!viewedCollection || !inventory) return null;
+    // Collectr names the set ("Evolving Skies"); the hierarchy carries the same names,
+    // so matching on a normalized name resolves the series without a shared id.
+    const normalize = (name: string) => name.trim().toLowerCase();
+    const seriesBySetName = new Map<string, string>();
+    for (const set of setsMetadata) {
+      if (set.name) seriesBySetName.set(normalize(set.name), set.series);
+    }
+    const included = new Set<string>();
+    const unresolved = new Set<string>();
+    const collectionNames = new Set<string>();
+    let matched = 0;
+    let withoutGroup = 0;
+    for (const entries of inventory.entriesByProductId.values()) {
+      for (const entry of entries) {
+        collectionNames.add(entry.collectionName);
+        if (entry.collectionName !== viewedCollection) continue;
+        matched++;
+        if (!entry.catalogGroup) { withoutGroup++; continue; }
+        const series = seriesBySetName.get(normalize(entry.catalogGroup));
+        if (series) included.add(series);
+        else unresolved.add(entry.catalogGroup);
+      }
+    }
+    console.info("[collections] Series resolution", {
+      viewedCollection,
+      entriesInCollection: matched,
+      entriesWithoutCatalogGroup: withoutGroup,
+      knownSets: seriesBySetName.size,
+      resolvedSeries: [...included],
+      unmatchedSetNames: [...unresolved],
+      availableCollections: [...collectionNames],
+    });
+    return { included: [...included], excluded: [] } as SeriesSelection;
+  }, [viewedCollection, inventory, setsMetadata]);
+
+  const effectiveSeriesSelection = seriesForCollection ?? seriesSelection;
+
   useEffect(() => {
     let cancelled = false;
 
@@ -179,14 +221,14 @@ export function useLoadCards(
       setIsCardsLoading(true);
       setBaseCards([]);
       try {
-        console.info("[cards] Loading selected series", { seriesSelection });
+        console.info("[cards] Loading selected series", { effectiveSeriesSelection });
         const hierarchy = await loadHierarchy();
-        const selectedNames = seriesSelection.included.length > 0
-          ? seriesSelection.included
-          : seriesSelection.excluded.length > 0
+        const selectedNames = effectiveSeriesSelection.included.length > 0
+          ? effectiveSeriesSelection.included
+          : effectiveSeriesSelection.excluded.length > 0
             ? hierarchy
                 .map((series) => series.name)
-                .filter((name) => !seriesSelection.excluded.includes(name))
+                .filter((name) => !effectiveSeriesSelection.excluded.includes(name))
             : [];
 
         if (selectedNames.length === 0) {
@@ -213,7 +255,7 @@ export function useLoadCards(
         }
       } catch (error) {
         console.error("[cards] Unable to generate selected series", {
-          seriesSelection,
+          effectiveSeriesSelection,
           error,
         });
         if (!cancelled) {
@@ -229,7 +271,7 @@ export function useLoadCards(
     return () => {
       cancelled = true;
     };
-  }, [seriesSelection]);
+  }, [effectiveSeriesSelection]);
 
   return {
     isLoading: isMetadataLoading || isCardsLoading,

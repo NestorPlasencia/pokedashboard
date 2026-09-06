@@ -5,10 +5,12 @@ import { deleteWishlistNode, restoreWishlistNode, reorderSubcollections, type De
 import { clearLocalBackup, fetchRemoteWishlists, readLocalBackup, saveRemoteWishlists } from '../services/wishlistsRemote';
 import { isSupabaseConfigured } from '../services/supabase';
 import { useAuth } from './AuthContext';
+import { useCardContext } from './CardContext';
 const reference = (card: Card): SavedCard => ({ id: card.id, era: card.setSeries });
 
 function useWishlistsState() {
   const { session } = useAuth();
+  const { setViewedCollection } = useCardContext();
   const userId = isSupabaseConfigured ? session?.user.id ?? '' : '';
   const [wishlists, setWishlists] = useState<Wishlist[]>([]);
   const [error, setError] = useState('');
@@ -83,7 +85,13 @@ function useWishlistsState() {
     }
     return true;
   };
-  const select = (id: string, subId = '', open = false) => { setWishlistId(id); setSubcollectionId(subId); setViewing(open); };
+  const select = (id: string, subId = '', open = false) => {
+    setWishlistId(id);
+    setSubcollectionId(subId);
+    setViewing(open);
+    // The two browsing modes are mutually exclusive.
+    if (open) setViewedCollection('');
+  };
   const create = (name: string, nested: boolean, parentId = wishlistId) => {
     name = name.trim();
     if (!name || (nested && !wishlists.some(w => w.id === parentId))) return false;

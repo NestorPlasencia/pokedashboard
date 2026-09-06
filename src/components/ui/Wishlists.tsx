@@ -127,7 +127,19 @@ export function WishlistCardButton({ card }: { card: Card }) {
  *  the catalog. Doubling as the exit keeps it to one element and costs no extra row. */
 export function ViewModeBadge() {
   const wishlists = useWishlists();
-  const { allCards } = useCardContext();
+  const { allCards, viewedCollection, setViewedCollection } = useCardContext();
+  if (viewedCollection) {
+    return <button
+      type="button"
+      className="view-mode-badge view-mode-badge--collection"
+      onClick={() => setViewedCollection('')}
+      aria-label={`${viewedCollection} — back to catalog`}
+      title="Back to catalog"
+    >
+      <span className="view-mode-badge__name">{viewedCollection}</span>
+      <X size={12} aria-hidden="true" />
+    </button>;
+  }
   if (!wishlists.viewing || !wishlists.wishlist) {
     return <span className="view-mode-badge" title="Browsing the full card catalog">Catalog</span>;
   }

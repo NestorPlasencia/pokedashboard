@@ -12,12 +12,18 @@ import { Card } from "../../types/dashboard";
 export const Search: React.FC = () => {
   const [query, setQuery] = useState<string>("");
   const wishlists = useWishlists();
-  const { groupedCards, allCards, visibleCards, setVisibleCards, sortConfig, variantsFilter, priceRange, conditionsFilter, collectionFilter } = useCardContext();
-  // A wishlist deliberately skips the catalog's Level 1 filters (set, rarity, type…) so
-  // saved cards never disappear, but price, sort and the collection filter still apply -
-  // the latter is what dims, hides and counts owned copies.
+  const { groupedCards, sortedCards, allCards, visibleCards, setVisibleCards, sortConfig, variantsFilter, priceRange, conditionsFilter, collectionFilter, viewedCollection } = useCardContext();
   const sourceCards = useMemo(() => {
+    // Browsing one collection: sortedCards is the pipeline through price and sort but
+    // before the collection filter, which is exactly "every filter except Collections".
+    // Scoping is by ownership, so the collection filter would only fight the scope.
+    if (viewedCollection) {
+      return sortedCards.filter(c => c.collections?.some(entry => entry.name === viewedCollection));
+    }
     if (!wishlists.viewing) return groupedCards;
+    // A wishlist starts from allCards instead, skipping the catalog's Level 1 filters
+    // (set, rarity, type…) so a saved card never vanishes for an unrelated reason.
+    // Price, sort and the collection filter do apply - the last one dims and hides.
     const savedCards = allCards.filter(c => wishlists.keys.has(cardKey({ id: c.id, era: c.setSeries })));
     const priceFiltered = applyPriceFilter(savedCards, priceRange.min, priceRange.max, variantsFilter, conditionsFilter);
     const sorted = applySorting(priceFiltered, sortConfig.field, sortConfig.direction, variantsFilter);
@@ -29,6 +35,7 @@ export const Search: React.FC = () => {
       collectionFilter.conditionsFilter
     );
   }, [
+    viewedCollection, sortedCards,
     wishlists.viewing, wishlists.keys, allCards, groupedCards,
     priceRange.min, priceRange.max, conditionsFilter,
     sortConfig.field, sortConfig.direction, variantsFilter,
