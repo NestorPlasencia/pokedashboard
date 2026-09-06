@@ -64,7 +64,6 @@ export const Search: React.FC = () => {
   const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const scrolledForQuery = useRef(query);
 
   /** The panel that scrolls, reached from inside rather than by a global lookup. */
   const listPanel = () => barRef.current?.closest('.card-view') ?? null;
@@ -74,6 +73,10 @@ export const Search: React.FC = () => {
   // that scroll pushes the results off the top - the ones the search just found. Putting
   // the list back on every viewport resize while the field has focus beats the browser to
   // it, however many times it adjusts as the keyboard animates in.
+  //
+  // Note this is the only thing that moves the list. Resetting on every change of the
+  // query looks reasonable and is not: the results update as you type, so it yanks the
+  // list back mid-scroll while you are still refining a search.
   useEffect(() => {
     const viewport = window.visualViewport;
     if (!viewport) return;
@@ -85,18 +88,6 @@ export const Search: React.FC = () => {
     return () => viewport.removeEventListener('resize', keepResultsInView);
   }, []);
 
-  // A new query replaces the list under the viewport, so staying where the old list was
-  // scrolled to hides the very matches that were just asked for. On mobile it is worse:
-  // opening the keyboard scrolls the list down to make room for the field, so the first
-  // results start off screen. Reset to the top whenever the query itself changes - not on
-  // every result change, or scrolling through a long list would fight the filters.
-  useEffect(() => {
-    if (scrolledForQuery.current === query) return;
-    scrolledForQuery.current = query;
-    // The panel is the scroll container, not the page; reached from inside rather than by
-    // a global lookup so it stays correct if the layout is ever nested differently.
-    listPanel()?.scrollTo({ top: 0 });
-  }, [query]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(e.target.value);
