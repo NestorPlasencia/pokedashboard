@@ -3,6 +3,7 @@ import { cardKey } from "../../services/wishlists";
 import { useMemo } from "react";
 import { useWishlists } from "../../context/WishlistsContext";
 import { ViewModeBadge } from "../ui/Wishlists";
+import { EditTargetBadge } from "../ui/EditTargetBadge";
 import React, { useEffect, useState, useRef } from "react";
 import { useCardContext } from "../../context/CardContext";
 import { parseUrlParams, updateUrlParams } from "../../utils/urlParams";
@@ -108,7 +109,13 @@ export const Search: React.FC = () => {
 
   return (
     <div className="search-bar">
-      <ViewModeBadge />
+      {/* One grid cell, not two. The search bar is a three-column grid whose middle
+          column is taken out of the flow on mobile, so a fourth child pushes an item onto
+          a second row and overflows the viewport. */}
+      <div className="search-bar__modes">
+        <ViewModeBadge />
+        <EditTargetBadge />
+      </div>
       <div className="search-field">
         <SearchIcon className="search-field__icon" size={16} aria-hidden="true" />
         <input

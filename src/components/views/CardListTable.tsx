@@ -1,4 +1,5 @@
 import { WishlistCardButton } from "../ui/Wishlists";
+import { OwnedCardButton } from "../ui/OwnedCardButton";
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useCardContext } from "../../context/CardContext";
 import { Card } from "../../types/dashboard";
@@ -200,7 +201,7 @@ const CardListTableComponent: React.FC = () => {
                     className="card-list-table-image"
                   />
                 </td>
-                <td>{card.name}<WishlistCardButton card={card} /></td>
+                <td>{card.name}<WishlistCardButton card={card} /><OwnedCardButton card={card} /></td>
                 <td>{card.setName}</td>
                 <td>
                   {setSymbol && (

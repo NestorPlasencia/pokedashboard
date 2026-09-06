@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { Eye } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, Eye, Pencil, PencilOff, Plus, Trash2, X } from "lucide-react";
 import { useOptionsContext } from "../../context/OptionsContext";
 import { useCardContext } from "../../context/CardContext";
 import { CollapsibleSection } from "../ui/CollapsibleSection";
@@ -7,6 +7,7 @@ import { updateUrlParams } from "../../utils/urlParams";
 import type { CollectionFilterOptions, ConditionKey } from "../../types/dashboard";
 import { useAuth } from "../../context/AuthContext";
 import { CATALOG_VIEW } from "../../utils/viewMode";
+import { useOwnedCollections } from "../../context/OwnedCollectionsContext";
 import type { InventoryStatus } from "../../hooks/useLoadCards";
 
 const CONDITION_KEYS: ConditionKey[] = ["Near Mint", "Lightly Played", "Moderately Played", "Damaged", "Heavily Played"];
@@ -31,6 +32,9 @@ export const Collections = ({
   const { collections } = useOptionsContext();
   const { collectionFilter, setCollectionFilter, viewMode, setViewMode } = useCardContext();
   const { session, isAuthLoading, refreshInventory, requestSignIn } = useAuth();
+  const owned = useOwnedCollections();
+  const [draftName, setDraftName] = useState<string | null>(null);
+  const [notice, setNotice] = useState("");
   // Switching to a collection cannot leave a wishlist open: the mode replaces it.
   const viewedCollection = viewMode.kind === 'collection' ? viewMode.name : '';
 
@@ -138,6 +142,121 @@ export const Collections = ({
           />
           Filter by collection
         </label>
+
+        {/* Your own collections, for cards bought outside Collectr. Kept out of the
+            "Filter by collection" branch on purpose: recording what you own has nothing to
+            do with filtering by it, and Collectr's collections cannot be edited from here
+            anyway - its import rebuilds them. */}
+        <div className="collections-own">
+          <div className="collections-own__header">
+            <span>My collections</span>
+            {draftName === null && (
+              <button type="button" className="collections-new-btn" onClick={() => { setDraftName(""); setNotice(""); }}>
+                <Plus size={12} aria-hidden="true" /> New
+              </button>
+            )}
+          </div>
+
+          {owned.collections.map((collection) => {
+            const isTarget = owned.selectedId === collection.id;
+            const copies = collection.cards.length;
+            return (
+              <div key={collection.id} className={`collections-own__row${isTarget ? " is-target" : ""}`}>
+                <span className="collections-own__name">
+                  <span>{collection.name}</span>
+                  <span className="collections-own__count">{copies}</span>
+                </span>
+                {/* Adding is armed on purpose and never as a side effect of looking at a
+                    collection, so a stray click on a card cannot record a purchase. */}
+                <button
+                  type="button"
+                  className={`collections-own__arm${isTarget ? " is-armed" : ""}`}
+                  aria-pressed={isTarget}
+                  title={isTarget ? `Stop adding to ${collection.name}` : `Add the cards you buy to ${collection.name}`}
+                  aria-label={isTarget ? `Stop adding to ${collection.name}` : `Add the cards you buy to ${collection.name}`}
+                  onClick={() => { owned.setSelectedId(isTarget ? "" : collection.id); setNotice(""); }}
+                >
+                  {isTarget ? <PencilOff size={13} aria-hidden="true" /> : <Pencil size={13} aria-hidden="true" />}
+                </button>
+                <button
+                  type="button"
+                  className="collections-view-btn"
+                  title="View collection"
+                  aria-label={`View cards in ${collection.name}`}
+                  aria-pressed={viewedCollection === collection.name}
+                  onClick={() => setViewMode(
+                    viewedCollection === collection.name ? CATALOG_VIEW : { kind: 'collection', name: collection.name }
+                  )}
+                >
+                  <Eye size={13} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className="collections-own__delete"
+                  title={`Delete ${collection.name}`}
+                  aria-label={`Delete collection ${collection.name}`}
+                  onClick={() => { owned.remove(collection.id); setNotice(`${collection.name} deleted.`); }}
+                >
+                  <Trash2 size={13} aria-hidden="true" />
+                </button>
+              </div>
+            );
+          })}
+
+          {draftName !== null && (
+            <form
+              className="collections-own__form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const name = draftName.trim();
+                // Collections are addressed by name everywhere downstream - the filter, the
+                // URL, the merged inventory - so a duplicate would be ambiguous, including
+                // against a name that came from Collectr.
+                if (collections.some((entry) => entry.name === name) || owned.collections.some((entry) => entry.name === name)) {
+                  setNotice("A collection with that name already exists.");
+                  return;
+                }
+                if (!owned.create(name)) return;
+                setDraftName(null);
+                setNotice(`${name} created. It is now the target for cards you add.`);
+              }}
+            >
+              <input
+                autoFocus
+                className="filter-search-input"
+                placeholder="Collection name"
+                aria-label="New collection name"
+                value={draftName}
+                maxLength={120}
+                required
+                onChange={(event) => setDraftName(event.target.value)}
+                onKeyDown={(event) => { if (event.key === "Escape") { setDraftName(null); setNotice(""); } }}
+              />
+              {draftName.trim() && (
+                <button type="submit" title="Create" aria-label="Create collection">
+                  <Check size={14} aria-hidden="true" />
+                </button>
+              )}
+              <button type="button" onClick={() => { setDraftName(null); setNotice(""); }} title="Cancel" aria-label="Cancel creation">
+                <X size={14} aria-hidden="true" />
+              </button>
+            </form>
+          )}
+
+          {owned.loading
+            ? <small role="status">Loading collections…</small>
+            : owned.selected
+              ? <small role="status">Adding to <strong>{owned.selected.name}</strong>. Use + on a card to record a copy.</small>
+              : owned.collections.length === 0 && draftName === null
+                ? <small>Create one to track cards you buy outside Collectr.</small>
+                : <small>Use the pencil to start adding the cards you buy.</small>}
+          {owned.remoteUnavailable && (
+            <small>Saved in this browser only — run supabase/owned_collections.sql to sync them.</small>
+          )}
+          {owned.error && <small role="alert">{owned.error}</small>}
+          {notice && <small role="status">{notice}</small>}
+        </div>
+
         {collectionFilter.enabled && (
           <>
             <div className="collections-inventory-actions">

@@ -98,6 +98,11 @@ export interface FilterParams extends
   viewWishlist?: string;
   viewSubcollection?: string;
   viewedCollection?: string;
+  // Where card edits go, when armed. Each holds the id of its destination, so presence
+  // means "armed" and the value says where - one parameter instead of a flag plus a
+  // target that could disagree with it.
+  addWishlist?: string;
+  addCollection?: string;
 }
 
 /**
@@ -219,6 +224,17 @@ export const parseUrlParams = (): FilterParams => {
       (filters as Record<string, string>)[param] = value;
     }
   });
+
+  // Parse the armed edit destinations
+  const addWishlist = params.get('addWishlist');
+  if (addWishlist) {
+    filters.addWishlist = addWishlist;
+  }
+
+  const addCollection = params.get('addCollection');
+  if (addCollection) {
+    filters.addCollection = addCollection;
+  }
 
   // Parse browsing mode parameters
   const viewMode = params.get('viewMode');
@@ -396,6 +412,14 @@ export const generateUrlParams = (filters: Partial<FilterParams>): string => {
       queryParts.push(`${param}=${value}`);
     }
   });
+
+  // Add the armed edit destinations. Nothing armed writes nothing.
+  if (filters.addWishlist) {
+    queryParts.push(`addWishlist=${filters.addWishlist}`);
+  }
+  if (filters.addCollection) {
+    queryParts.push(`addCollection=${filters.addCollection}`);
+  }
 
   // Add the browsing mode. Building it from one branch per mode keeps the URL from ever
   // describing two modes at once, whatever the merged parameters happen to hold.

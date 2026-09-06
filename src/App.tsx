@@ -4,16 +4,19 @@ import { Main } from "./components/Main";
 import { CardProvider } from "./context/CardContext";
 import { OptionsProvider } from "./context/OptionsContext";
 import { AuthProvider } from "./context/AuthContext";
+import { OwnedCollectionsProvider } from "./context/OwnedCollectionsContext";
 
 const App: React.FC = () => (
   <AuthProvider>
-    <CardProvider>
-      <OptionsProvider>
-        <WishlistsProvider>
-          <Main />
-        </WishlistsProvider>
-      </OptionsProvider>
-    </CardProvider>
+    <OwnedCollectionsProvider>
+      <CardProvider>
+        <OptionsProvider>
+          <WishlistsProvider>
+            <Main />
+          </WishlistsProvider>
+        </OptionsProvider>
+      </CardProvider>
+    </OwnedCollectionsProvider>
   </AuthProvider>
 );
 

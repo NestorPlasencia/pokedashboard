@@ -123,3 +123,23 @@ test('a corrupt or unknown parameter falls back to its default instead of breaki
   setUrl('?modeSeries=WAT&xmodeSeries=NOPE&matchSeries=??&zeroSeries=maybe');
   assert.deepEqual(initialFilterSettings('series'), FILTER_DEFAULTS);
 });
+
+test('the armed edit destinations survive a write and read of the URL', () => {
+  // Wanting a card and owning one are different acts, so both can be armed at once.
+  updateUrlParams({ addWishlist: 'sub-1', addCollection: 'col-1' });
+  assert.equal(parseUrlParams().addWishlist, 'sub-1');
+  assert.equal(parseUrlParams().addCollection, 'col-1');
+
+  updateUrlParams({ addWishlist: undefined });
+  assert.equal(parseUrlParams().addWishlist, undefined, 'disarming removes the parameter');
+  assert.equal(parseUrlParams().addCollection, 'col-1', 'and leaves the other one armed');
+
+  updateUrlParams({ addCollection: undefined });
+  assert.equal(window.location.search, '', 'nothing armed writes nothing');
+});
+
+test('arming is independent of viewing, so browsing a wishlist does not arm it', () => {
+  updateUrlParams(viewModeToParams({ kind: 'wishlist', wishlistId: 'w-1', subcollectionId: 'sub-1' }));
+  assert.equal(parseUrlParams().addWishlist, undefined);
+  assert.deepEqual(parseViewModeFromUrl(), { kind: 'wishlist', wishlistId: 'w-1', subcollectionId: 'sub-1' });
+});

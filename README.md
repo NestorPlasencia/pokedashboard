@@ -130,6 +130,21 @@ Row Level Security then limits inventory queries to the signed-in owner. Use
 only the browser-safe publishable key. Never put a service-role key, database
 password, or connection string in this app.
 
+The files in `supabase/` are run by hand, once each, in the Supabase SQL editor:
+
+| File | What it stores |
+| --- | --- |
+| `wishlist_collections.sql` | Wishlists and their subcollections |
+| `owned_collections.sql` | Collections you keep yourself, for cards bought outside Collectr |
+
+Both hold one JSONB document per user behind Row Level Security. Until a table
+exists the matching feature keeps its data in `localStorage` and moves it up on
+the first load after the table appears, so running the SQL late loses nothing.
+
+Cards recorded in your own collections are merged into the inventory in memory.
+Nothing in the app writes to `card_copies` or `collectr_collections` - the
+Collectr import rebuilds those, so anything written there would be lost.
+
 Run the production build locally:
 
 ```bash

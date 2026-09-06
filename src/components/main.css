@@ -209,6 +209,10 @@ textarea {
   flex: 1;
   min-width: 0;
   overflow-y: auto;
+  /* This is a vertical panel. Stated explicitly because `overflow-y: auto` alone makes
+     overflow-x compute from `visible` to `auto`, so anything a pixel too wide silently
+     turns the whole panel into a horizontal slider. */
+  overflow-x: hidden;
   box-sizing: border-box;
   justify-content: center;
   flex-wrap: wrap;
@@ -225,7 +229,12 @@ textarea {
   padding: 8px;
   background-color: #333;
   box-sizing: border-box;
+  /* Centred, but never at the cost of hiding a card: `safe` falls back to start alignment
+     the moment a row overflows, which matters because the panel above no longer scrolls
+     sideways - centred overflow would be clipped on the left with no way to reach it.
+     The plain value stays first as the fallback for browsers without `safe`. */
   justify-content: center;
+  justify-content: safe center;
   padding-top: 28px;
 }
 
@@ -3431,10 +3440,17 @@ button.mass-entry-btn.sidebar-action-btn:disabled {
 
   /* Appearance and the account fit on a single row; the email absorbs the slack
      and truncates so Sign out always stays reachable. */
+  /* Theme and session share one row; anything block-level below takes a row of its own
+     rather than being squeezed in beside them. */
   .sidebar-footer {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 10px;
+  }
+
+  .sidebar-footer .section-sidebar {
+    flex: 1 0 100%;
   }
 
   .sidebar-footer .theme-selector {
@@ -3833,4 +3849,284 @@ button.view-mode-badge--collection:hover { filter: brightness(1.12); }
 .cache-panel__reset:hover:not(:disabled) {
   color: var(--danger);
   border-color: var(--danger);
+}
+
+/* Your own collections: created here, merged into the inventory like any other. */
+.collections-own {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin: var(--spacing-sm) 0 var(--spacing-md);
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+}
+
+.collections-own__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.collections-own small {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+.collections-own__row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.section-sidebar .collections-own__name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font-size: var(--font-size-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.section-sidebar .collections-own__name > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.section-sidebar .collections-own__row.is-target .collections-own__name {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.collections-own__count {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.section-sidebar .collections-new-btn,
+.section-sidebar .collections-own__delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 4px 7px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+
+.section-sidebar .collections-new-btn:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.section-sidebar .collections-own__delete:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.collections-own__form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 4px;
+}
+
+.collections-own__form .filter-search-input {
+  min-width: 0;
+  margin: 0;
+}
+
+.section-sidebar .collections-own__form button {
+  margin: 0;
+  padding: 5px 7px;
+}
+
+/* Marks a card as owned. Sits under the wishlist control in the top-left corner - the
+   only one kept clear of Owned, Missing and Prices - and carries its own icon and colour
+   so the two are never mistaken for each other. */
+.card .owned-card-button {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 11;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: calc(100% - 86px);
+  margin: 0;
+  padding: 5px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 999px;
+  background: linear-gradient(135deg, #1f3a63, #2f5c99);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+/* When both controls are present the wishlist one keeps the corner and this drops below. */
+.card .wishlist-card-button:not(.wishlist-card-button--slot) ~ .owned-card-button {
+  top: 38px;
+}
+
+.card .owned-card-button--held {
+  background: linear-gradient(135deg, #14684a, #1e9b6b);
+}
+
+.card .owned-card-button:hover {
+  filter: brightness(1.15);
+}
+
+/* In the table the row already carries the context, so it sits inline. */
+.card-list-table .owned-card-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--text);
+  font-size: 11px;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.card-list-table .owned-card-button--held {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+@media print {
+  .owned-card-button { display: none !important; }
+}
+
+/* Arming controls: the switch that decides whether clicking a card writes anything.
+   The wishlist tree needs its own, more specific selector because
+   `.wishlists .wishlist-tree-row button` outranks a single class and would strip the
+   padding and colour back out - leaving a bare grey glyph among the other grey glyphs. */
+.wishlists .wishlist-tree-row .wishlist-tree-arm,
+.section-sidebar .collections-own__arm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 4px 7px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.wishlists .wishlist-tree-row .wishlist-tree-arm:hover,
+.section-sidebar .collections-own__arm:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* Armed is a state worth noticing from across the sidebar, so it borrows the warning
+   colour the search-row badge uses for the same thing. */
+.wishlists .wishlist-tree-row .wishlist-tree-arm.is-armed,
+.section-sidebar .collections-own__arm.is-armed {
+  border-color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 18%, transparent);
+  color: var(--warning);
+}
+
+.collections-own__name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  font-size: var(--font-size-sm);
+}
+
+/* Groups the mode tag and the armed-edit tags into a single search-bar cell.
+   `min-width: 0` lets the auto-sized track shrink instead of forcing the row wider than
+   a phone screen. */
+.search-bar__modes {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Says, from anywhere, that a click on a card will write - and where to. */
+.edit-target-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.edit-target-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: min(260px, 100%);
+  padding: 4px 9px;
+  border: 1px solid var(--warning);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+  color: var(--warning);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.edit-target-badge:hover {
+  background: color-mix(in srgb, var(--warning) 26%, transparent);
+}
+
+.edit-target-badge__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media print {
+  .edit-target-badges { display: none !important; }
 }

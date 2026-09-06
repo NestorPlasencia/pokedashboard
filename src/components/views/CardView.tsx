@@ -1,5 +1,6 @@
 import { TrendingUp } from "lucide-react";
 import { WishlistCardButton } from "../ui/Wishlists";
+import { OwnedCardButton } from "../ui/OwnedCardButton";
 import { useWishlists } from "../../context/WishlistsContext";
 import React, { useMemo } from "react";
 import { Card } from "../../types/dashboard";
@@ -17,7 +18,7 @@ const CardViewComponent: React.FC<{
 
   const { collectionFilter, sets, trendByProductId, viewOptions, trendLoading } = useCardContext();
   const wishlists = useWishlists();
-  const showWishlistButton = wishlists.canToggle(card);
+  const showWishlistButton = wishlists.canToggle();
   // The control only takes over the "Missing" slot inside the wishlist view.
   // Browsing the catalog, Missing keeps its corner even with a subcollection selected.
   const wishlistTakesMissingSlot = showWishlistButton && wishlists.viewing;
@@ -195,6 +196,7 @@ const CardViewComponent: React.FC<{
         {trend && <div className="card-trend__footer"><span>{trendStartDate} → {trend.latest?.date ?? trend.points[trend.points.length - 1]?.date} · latest {trend.latest ? formatCurrency(trend.latest.price) : '—'}</span><span className="card-trend__legend"><i className="card-trend__legend-dot card-trend__legend-dot--good" />Good <i className="card-trend__legend-dot card-trend__legend-dot--fair" />Fair <i className="card-trend__legend-dot card-trend__legend-dot--bad" />Bad</span></div>}
       </div>}
       {showWishlistButton && <WishlistCardButton card={card} />}
+      <OwnedCardButton card={card} />
       {!wishlistTakesMissingSlot && missingToLimit > 0 && collectionFilter.enabled && (
         <div
           className="missing-box"

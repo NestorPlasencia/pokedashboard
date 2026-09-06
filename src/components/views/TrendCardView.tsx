@@ -13,7 +13,7 @@ const getTimingTone = (score: number | null) => score === null ? "unknown" : sco
 const TrendCardViewComponent: React.FC<{ card: Card }> = ({ card }) => {
   const { collectionFilter, sets, trendByProductId, viewOptions, trendLoading } = useCardContext();
   const wishlists = useWishlists();
-  const showWishlistButton = wishlists.canToggle(card);
+  const showWishlistButton = wishlists.canToggle();
   // The control only replaces "Missing" inside the wishlist view; the catalog keeps it.
   const wishlistTakesMissingSlot = showWishlistButton && wishlists.viewing;
   const trend = card.productId ? trendByProductId.get(card.productId) : undefined;

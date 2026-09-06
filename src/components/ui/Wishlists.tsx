@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, ChevronDown, ChevronRight, Eye, MoreHorizontal, Plus, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, ChevronDown, ChevronRight, Eye, MoreHorizontal, Pencil, PencilOff, Plus, Trash2, X } from 'lucide-react';
 import { CollapsibleSection } from './CollapsibleSection';
 import { useWishlists } from '../../context/WishlistsContext';
 import { useCardContext } from '../../context/CardContext';
@@ -16,6 +16,7 @@ export function Wishlists({ busy }: { busy: boolean }) {
   const [notice, setNotice] = useState('');
   const cards = renderCards.filter((c): c is Card => !('isPlaceholder' in c));
   const additions = cards.filter(c => !wishlists.contains(c));
+  const armed = wishlists.armedSubId;
   const startCreate = (parentId: string | null) => {
     setDraft({ parentId, name: '' });
     setMenu(null);
@@ -80,6 +81,15 @@ export function Wishlists({ busy }: { busy: boolean }) {
                       <button className="wishlist-tree-name" type="button" aria-pressed={selected} onClick={() => select(collection.id, sub.id)} title={sub.name}>{sub.name}</button>
                       <span className="wishlist-tree-count">{sub.cards.length}</span>
                       {sub.cards.length > 0 && <button className="wishlist-tree-view" type="button" title="View subcollection" aria-label={`View cards in ${sub.name}`} onClick={() => { wishlists.select(collection.id, sub.id, true); setMenu(null); }}><Eye size={13} aria-hidden="true" /> View</button>}
+                      {/* Arming is its own act. Selecting a subcollection to look at it no
+                          longer puts an Add button on every card in the catalog. */}
+                      <button className={`wishlist-tree-arm${armed === sub.id ? ' is-armed' : ''}`} type="button"
+                        aria-pressed={armed === sub.id}
+                        title={armed === sub.id ? `Stop adding cards to ${sub.name}` : `Add cards to ${sub.name}`}
+                        aria-label={armed === sub.id ? `Stop adding cards to ${sub.name}` : `Add cards to ${sub.name}`}
+                        onClick={() => { wishlists.setArmedSubId(armed === sub.id ? '' : sub.id); setMenu(null); setNotice(''); }}>
+                        {armed === sub.id ? <><PencilOff size={13} aria-hidden="true" /> Adding</> : <><Pencil size={13} aria-hidden="true" /> Add</>}
+                      </button>
                       <button className="wishlist-tree-more" type="button" aria-label={`Actions for ${sub.name}`} aria-expanded={menu === sub.id} onClick={() => setMenu(menu === sub.id ? null : sub.id)}><MoreHorizontal size={16} aria-hidden="true" /></button>
                     </div>
                     {menu === sub.id && <div className="wishlist-tree-actions">
@@ -97,8 +107,8 @@ export function Wishlists({ busy }: { busy: boolean }) {
         {draft?.parentId === null ? creationForm(null) : <button className="wishlist-tree-new" onClick={() => startCreate(null)}><Plus size={12} aria-hidden="true" /> Wishlist</button>}
         {wishlists.wishlist && <div className="wishlist-tree-context">
           {wishlists.viewing ? <button onClick={() => wishlists.setViewing(false)}><ArrowLeft size={13} aria-hidden="true" /> Back to catalog</button> : <>
-            {wishlists.subcollection && !busy && !trendLoading && additions.length > 0 && <button className="wishlist-tree-add" onClick={() => { const added = wishlists.add(cards); if (added) setNotice(`${added} cards added to ${wishlists.subcollection!.name}.`); }}><Plus size={12} aria-hidden="true" /> Add everything shown ({additions.length})</button>}
-            {wishlists.subcollection && <small>{busy || trendLoading ? 'Loading results…' : !cards.length ? 'Search for cards to add them here.' : !additions.length ? 'Every card shown is already saved.' : `Target: ${wishlists.subcollection.name}`}</small>}
+            {wishlists.armedSubcollection && !busy && !trendLoading && additions.length > 0 && <button className="wishlist-tree-add" onClick={() => { const added = wishlists.add(cards); if (added) setNotice(`${added} cards added to ${wishlists.armedSubcollection!.name}.`); }}><Plus size={12} aria-hidden="true" /> Add everything shown ({additions.length})</button>}
+            {wishlists.armedSubcollection && <small>{busy || trendLoading ? 'Loading results…' : !cards.length ? 'Search for cards to add them here.' : !additions.length ? 'Every card shown is already saved.' : `Adding to: ${wishlists.armedSubcollection.name}`}</small>}
             {wishlists.keys.size > 0 && <button className="wishlist-tree-new" onClick={() => wishlists.setViewing(true)}>View saved cards <ArrowRight size={13} aria-hidden="true" /></button>}
           </>}
         </div>}
@@ -118,9 +128,11 @@ const DIM_REASONS: Partial<Record<CollectionFilterOptions['mode'], string>> = {
 export function WishlistCardButton({ card }: { card: Card }) {
   const wishlists = useWishlists();
   const { collectionFilter } = useCardContext();
-  if (!wishlists.canToggle(card)) return null;
+  if (!wishlists.canToggle()) return null;
   const saved = wishlists.contains(card);
-  const target = wishlists.subcollection?.name ?? wishlists.wishlist!.name;
+  // The armed subcollection, not the selected one: they can differ now, and what the
+  // button says must be where the click actually writes.
+  const target = wishlists.armedSubcollection!.name;
   // The collection filter dims a card by darkening its image only, which would leave this
   // control shouting over a card the filter just pushed into the background. It follows
   // the same state instead, so in a wishlist the cards still in play are the ones that

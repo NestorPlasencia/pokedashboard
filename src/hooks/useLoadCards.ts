@@ -15,6 +15,8 @@ import {
   type InventorySnapshot,
 } from "../services/inventory";
 import { useAuth } from "../context/AuthContext";
+import { mergeOwnedIntoInventory } from "../services/ownedCollections";
+import { useOwnedCollections } from "../context/OwnedCollectionsContext";
 
 export type InventoryStatus =
   | "idle"
@@ -37,11 +39,14 @@ export function useLoadCards(
   const [baseCards, setBaseCards] = useState<Card[]>([]);
   const [setsMetadata, setSetsMetadata] = useState<Set[]>([]);
   const [inventory, setInventory] = useState<InventorySnapshot | null>(null);
+  // Collectr's own names, kept apart so one effect can own the list the sidebar shows.
+  const [collectrNames, setCollectrNames] = useState<string[]>([]);
   const [inventoryStatus, setInventoryStatus] = useState<InventoryStatus>("idle");
   const [isInventoryEmpty, setIsInventoryEmpty] = useState(false);
   const [inventoryError, setInventoryError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { session, inventoryRevision } = useAuth();
+  const owned = useOwnedCollections();
   const userId = session?.user.id;
   const handledInventoryRevision = useRef(inventoryRevision);
 
@@ -83,7 +88,7 @@ export function useLoadCards(
 
   useEffect(() => {
     setInventory(null);
-    setCollections([]);
+    setCollectrNames([]);
     setIsInventoryEmpty(false);
     setInventoryError(null);
     setInventoryStatus("idle");
@@ -98,7 +103,7 @@ export function useLoadCards(
       loadCollectionNames()
         .then((collectionNames) => {
           if (!cancelled) {
-            setCollections(convertToCollectionObjects(collectionNames));
+            setCollectrNames(collectionNames);
           }
         })
         .catch((collectionLoadError) => {
@@ -135,7 +140,7 @@ export function useLoadCards(
           if (cancelled) return;
           handledInventoryRevision.current = inventoryRevision;
           setInventory(inventory);
-          setCollections(convertToCollectionObjects(inventory.collectionNames));
+          setCollectrNames(inventory.collectionNames);
           setIsInventoryEmpty(inventory.activeCopyCount === 0);
           setInventoryStatus("ready");
         })
@@ -164,18 +169,36 @@ export function useLoadCards(
     setCollections,
   ]);
 
+  // The sidebar lists both sources as one set of collections. Deduplicated because a
+  // hand-kept collection may share a name with a Collectr one, and the filter addresses
+  // collections by name.
   useEffect(() => {
-    if (!inventoryRequired || !inventory) {
+    setCollections(convertToCollectionObjects([...new Set([...collectrNames, ...owned.names])]));
+  }, [collectrNames, owned.names, setCollections]);
+
+  // Hand-kept collections are folded in here, so everything downstream - the collection
+  // filter, the "View" mode, the owned counters, Missing, print - sees one inventory and
+  // needs no idea that some of it never came from Collectr.
+  const effectiveInventory = useMemo(
+    () => mergeOwnedIntoInventory(inventoryRequired ? inventory : null, owned.collections),
+    [inventory, inventoryRequired, owned.collections]
+  );
+
+  useEffect(() => {
+    const hasCollectrInventory = inventoryRequired && inventory;
+    const hasOwnedCards = owned.collections.some((collection) => collection.cards.length > 0);
+    if (!hasCollectrInventory && !hasOwnedCards) {
       setAllCards(baseCards);
       return;
     }
-    const enrichedCards = applyInventoryToCards(baseCards, inventory);
+    const enrichedCards = applyInventoryToCards(baseCards, effectiveInventory);
     searchErrorsInCollections(enrichedCards);
     setAllCards(enrichedCards);
-  }, [baseCards, inventory, inventoryRequired, setAllCards]);
+  }, [baseCards, inventory, inventoryRequired, effectiveInventory, owned.collections, setAllCards]);
 
   const seriesForCollection = useMemo(() => {
-    if (!viewedCollection || !inventory) return null;
+    if (!viewedCollection) return null;
+    const inventory = effectiveInventory;
     // Collectr names the set ("Evolving Skies"); the hierarchy carries the same names,
     // so matching on a normalized name resolves the series without a shared id.
     const normalize = (name: string) => name.trim().toLowerCase();
@@ -209,7 +232,7 @@ export function useLoadCards(
       availableCollections: [...collectionNames],
     });
     return { included: [...included], excluded: [] } as SeriesSelection;
-  }, [viewedCollection, inventory, setsMetadata]);
+  }, [viewedCollection, effectiveInventory, setsMetadata]);
 
   const effectiveSeriesSelection = seriesForCollection ?? seriesSelection;
 

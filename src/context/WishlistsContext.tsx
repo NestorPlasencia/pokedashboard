@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Card } from '../types/dashboard';
 
 import { deleteWishlistNode, restoreWishlistNode, reorderSubcollections, resolveRestoredSelection, type DeletedNode, cardKey, mergeSavedCards, readWishlists, storageKey, type SavedCard, type Wishlist } from '../services/wishlists';
@@ -7,6 +7,7 @@ import { isSupabaseConfigured } from '../services/supabase';
 import { useAuth } from './AuthContext';
 import { useCardContext } from './CardContext';
 import { CATALOG_VIEW } from '../utils/viewMode';
+import { parseUrlParams, updateUrlParams } from '../utils/urlParams';
 const reference = (card: Card): SavedCard => ({ id: card.id, era: card.setSeries });
 
 function useWishlistsState() {
@@ -24,6 +25,10 @@ function useWishlistsState() {
   // Browsing a wishlist is one of the app's view modes, so the flag lives with the other
   // two rather than beside the selection.
   const viewing = viewMode.kind === 'wishlist';
+  // The subcollection card edits are written to, or '' when editing is off. Deliberately
+  // separate from the selection above: if arming followed the selection, clicking another
+  // subcollection to look at it would silently move where the next click writes.
+  const [armedSubId, setArmedSubIdState] = useState(() => parseUrlParams().addWishlist ?? '');
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
   // A wishlist restored from the URL is only honoured on the first load; switching
   // accounts later starts from a clean selection.
@@ -90,8 +95,17 @@ function useWishlistsState() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, isAuthLoading]);
 
+  const setArmedSubId = useCallback((subId: string) => {
+    setArmedSubIdState(subId);
+    updateUrlParams({ addWishlist: subId || undefined });
+  }, []);
+
   const wishlist = wishlists.find(w => w.id === wishlistId);
   const subcollection = wishlist?.subcollections.find(s => s.id === subcollectionId);
+  // Resolved from the loaded data, so an id left in the URL for a subcollection that is
+  // gone simply disarms instead of pointing at nothing.
+  const armedWishlist = armedSubId ? wishlists.find(w => w.subcollections.some(s => s.id === armedSubId)) : undefined;
+  const armedSubcollection = armedWishlist?.subcollections.find(s => s.id === armedSubId);
   const entries = useMemo(() => subcollection?.cards ?? wishlist?.subcollections.flatMap(s => s.cards) ?? [], [wishlist, subcollection]);
   const keys = useMemo(() => new Set(entries.map(cardKey)), [entries]);
   const seriesSelection = useMemo(() => ({ included: [...new Set(entries.map(r => r.era))], excluded: [] }), [entries]);
@@ -135,17 +149,20 @@ function useWishlistsState() {
     select(nested ? parentId : id, nested ? id : '');
     return true;
   };
+  // Every write lands in the armed subcollection. With nothing armed there is no
+  // destination and nothing happens - which is the point of arming.
   const add = (cards: Card[]) => {
-    if (!subcollection) return 0;
-    const cardsToSave = mergeSavedCards(subcollection.cards, cards.map(reference));
-    const saved = commit(wishlists.map(w => w.id === wishlistId ? { ...w, subcollections: w.subcollections.map(s => s.id === subcollectionId ? { ...s, cards: cardsToSave } : s) } : w));
-    return saved ? cardsToSave.length - subcollection.cards.length : 0;
+    if (!armedSubcollection || !armedWishlist) return 0;
+    const cardsToSave = mergeSavedCards(armedSubcollection.cards, cards.map(reference));
+    const saved = commit(wishlists.map(w => w.id === armedWishlist.id ? { ...w, subcollections: w.subcollections.map(s => s.id === armedSubId ? { ...s, cards: cardsToSave } : s) } : w));
+    return saved ? cardsToSave.length - armedSubcollection.cards.length : 0;
   };
   const remove = (card: Card) => {
+    if (!armedSubcollection || !armedWishlist) return;
     const key = cardKey(reference(card));
-    commit(wishlists.map(w => w.id === wishlistId ? {
+    commit(wishlists.map(w => w.id === armedWishlist.id ? {
       ...w,
-      subcollections: w.subcollections.map(s => (subcollectionId ? s.id === subcollectionId : s.cards.some(r => cardKey(r) === key))
+      subcollections: w.subcollections.map(s => s.id === armedSubId
         ? { ...s, cards: s.cards.filter(r => cardKey(r) !== key) }
         : s),
     } : w));
@@ -155,6 +172,10 @@ function useWishlistsState() {
     if (!result || !commit(result.wishlists)) return;
     setDeleted(result.deleted);
     if (wishlistId === id && (!subId || subcollectionId === subId)) select(subId ? id : '', '', false);
+    // A deleted destination must not stay armed.
+    if (armedSubId && (subId ? subId === armedSubId : wishlists.find(w => w.id === id)?.subcollections.some(s => s.id === armedSubId))) {
+      setArmedSubId('');
+    }
   };
   const undoDelete = () => {
     if (!deleted) return;
@@ -163,17 +184,16 @@ function useWishlistsState() {
   const moveSubcollection = (id: string, subId: string, direction: 'up' | 'down') => {
     commit(reorderSubcollections(wishlists, id, subId, direction));
   };
+  /** Whether the armed subcollection already holds this card. */
   const contains = (card: Card) => {
+    if (!armedSubcollection) return false;
     const key = cardKey(reference(card));
-    if (subcollection) return subcollection.cards.some(r => cardKey(r) === key);
-    return wishlist?.subcollections.some(s => s.cards.some(r => cardKey(r) === key)) ?? false;
+    return armedSubcollection.cards.some(r => cardKey(r) === key);
   };
   // Whether the add/remove control applies to this card, so views can give it the slot
-  // the "Missing" badge would otherwise occupy.
-  const canToggle = (card: Card) => {
-    if (!wishlist || (!subcollection && !viewing)) return false;
-    return Boolean(subcollection) || contains(card);
-  };
+  // the "Missing" badge would otherwise occupy. Browsing a wishlist no longer implies
+  // editing it: a stray click cannot change what is saved unless editing was armed.
+  const canToggle = () => Boolean(armedSubcollection);
   // Splits a card list into one titled section per subcollection, preserving the
   // incoming sort order inside each. Shared by the on-screen view and the print output.
   const groupCards = (cards: Card[]): { label: string; cards: Card[] }[] => {
@@ -189,7 +209,7 @@ function useWishlistsState() {
     const rest = cards.filter(card => !used.has(cardKey(reference(card))));
     return rest.length ? [...groups, { label: 'Without subcollection', cards: rest }] : groups;
   };
-  return { wishlists, wishlist, subcollection, viewing, setViewing, select, create, add, remove, contains, canToggle, groupCards, keys, seriesSelection, error, deleted, deleteNode, undoDelete, moveSubcollection, loading, synced: Boolean(userId) };
+  return { wishlists, wishlist, subcollection, viewing, setViewing, select, create, add, remove, contains, canToggle, groupCards, keys, seriesSelection, error, deleted, deleteNode, undoDelete, moveSubcollection, loading, synced: Boolean(userId), armedSubId, setArmedSubId, armedWishlist, armedSubcollection };
 }
 const Context = createContext<ReturnType<typeof useWishlistsState> | null>(null);
 export function WishlistsProvider({ children }: { children: ReactNode }) {
