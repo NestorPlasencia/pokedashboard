@@ -62,6 +62,21 @@ export const Search: React.FC = () => {
     didMount.current = true;
   }, [isViewingWishlist]);
   const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  const scrolledForQuery = useRef(query);
+
+  // A new query replaces the list under the viewport, so staying where the old list was
+  // scrolled to hides the very matches that were just asked for. On mobile it is worse:
+  // opening the keyboard scrolls the list down to make room for the field, so the first
+  // results start off screen. Reset to the top whenever the query itself changes - not on
+  // every result change, or scrolling through a long list would fight the filters.
+  useEffect(() => {
+    if (scrolledForQuery.current === query) return;
+    scrolledForQuery.current = query;
+    // The panel is the scroll container, not the page; reached from inside rather than by
+    // a global lookup so it stays correct if the layout is ever nested differently.
+    barRef.current?.closest('.card-view')?.scrollTo({ top: 0 });
+  }, [query]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(e.target.value);
@@ -108,7 +123,7 @@ export const Search: React.FC = () => {
   }, [sourceCards, query, setVisibleCards]);
 
   return (
-    <div className="search-bar">
+    <div className="search-bar" ref={barRef}>
       {/* One grid cell, not two. The search bar is a three-column grid whose middle
           column is taken out of the flow on mobile, so a fourth child pushes an item onto
           a second row and overflows the viewport. */}
