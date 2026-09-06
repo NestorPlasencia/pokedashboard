@@ -1,4 +1,4 @@
-import { parseUrlParams, type FilterParams } from './urlParams';
+import { parseUrlParams, type FilterParams } from './urlParams.ts';
 
 /**
  * What the user is looking at. The three modes are mutually exclusive by construction:

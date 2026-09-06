@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useCardContext } from "../../context/CardContext";
 import { updateUrlParams, parseUrlParams } from "../../utils/urlParams";
-import { CollapsibleFieldset } from "../ui/CollapsibleFieldset";
+import { CollapsibleSection } from "../ui/CollapsibleSection";
 
 export const OptionsView = () => {
   const { viewOptions, setViewOptions } = useCardContext();
@@ -30,7 +30,7 @@ export const OptionsView = () => {
 
   return (
     <div className="section-sidebar">
-      <CollapsibleFieldset legend="View options" defaultCollapsed={false}>
+      <CollapsibleSection title="View options" defaultCollapsed={false}>
         <label>
           <input
             type="checkbox"
@@ -67,7 +67,7 @@ export const OptionsView = () => {
           />
           Show list as a table
         </label>
-      </CollapsibleFieldset>
+      </CollapsibleSection>
     </div>
   );
 };

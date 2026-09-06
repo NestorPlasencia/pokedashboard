@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useCardContext } from "../../context/CardContext";
-import { CollapsibleFieldset } from "../ui/CollapsibleFieldset";
+import { CollapsibleSection } from "../ui/CollapsibleSection";
 import { updateUrlParams } from "../../utils/urlParams";
 import { POKEMON_FORM_VARIANTS_ORDER } from "../../constants/constants";
 
@@ -105,7 +105,7 @@ export const PokemonGroupingFilter = () => {
 
   return (
     <div className="section-sidebar">
-      <CollapsibleFieldset legend="Group by Pokémon" defaultCollapsed={true}>
+      <CollapsibleSection title="Group by Pokémon" defaultCollapsed={true}>
         <label>
           <input
             type="checkbox"
@@ -228,7 +228,7 @@ export const PokemonGroupingFilter = () => {
             </div>
           </>
         )}
-      </CollapsibleFieldset>
+      </CollapsibleSection>
     </div>
   );
 };

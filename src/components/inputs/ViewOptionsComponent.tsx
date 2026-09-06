@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useCardContext } from "../../context/CardContext";
-import { CollapsibleFieldset } from "../ui/CollapsibleFieldset";
+import { CollapsibleSection } from "../ui/CollapsibleSection";
 import { updateUrlParams } from "../../utils/urlParams";
 import { viewOptionsToParams } from "../../utils/urlState";
 import type { ViewOptions } from "../../types/dashboard";
@@ -41,7 +41,7 @@ export const ViewOptionsComponent = () => {
 
   return (
     <div className="section-sidebar">
-      <CollapsibleFieldset legend="View options" defaultCollapsed={true}>
+      <CollapsibleSection title="View options" defaultCollapsed={true}>
         <div className="view-options-row">
           <label htmlFor="displayModeSelect">Display mode:</label>
           <select
@@ -114,7 +114,7 @@ export const ViewOptionsComponent = () => {
             </div>
           </div>
         )}
-      </CollapsibleFieldset>
+      </CollapsibleSection>
     </div>
   );
 };

@@ -4,10 +4,29 @@ import type { HierarchySerie } from "../../types/source-card";
 import { useCardContext } from "../../context/CardContext";
 import { filterCardsByProperty, filterCardsByPokedexCompletion, excludeCardsByProperty } from "../../utils/filters";
 import { arraysEqual, getUniqueValuesFromProperty, countAllValuesFromProperty } from "../../utils/utils";
-import { CollapsibleFieldset } from "../ui/CollapsibleFieldset";
+import { CollapsibleSection } from "../ui/CollapsibleSection";
+import { CollapseAllButton, CollapsibleGroup } from "../ui/CollapsibleGroup";
 import { DEFAULT_RARITIES_ORDER, DEFAULT_ENERGY_TYPES_ORDER, POKEDEX_REGIONS, DEFAULT_POKEDEX_REGIONS_ORDER, DEFAULT_VARIANTS_ORDER } from "../../constants/constants";
-import { updateUrlParams, initializeFiltersFromUrl } from "../../utils/urlParams";
+import { updateUrlParams, initializeFiltersFromUrl, type FilterParamName } from "../../utils/urlParams";
+import { filterSettingsToParams, initialFilterSettings } from "../../utils/urlState";
 import { loadHierarchy } from "../../services/cards";
+
+/**
+ * The URL parameter each filter reads and writes. One map serves both directions, so a
+ * filter cannot be saved under one name and restored under another.
+ */
+const PARAM_BY_PROPERTY: Partial<Record<FilterOption['property'], FilterParamName>> = {
+  setSeries: 'series',
+  setNames: 'set',
+  rarities: 'rarity',
+  cardType: 'type',
+  types: 'energy',
+  pokedexRegion: 'pokedexRegion',
+  variant: 'variants',
+  cardVariantTopLevel: 'cardVariantTopLevel',
+  subtypes: 'subtypes',
+  artist: 'artist',
+};
 
 type OptionState = 'neutral' | 'included' | 'excluded';
 type SelectionMode = 'include' | 'exclude';
@@ -99,11 +118,13 @@ export const Filters = () => {
   const [filters, setFilters] = useState<FilterOption[]>(() => {
     const urlFilters = initializeFiltersFromUrl();
 
+    // Included values, excluded values and the advanced settings all come from the same
+    // parameter family, so a restored filter is the whole filter and not just its checkboxes.
     const buildFilter = (
       order: number,
       label: string,
       property: FilterOption['property'],
-      includedValues: string[],
+      param: FilterParamName,
       isMultiValue: boolean,
       options: string[] = [],
       defaultOrder?: string[]
@@ -112,24 +133,20 @@ export const Filters = () => {
       label,
       property,
       options,
-      includedValues,
-      excludedValues: [],
-      includeMode: 'ANY',
-      excludeMode: 'NOT_ANY',
-      singleIncludeMatch: 'CONTAINS',
+      includedValues: normalizeFromUrl(urlFilters[param]),
+      ...initialFilterSettings(param, urlFilters),
       isMultiValue,
-      hideZeroCount: false,
       defaultOrder,
     });
 
     return [
-      buildFilter(1, "Series:", "setSeries", normalizeFromUrl(urlFilters.series), false),
-      buildFilter(2, "Set:", "setNames", normalizeFromUrl(urlFilters.set), true),
+      buildFilter(1, "Series:", "setSeries", 'series', false),
+      buildFilter(2, "Set:", "setNames", 'set', true),
       buildFilter(
         3,
         "Variant TopLevel:",
         "cardVariantTopLevel",
-        normalizeFromUrl(urlFilters.cardVariantTopLevel),
+        'cardVariantTopLevel',
         false,
         [],
         DEFAULT_VARIANTS_ORDER
@@ -138,25 +155,25 @@ export const Filters = () => {
         4,
         "Variants:",
         "variant",
-        normalizeFromUrl(urlFilters.variants),
+        'variants',
         false,
         [],
         DEFAULT_VARIANTS_ORDER
       ),
-      buildFilter(5, "Rarity:", "rarities", normalizeFromUrl(urlFilters.rarity), true, [], DEFAULT_RARITIES_ORDER),
+      buildFilter(5, "Rarity:", "rarities", 'rarity', true, [], DEFAULT_RARITIES_ORDER),
       buildFilter(
         6,
         "Region:",
         "pokedexRegion",
-        normalizeFromUrl(urlFilters.pokedexRegion),
+        'pokedexRegion',
         false,
         POKEDEX_REGIONS.map((region) => region.name),
         DEFAULT_POKEDEX_REGIONS_ORDER
       ),
-      buildFilter(7, "Type:", "cardType", normalizeFromUrl(urlFilters.type), false),
-      buildFilter(8, "Energy:", "types", normalizeFromUrl(urlFilters.energy), true, [], DEFAULT_ENERGY_TYPES_ORDER),
-      buildFilter(9, "Subtypes:", "subtypes", normalizeFromUrl(urlFilters.subtypes), true),
-      buildFilter(10, "Artist:", "artist", normalizeFromUrl(urlFilters.artist), false)
+      buildFilter(7, "Type:", "cardType", 'type', false),
+      buildFilter(8, "Energy:", "types", 'energy', true, [], DEFAULT_ENERGY_TYPES_ORDER),
+      buildFilter(9, "Subtypes:", "subtypes", 'subtypes', true),
+      buildFilter(10, "Artist:", "artist", 'artist', false)
     ];
   });
 
@@ -388,27 +405,18 @@ export const Filters = () => {
       return;
     }
 
-    const urlParams: Record<string, string[]> = {};
+    // Everything a filter holds goes back out under the same parameter family it was
+    // read from. Values at their default resolve to `undefined` and leave no trace.
+    let urlParams: Partial<Parameters<typeof updateUrlParams>[0]> = {};
 
     filters.forEach((filter) => {
-      // Mapear propiedades a nombres de URL
-      const paramName =
-        filter.property === 'setSeries' ? 'series' :
-          filter.property === 'setNames' ? 'set' :
-            filter.property === 'rarities' ? 'rarity' :
-              filter.property === 'cardType' ? 'type' :
-                filter.property === 'types' ? 'energy' :
-                  filter.property === 'pokedexRegion' ? 'pokedexRegion' :
-                    filter.property === 'pokedexCompletion' ? 'pokedexCompletion' :
-                      filter.property === 'variant' ? 'variants' :
-                        filter.property === 'cardVariantTopLevel' ? 'cardVariantTopLevel' :
-                          filter.property === 'subtypes' ? 'subtypes' :
-                            filter.property === 'artist' ? 'artist' :
-                        null;
-
-      if (paramName) {
-        urlParams[paramName] = toLegacyChecked(filter.includedValues);
-      }
+      const param = PARAM_BY_PROPERTY[filter.property];
+      if (!param) return;
+      urlParams = {
+        ...urlParams,
+        [param]: toLegacyChecked(filter.includedValues),
+        ...filterSettingsToParams(param, filter),
+      };
     });
 
     // IMPORTANT: Don't include priceMin/priceMax here - they're managed by PriceRangeFilter
@@ -639,9 +647,13 @@ export const Filters = () => {
 
   return (
     <div className="section-sidebar">
-      <button onClick={handleResetFilters} className="filters-reset-btn" type="button">
-        Clear filters
-      </button>
+      <CollapsibleGroup>
+        <div className="filters-actions">
+          <button onClick={handleResetFilters} className="filters-reset-btn" type="button">
+            Clear filters
+          </button>
+          <CollapseAllButton className="filters-collapse-all" />
+        </div>
       {filters.map((filter) => {
         const selectedMode = globalSelectionModes[filter.order] || 'include';
         const searchQuery = (optionSearchByFilter[filter.order] || '').toLowerCase().trim();
@@ -718,9 +730,9 @@ export const Filters = () => {
         };
 
         return (
-          <CollapsibleFieldset
+          <CollapsibleSection
             key={filter.order}
-            legend={`${normalizeLabel(filter.label)} ${selectedCount > 0 ? `(${selectedCount})` : ''}`}
+            title={`${normalizeLabel(filter.label)} ${selectedCount > 0 ? `(${selectedCount})` : ''}`}
             defaultCollapsed={filter.property !== 'setSeries'}
             collapsedSummary={
               selectedCount > 0
@@ -907,9 +919,10 @@ export const Filters = () => {
                 </div>
               </details>
             </div>
-          </CollapsibleFieldset>
+          </CollapsibleSection>
         );
       })}
+      </CollapsibleGroup>
     </div>
   );
 };

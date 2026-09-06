@@ -1,6 +1,15 @@
-import type { CollectionFilterOptions, PokemonGroupingOptions, SortConfig, ViewOptions } from '../types/dashboard';
-import { orderToSortConfig } from './orders';
-import { parseUrlParams, type FilterParams } from './urlParams';
+import type { CollectionFilterOptions, FilterOption, PokemonGroupingOptions, SortConfig, ViewOptions } from '../types/dashboard';
+import { orderToSortConfig } from './orders.ts';
+import {
+  excludeModeParam,
+  excludeParam,
+  includeModeParam,
+  matchModeParam,
+  parseUrlParams,
+  zeroCountParam,
+  type FilterParamName,
+  type FilterParams,
+} from './urlParams.ts';
 
 /**
  * URL -> initial state for everything CardContext owns.
@@ -90,3 +99,42 @@ export const viewOptionsToParams = (viewOptions: ViewOptions): Partial<FilterPar
     printTableVariant: viewOptions.printTableVariant ? undefined : 'false',
   };
 };
+
+/** The part of a sidebar filter that lives outside its list of included values. */
+type FilterSettings = Pick<FilterOption, 'excludedValues' | 'includeMode' | 'excludeMode' | 'singleIncludeMatch' | 'hideZeroCount'>;
+
+const FILTER_DEFAULTS: FilterSettings = {
+  excludedValues: [],
+  includeMode: 'ANY',
+  excludeMode: 'NOT_ANY',
+  singleIncludeMatch: 'CONTAINS',
+  hideZeroCount: false,
+};
+
+/**
+ * Restores everything a filter carries besides its included values: the excluded ones and
+ * the advanced settings. "All" is the absence of a selection, so it never comes back as a
+ * value, and an unknown mode falls back to its default.
+ */
+export const initialFilterSettings = (param: FilterParamName, params: FilterParams = parseUrlParams()): FilterSettings => {
+  const excluded = params[excludeParam(param)]?.filter(value => value !== 'All') ?? [];
+  return {
+    excludedValues: excluded,
+    includeMode: oneOf(params[includeModeParam(param)], ['ANY', 'ALL', 'EXACT_SET'] as const, FILTER_DEFAULTS.includeMode),
+    excludeMode: oneOf(params[excludeModeParam(param)], ['NOT_ANY', 'NOT_ALL', 'NOT_EXACT_SET'] as const, FILTER_DEFAULTS.excludeMode),
+    singleIncludeMatch: oneOf(params[matchModeParam(param)], ['CONTAINS', 'EXACT_SINGLE'] as const, FILTER_DEFAULTS.singleIncludeMatch),
+    hideZeroCount: params[zeroCountParam(param)] === 'hide',
+  };
+};
+
+/**
+ * The inverse: a setting still at its default resolves to `undefined`, which removes the
+ * parameter, so the common case leaves no trace in the URL.
+ */
+export const filterSettingsToParams = (param: FilterParamName, filter: FilterSettings): Partial<FilterParams> => ({
+  [excludeParam(param)]: filter.excludedValues.length ? filter.excludedValues : undefined,
+  [includeModeParam(param)]: filter.includeMode === FILTER_DEFAULTS.includeMode ? undefined : filter.includeMode,
+  [excludeModeParam(param)]: filter.excludeMode === FILTER_DEFAULTS.excludeMode ? undefined : filter.excludeMode,
+  [matchModeParam(param)]: filter.singleIncludeMatch === FILTER_DEFAULTS.singleIncludeMatch ? undefined : filter.singleIncludeMatch,
+  [zeroCountParam(param)]: filter.hideZeroCount ? 'hide' : undefined,
+});

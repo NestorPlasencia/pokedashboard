@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Card } from '../types/dashboard';
 
-import { deleteWishlistNode, restoreWishlistNode, reorderSubcollections, type DeletedNode, cardKey, mergeSavedCards, readWishlists, storageKey, type SavedCard, type Wishlist } from '../services/wishlists';
+import { deleteWishlistNode, restoreWishlistNode, reorderSubcollections, resolveRestoredSelection, type DeletedNode, cardKey, mergeSavedCards, readWishlists, storageKey, type SavedCard, type Wishlist } from '../services/wishlists';
 import { clearLocalBackup, fetchRemoteWishlists, readLocalBackup, saveRemoteWishlists } from '../services/wishlistsRemote';
 import { isSupabaseConfigured } from '../services/supabase';
 import { useAuth } from './AuthContext';
@@ -10,7 +10,7 @@ import { CATALOG_VIEW } from '../utils/viewMode';
 const reference = (card: Card): SavedCard => ({ id: card.id, era: card.setSeries });
 
 function useWishlistsState() {
-  const { session } = useAuth();
+  const { session, isAuthLoading } = useAuth();
   const { viewMode, setViewMode } = useCardContext();
   const userId = isSupabaseConfigured ? session?.user.id ?? '' : '';
   const [wishlists, setWishlists] = useState<Wishlist[]>([]);
@@ -31,6 +31,12 @@ function useWishlistsState() {
   const firstLoad = useRef(true);
 
   useEffect(() => {
+    // Until Supabase says who is signed in, `userId` is still empty and the wishlists to
+    // check a restored link against are not the user's - they are whatever localStorage
+    // happens to hold. Resolving here would find nothing and throw the link away, so the
+    // load waits; `loading` is already true, so the sidebar keeps saying so.
+    if (isAuthLoading) return;
+
     let cancelled = false;
     setLoading(true);
     const restore = pending.current;
@@ -45,21 +51,14 @@ function useWishlistsState() {
     firstLoad.current = false;
     setDeleted(null);
 
-    // A restored wishlist only survives if it is still there: a deleted one, or one that
-    // belongs to another account, drops back to the catalog instead of showing nothing.
     const reconcile = (data: Wishlist[]) => {
       if (!restore) return;
-      const list = data.find(w => w.id === restore.wishlistId);
-      if (!list) {
-        setWishlistId('');
-        setSubcollectionId('');
-        setViewMode(CATALOG_VIEW);
-        return;
-      }
-      const subId = list.subcollections.some(s => s.id === restore.subcollectionId) ? restore.subcollectionId : '';
-      setWishlistId(list.id);
-      setSubcollectionId(subId);
-      if (subId !== restore.subcollectionId) setViewMode({ kind: 'wishlist', wishlistId: list.id, subcollectionId: subId });
+      const resolved = resolveRestoredSelection(data, restore);
+      setWishlistId(resolved.wishlistId);
+      setSubcollectionId(resolved.subcollectionId);
+      // Always written back, so the URL describes what actually opened rather than what
+      // was asked for - including dropping to the catalog when the wishlist is gone.
+      setViewMode(resolved.mode);
     };
 
     const load = async () => {
@@ -89,7 +88,7 @@ function useWishlistsState() {
     load().finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+  }, [userId, isAuthLoading]);
 
   const wishlist = wishlists.find(w => w.id === wishlistId);
   const subcollection = wishlist?.subcollections.find(s => s.id === subcollectionId);

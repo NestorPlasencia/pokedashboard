@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Eye } from "lucide-react";
 import { useOptionsContext } from "../../context/OptionsContext";
 import { useCardContext } from "../../context/CardContext";
-import { CollapsibleFieldset } from "../ui/CollapsibleFieldset";
+import { CollapsibleSection } from "../ui/CollapsibleSection";
 import { updateUrlParams } from "../../utils/urlParams";
 import type { CollectionFilterOptions, ConditionKey } from "../../types/dashboard";
 import { useAuth } from "../../context/AuthContext";
@@ -115,8 +115,8 @@ export const Collections = ({
 
   return (
     <div className="section-sidebar">
-      <CollapsibleFieldset
-        legend="Collections"
+      <CollapsibleSection
+        title="Collections"
         defaultCollapsed={true}
         collapsedSummary={summaryParts.length > 0 && (
           <div className="filter-collapsed-summary">{summaryParts.join(" · ")}</div>
@@ -229,7 +229,7 @@ export const Collections = ({
               </div>
             ))}
             {collectionFilter.selectedCollections.length > 0 && (
-              <CollapsibleFieldset legend="Condition:" defaultCollapsed={false}>
+              <CollapsibleSection title="Condition:" defaultCollapsed={false}>
                 <label className="collections-checkbox-label">
                   <input
                     type="checkbox"
@@ -250,11 +250,11 @@ export const Collections = ({
                     <span>{condition}</span>
                   </label>
                 ))}
-              </CollapsibleFieldset>
+              </CollapsibleSection>
             )}
           </>
         )}
-      </CollapsibleFieldset>
+      </CollapsibleSection>
     </div>
   );
 };

@@ -1,3 +1,5 @@
+import { CATALOG_VIEW, type ViewMode } from '../utils/viewMode.ts';
+
 export type SavedCard = { id: string; era: string };
 export type Subcollection = { id: string; name: string; cards: SavedCard[] };
 export type Wishlist = { id: string; name: string; subcollections: Subcollection[] };
@@ -56,4 +58,34 @@ export function readWishlists(storage: Pick<Storage, 'getItem'>): Wishlist[] {
   const raw = storage.getItem(storageKey);
   if (!raw) return [];
   return parseWishlists(JSON.parse(raw));
+}
+
+/** The wishlist and subcollection ids a URL asked to reopen. */
+export type RestoredSelection = { wishlistId: string; subcollectionId: string };
+
+/**
+ * What a wishlist restored from a URL resolves to once the real wishlists are known.
+ *
+ * A wishlist that is no longer there - deleted, or belonging to a different account -
+ * drops back to the catalog instead of leaving the view empty with no way out. A
+ * subcollection that is gone keeps the wishlist and opens it whole, which is closer to
+ * what the link asked for than giving up on it.
+ *
+ * Callers must only run this against the wishlists of the signed-in user: resolving it
+ * against an empty list while the session is still loading would discard a valid link.
+ */
+export function resolveRestoredSelection(
+  wishlists: Wishlist[],
+  restore: RestoredSelection
+): RestoredSelection & { mode: ViewMode } {
+  const wishlist = wishlists.find(w => w.id === restore.wishlistId);
+  if (!wishlist) return { wishlistId: '', subcollectionId: '', mode: CATALOG_VIEW };
+  const subcollectionId = wishlist.subcollections.some(s => s.id === restore.subcollectionId)
+    ? restore.subcollectionId
+    : '';
+  return {
+    wishlistId: wishlist.id,
+    subcollectionId,
+    mode: { kind: 'wishlist', wishlistId: wishlist.id, subcollectionId },
+  };
 }

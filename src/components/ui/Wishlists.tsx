@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, ChevronDown, ChevronRight, Eye, MoreHorizontal, Plus, Trash2, X } from 'lucide-react';
-import { CollapsibleFieldset } from './CollapsibleFieldset';
+import { CollapsibleSection } from './CollapsibleSection';
 import { useWishlists } from '../../context/WishlistsContext';
 import { useCardContext } from '../../context/CardContext';
 import { CATALOG_VIEW, assertNeverViewMode } from '../../utils/viewMode';
-import type { Card } from '../../types/dashboard';
+import type { Card, CollectionFilterOptions } from '../../types/dashboard';
 
 export function Wishlists({ busy }: { busy: boolean }) {
   const wishlists = useWishlists();
@@ -43,7 +43,7 @@ export function Wishlists({ busy }: { busy: boolean }) {
     <button type="button" onClick={() => setDraft(null)} aria-label="Cancel creation" title="Cancel"><X size={14} aria-hidden="true" /></button>
   </form>;
   return <div className="section-sidebar wishlists">
-    <CollapsibleFieldset legend="Wishlists" defaultCollapsed={true} persistKey="wishlists"
+    <CollapsibleSection title="Wishlists" defaultCollapsed={true} persistKey="wishlists"
       collapsedSummary={wishlists.wishlist && <div className="filter-collapsed-summary">{wishlists.wishlist.name}{wishlists.subcollection && ` / ${wishlists.subcollection.name}`}</div>}>
       <div className="wishlists-controls">
         {wishlists.error && <p role="alert">{wishlists.error}</p>}
@@ -105,19 +105,32 @@ export function Wishlists({ busy }: { busy: boolean }) {
         {notice && <small role="status">{notice}</small>}
         {wishlists.deleted && <div className="wishlist-tree-undo" role="status"><span>{wishlists.deleted.subId ? 'Subcollection deleted.' : 'Wishlist deleted.'}</span><button onClick={wishlists.undoDelete}>Undo</button></div>}
       </div>
-    </CollapsibleFieldset>
+    </CollapsibleSection>
   </div>;
 }
 
+/** Why the collection filter dimmed a card, for the modes that dim rather than hide. */
+const DIM_REASONS: Partial<Record<CollectionFilterOptions['mode'], string>> = {
+  shadowOwned: 'owned',
+  shadowNotOwned: 'not owned',
+};
+
 export function WishlistCardButton({ card }: { card: Card }) {
   const wishlists = useWishlists();
+  const { collectionFilter } = useCardContext();
   if (!wishlists.canToggle(card)) return null;
   const saved = wishlists.contains(card);
   const target = wishlists.subcollection?.name ?? wishlists.wishlist!.name;
-  const description = `${saved ? 'Remove' : 'Add'} ${card.name} ${card.variant} ${saved ? 'from' : 'to'} ${target}`;
+  // The collection filter dims a card by darkening its image only, which would leave this
+  // control shouting over a card the filter just pushed into the background. It follows
+  // the same state instead, so in a wishlist the cards still in play are the ones that
+  // stand out - and the reason is spelled out rather than left to the colour.
+  const dimReason = card.shadow ? DIM_REASONS[collectionFilter.mode] : undefined;
+  const action = `${saved ? 'Remove' : 'Add'} ${card.name} ${card.variant} ${saved ? 'from' : 'to'} ${target}`;
+  const description = dimReason ? `${action} — ${dimReason}` : action;
   // Only inside the wishlist view does this take over the "Missing" badge slot; in the
   // catalog, Missing keeps its corner and the control sits out of its way.
-  const className = `wishlist-card-button${saved ? ' wishlist-card-button--saved' : ''}${wishlists.viewing ? ' wishlist-card-button--slot' : ''}`;
+  const className = `wishlist-card-button${saved ? ' wishlist-card-button--saved' : ''}${wishlists.viewing ? ' wishlist-card-button--slot' : ''}${dimReason ? ' wishlist-card-button--dimmed' : ''}`;
   return <button type="button" className={className} title={description} onClick={e => { e.stopPropagation(); if (saved) wishlists.remove(card); else if (wishlists.subcollection) wishlists.add([card]); }} aria-label={description}>
     {saved ? <><Check size={12} aria-hidden="true" /> Remove</> : <><Plus size={12} aria-hidden="true" /> Add</>}
   </button>;

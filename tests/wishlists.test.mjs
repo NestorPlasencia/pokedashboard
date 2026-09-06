@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { deleteWishlistNode, restoreWishlistNode, reorderSubcollections, mergeSavedCards, parseWishlists, readWishlists, storageKey } from '../src/services/wishlists.ts';
+import { deleteWishlistNode, restoreWishlistNode, reorderSubcollections, mergeSavedCards, parseWishlists, readWishlists, resolveRestoredSelection, storageKey } from '../src/services/wishlists.ts';
 
 test('bulk additions preserve variants, eras and order without duplicates', () => {
   const first = { id: '25-normal', era: 'Scarlet & Violet' };
@@ -81,4 +81,40 @@ test('undo subcollection deletion preserves additions to its siblings', () => {
   assert.deepEqual(restored[0].subcollections, [sibling, sub]);
   assert.deepEqual(restoreWishlistNode(restored, result.deleted), restored);
   assert.equal(deleteWishlistNode(changed, 'c', 'missing'), null);
+});
+
+test('a wishlist restored from a URL reopens when it still exists', () => {
+  const wishlists = [{ id: 'w-1', name: 'Gold Reverses', subcollections: [{ id: 's-1', name: 'VMAX', cards: [] }] }];
+  assert.deepEqual(resolveRestoredSelection(wishlists, { wishlistId: 'w-1', subcollectionId: 's-1' }), {
+    wishlistId: 'w-1',
+    subcollectionId: 's-1',
+    mode: { kind: 'wishlist', wishlistId: 'w-1', subcollectionId: 's-1' },
+  });
+});
+
+test('a restored link to a whole wishlist keeps no subcollection', () => {
+  const wishlists = [{ id: 'w-1', name: 'Gold Reverses', subcollections: [{ id: 's-1', name: 'VMAX', cards: [] }] }];
+  assert.deepEqual(resolveRestoredSelection(wishlists, { wishlistId: 'w-1', subcollectionId: '' }), {
+    wishlistId: 'w-1',
+    subcollectionId: '',
+    mode: { kind: 'wishlist', wishlistId: 'w-1', subcollectionId: '' },
+  });
+});
+
+test('a restored link whose subcollection is gone still opens the wishlist', () => {
+  const wishlists = [{ id: 'w-1', name: 'Gold Reverses', subcollections: [] }];
+  assert.deepEqual(resolveRestoredSelection(wishlists, { wishlistId: 'w-1', subcollectionId: 'deleted' }), {
+    wishlistId: 'w-1',
+    subcollectionId: '',
+    mode: { kind: 'wishlist', wishlistId: 'w-1', subcollectionId: '' },
+  });
+});
+
+test('a restored link to a wishlist that is gone falls back to the catalog', () => {
+  const catalog = { wishlistId: '', subcollectionId: '', mode: { kind: 'catalog' } };
+  // Deleted, or belonging to another account.
+  assert.deepEqual(resolveRestoredSelection([{ id: 'other', name: 'Other', subcollections: [] }], { wishlistId: 'w-1', subcollectionId: 's-1' }), catalog);
+  // The same shape the signed-out state produces, which is why the caller must not run
+  // this until the session is known.
+  assert.deepEqual(resolveRestoredSelection([], { wishlistId: 'w-1', subcollectionId: '' }), catalog);
 });

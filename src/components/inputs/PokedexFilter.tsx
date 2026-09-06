@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useCardContext } from "../../context/CardContext";
-import { CollapsibleFieldset } from "../ui/CollapsibleFieldset";
+import { CollapsibleSection } from "../ui/CollapsibleSection";
 import { updateUrlParams, parseUrlParams } from "../../utils/urlParams";
 
 const POKEDEX_REGIONS = [
@@ -102,7 +102,7 @@ export const PokedexFilter = () => {
 
   return (
     <div className="section-sidebar">
-      <CollapsibleFieldset legend="Pokédex options" defaultCollapsed={true}>
+      <CollapsibleSection title="Pokédex options" defaultCollapsed={true}>
         <label>
           <input
             type="checkbox"
@@ -159,7 +159,7 @@ export const PokedexFilter = () => {
             </div>
           </>
         )}
-      </CollapsibleFieldset>
+      </CollapsibleSection>
     </div>
   );
 };

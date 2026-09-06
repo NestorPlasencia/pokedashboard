@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { useCardContext } from "../../context/CardContext";
-import { CollapsibleFieldset } from "../ui/CollapsibleFieldset";
+import { CollapsibleSection } from "../ui/CollapsibleSection";
 import { updateUrlParams } from "../../utils/urlParams";
 import type { Card } from "../../types/dashboard";
 
@@ -153,8 +153,8 @@ export const PriceRangeFilter = () => {
     : undefined;
 
   return (
-    <CollapsibleFieldset
-      legend="Price range"
+    <CollapsibleSection
+      title="Price range"
       defaultCollapsed={true}
       collapsedSummary={collapsedSummary}
     >
@@ -214,6 +214,6 @@ export const PriceRangeFilter = () => {
         <span className="price-range-scale-label">Logarithmic scale</span>
       </div>
       )}
-    </CollapsibleFieldset>
+    </CollapsibleSection>
   );
 };

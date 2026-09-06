@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useCardContext } from "../../context/CardContext";
 import { updateUrlParams, parseUrlParams } from "../../utils/urlParams";
 import { ORDER_OPTIONS, TREND_ORDER_OPTIONS, orderToSortConfig } from "../../utils/orders";
-import { CollapsibleFieldset } from "../ui/CollapsibleFieldset";
+import { CollapsibleSection } from "../ui/CollapsibleSection";
 
 export const Orders = () => {
   const { viewOptions, setViewOptions, setSortConfig } = useCardContext();
@@ -32,7 +32,7 @@ export const Orders = () => {
 
   return (
     <div className="section-sidebar">
-      <CollapsibleFieldset legend="Sort cards" defaultCollapsed={true}>
+      <CollapsibleSection title="Sort cards" defaultCollapsed={true}>
         {[...orders, ...trendOrders].map((order) => (
           <label key={order} className="orders-option-label">
             <input
@@ -48,7 +48,7 @@ export const Orders = () => {
         <button onClick={handleResetOrder} type="button" className="orders-reset-btn">
           Reset sort
         </button>
-      </CollapsibleFieldset>
+      </CollapsibleSection>
     </div>
   );
 };

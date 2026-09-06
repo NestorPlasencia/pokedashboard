@@ -1,8 +1,8 @@
-import { Card, SortConfig } from "../types/dashboard";
+import type { Card, SortConfig } from "../types/dashboard";
 import {
   DEFAULT_ENERGY_TYPES_ORDER,
   DEFAULT_RARITIES_ORDER,
-} from "../constants/constants";
+} from "../constants/constants.ts";
 
 const sortByEnergy = (a: Card, b: Card) => {
   // Get the first type from the types array, or empty string if no types

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useCardContext } from "../../context/CardContext";
-import { CollapsibleFieldset } from "../ui/CollapsibleFieldset";
+import { CollapsibleSection } from "../ui/CollapsibleSection";
 import { updateUrlParams, parseUrlParams } from "../../utils/urlParams";
 import { POKEMON_FORM_VARIANTS_ORDER } from "../../constants/constants";
 
@@ -129,7 +129,7 @@ export const PokemonFormsFilter = () => {
 
   return (
     <div className="section-sidebar">
-      <CollapsibleFieldset legend="Pokémon Forms options" defaultCollapsed={true}>
+      <CollapsibleSection title="Pokémon Forms options" defaultCollapsed={true}>
         <label>
           <input
             type="checkbox"
@@ -237,7 +237,7 @@ export const PokemonFormsFilter = () => {
             </div>
           </>
         )}
-      </CollapsibleFieldset>
+      </CollapsibleSection>
     </div>
   );
 };

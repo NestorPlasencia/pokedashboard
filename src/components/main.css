@@ -567,12 +567,7 @@ th[scope="row"] {
 }
 
 .section-sidebar {
-  padding-bottom: 6px;
-  border-bottom: 1px solid #eaeaea;
-}
-
-.section-sidebar:last-child {
-  border-bottom: none;
+  padding-bottom: 0;
 }
 
 .section-sidebar h3 {
@@ -634,7 +629,7 @@ th[scope="row"] {
   font-weight: 500;
 }
 
-.collapsible-fieldset {
+.collapsible-section {
   margin-bottom: 14px;
   border: 1px solid #d6dbe5;
   border-radius: 10px;
@@ -642,16 +637,66 @@ th[scope="row"] {
   background: #f8fafc;
 }
 
-.collapsible-fieldset legend {
-  display: flex;
-  align-items: center;
-  font-weight: bold;
+/* A heading wrapping a disclosure button, replacing the fieldset/legend this used to be:
+   the title no longer straddles the border, so the panels read as cards like the sidebar
+   action buttons next to them. */
+/* The sidebar styles bare h3s with a bottom margin, which would open a gap between this
+   header and its content; these selectors match those so the heading stays flush. */
+.sidebar .section-sidebar .collapsible-section__header,
+.section-sidebar .collapsible-section__header,
+.collapsible-section__header {
+  margin: 0;
   font-size: 0.98rem;
-  padding: 0 8px;
+  font-weight: bold;
 }
 
-.collapsible-legend-button {
-  margin-right: 8px;
+/* The click target is the whole header rather than the 24px marker.
+   Selector matched to `.section-sidebar button`, which otherwise wins and draws a border
+   and background here - a second box nested inside the panel's own card. */
+.section-sidebar .collapsible-section__toggle,
+.collapsible-section__toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Hovering anywhere on the header lights up the marker, so the whole width reads as the
+   control without painting a block of background over the card. */
+.section-sidebar .collapsible-section__toggle:hover,
+.collapsible-section__toggle:hover {
+  background: transparent;
+}
+
+.collapsible-section__toggle:hover .collapsible-section__marker {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.collapsible-section__toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.collapsible-section__title {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.collapsible-section__marker {
+  flex: 0 0 auto;
+  margin: 0;
   background: #f4f8ff;
   border: 1px solid #c7d3e6;
   cursor: pointer;
@@ -668,9 +713,9 @@ th[scope="row"] {
   justify-content: center;
 }
 
-.section-sidebar .collapsible-legend-button,
-.collapsible-fieldset .collapsible-legend-button {
-  margin: 0 8px 0 0;
+.section-sidebar .collapsible-section__marker,
+.collapsible-section .collapsible-section__marker {
+  margin: 0;
   padding: 0;
   border: 1px solid #c7d3e6;
   border-radius: 6px;
@@ -679,8 +724,8 @@ th[scope="row"] {
   line-height: 1;
 }
 
-.section-sidebar .collapsible-legend-button:hover,
-.collapsible-fieldset .collapsible-legend-button:hover {
+.section-sidebar .collapsible-section__marker:hover,
+.collapsible-section .collapsible-section__marker:hover {
   background: #e8f0ff;
   border-color: #b2c6e6;
 }
@@ -1234,14 +1279,14 @@ th[scope="row"] {
   margin: 0;
 }
 
-.summary-sticky .collapsible-fieldset {
+.summary-sticky .collapsible-section {
   margin-bottom: 0;
   border: none;
   border-radius: 0;
   background-color: transparent;
 }
 
-.summary-sticky .collapsible-fieldset legend {
+.summary-sticky .collapsible-section__header {
   font-size: 1.2em;
   color: #333;
   font-weight: bold;
@@ -1809,8 +1854,30 @@ th[scope="row"] {
   pointer-events: none;
 }
 
-.collapsible-fieldset-content {
-  padding: 8px 12px 12px 12px;
+.collapsible-section__content {
+  padding: 0 12px 12px 12px;
+}
+
+/* Collapsed with nothing to summarise: no box, no stray padding. Cheaper than a second
+   branch in the component, and keeps `aria-controls` pointing at a real element. */
+.collapsible-section__content:empty {
+  display: none;
+}
+
+/* The two group-wide actions share one centred row above the filter panels. */
+.filters-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.section-sidebar .filters-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
 }
 
 .filters-reset-btn {
@@ -2422,7 +2489,7 @@ body,
 .sidebar,
 .card-view,
 .search-bar,
-.collapsible-fieldset,
+.collapsible-section,
 .modal-content,
 input,
 select,
@@ -2627,6 +2694,16 @@ input:focus-visible {
   border-top: 1px solid var(--border);
 }
 
+/* The panel keeps its card, but not the divider it would draw against the footer's own. */
+.sidebar-footer .section-sidebar {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.sidebar-footer .section-sidebar .collapsible-section {
+  margin-bottom: 14px;
+}
+
 .sidebar-footer .sidebar-session-bar {
   margin: 12px 0 0;
   padding: 0;
@@ -2673,20 +2750,21 @@ input:focus-visible {
   outline-offset: 1px;
 }
 
-.collapsible-fieldset {
+.collapsible-section {
   border-color: var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface-raised);
   box-shadow: var(--shadow-sm);
 }
 
-.collapsible-fieldset legend {
+.sidebar .section-sidebar .collapsible-section__header,
+.collapsible-section__header {
   color: var(--text);
   letter-spacing: -0.01em;
 }
 
-.section-sidebar .collapsible-legend-button,
-.collapsible-fieldset .collapsible-legend-button,
+.section-sidebar .collapsible-section__marker,
+.collapsible-section .collapsible-section__marker,
 .filter-icon-btn,
 .btn-reset {
   border-color: var(--border-strong);
@@ -2694,8 +2772,8 @@ input:focus-visible {
   color: var(--text-muted);
 }
 
-.section-sidebar .collapsible-legend-button:hover,
-.collapsible-fieldset .collapsible-legend-button:hover,
+.section-sidebar .collapsible-section__marker:hover,
+.collapsible-section .collapsible-section__marker:hover,
 .filter-icon-btn:hover,
 .btn-reset:hover {
   border-color: var(--accent);
@@ -2724,6 +2802,7 @@ input:focus-visible {
 }
 
 .filters-reset-btn,
+.filters-collapse-all,
 .orders-reset-btn,
 .collections-reset-btn {
   border-color: var(--border-strong) !important;
@@ -2818,7 +2897,7 @@ input:focus-visible {
 }
 
 .close,
-.summary-sticky .collapsible-fieldset legend,
+.summary-sticky .collapsible-section__header,
 .summary-section h4,
 .summary-section h5,
 .price-value,
@@ -2942,6 +3021,8 @@ th[scope="row"],
 }
 
 .section-sidebar .sidebar-action-btn {
+  /* Same gap the collapsible cards use, so the two groups share one rhythm. */
+  margin: 0 0 14px;
   grid-template-columns: 30px minmax(0, 1fr) auto;
   align-items: center;
   gap: 9px;
@@ -3553,13 +3634,20 @@ button.mass-entry-btn.sidebar-action-btn:disabled {
 .wishlist-card-button { padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; background: var(--surface); color: inherit; }
 .wishlists button:disabled { opacity: .5; cursor: default; }
 .wishlist-card-button { position: relative; z-index: 2; display: block; margin: 4px; background: var(--wishlist-soft); color: var(--wishlist); font-size: 11px; border-color: var(--wishlist); }
+/* Same idea in the table view, where the row itself is what gets dimmed. */
+.wishlist-card-button--dimmed { background: var(--surface-muted); color: var(--text-muted); border-color: var(--border); }
 /* Browsing the catalog the control sits top-left, clear of Owned (top-right),
    Missing (bottom-right) and Prices (bottom-left), which all keep their corners. */
 .card .wishlist-card-button { position: absolute; top: 6px; left: 6px; z-index: 11; margin: 0; max-width: calc(100% - 86px); padding: 5px 9px; border: 1px solid rgba(255, 255, 255, 0.72); border-radius: 999px; background: linear-gradient(135deg, #4c2a86, #7145c4); color: #fff; font-size: 10px; font-weight: 700; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35); }
 /* Inside the wishlist view it takes over the slot the "Missing" badge would use. */
 .card .wishlist-card-button--slot { top: auto; left: auto; bottom: 8px; right: 8px; }
 .card .wishlist-card-button--saved { background: linear-gradient(135deg, #14684a, #1e9b6b); }
+/* The collection filter dims a card by darkening its image; the control follows so it
+   does not stay at full strength on a card the filter pushed into the background.
+   Placed after --saved so a dimmed saved card reads as dimmed, not as saved. */
+.card .wishlist-card-button--dimmed { background: linear-gradient(135deg, #b1423f, #9c3d25); border-color: rgba(255, 255, 255, 0.4); box-shadow: none; opacity: 0.85; }
 .card .wishlist-card-button:hover { filter: brightness(1.15); }
+.card .wishlist-card-button--dimmed:hover { opacity: 1; filter: brightness(1.3); }
 
 /* Wishlist view: one titled section per subcollection, its cards laid out underneath.
    Sections span the full row in both the flex grid and the trend grid. */
@@ -3620,3 +3708,129 @@ button.view-mode-badge--collection:hover { filter: brightness(1.12); }
 .wishlist-tree-undo { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .wishlists button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (hover: none) { .wishlists .wishlist-tree-more { visibility: visible; } }
+
+/* Offline & cache panel */
+.cache-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.cache-panel__status {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin: 0;
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  line-height: 1.35;
+}
+
+.cache-panel__status--warning {
+  background: var(--surface-muted);
+  color: var(--warning);
+}
+
+.cache-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.cache-panel__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+}
+
+.cache-panel__info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.cache-panel__info strong {
+  font-size: var(--font-size-sm);
+}
+
+.cache-panel__info small {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.cache-panel__metrics {
+  font-variant-numeric: tabular-nums;
+}
+
+.cache-panel__clear {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.cache-panel__clear:hover:not(:disabled) {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.cache-panel__clear:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.cache-panel__total {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.cache-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+.cache-panel__actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+
+.cache-panel__actions button:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.cache-panel__actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.cache-panel__reset:hover:not(:disabled) {
+  color: var(--danger);
+  border-color: var(--danger);
+}

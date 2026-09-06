@@ -17,11 +17,13 @@ import { useLoadCards } from "../hooks/useLoadCards";
 import { useCardFilters } from "../hooks/useCardFilters";
 import { Summary } from "./ui/Summary";
 import { PrintButton } from "./ui/PrintButton";
+import { CachePanel } from "./ui/CachePanel";
 import { ThemeSelector } from "./ui/ThemeSelector";
 import { MassEntryButton } from "./ui/MassEntryButton";
 import { PriceExplorerButton } from "./ui/PriceExplorerButton";
 import { useAuth } from "../context/AuthContext";
 import { useTrendPoints } from "../hooks/useTrendPoints";
+import { useOfflineStatus } from "../hooks/useOfflineStatus";
 import { assertNeverViewMode } from "../utils/viewMode";
 
 // Lazy load heavy view components
@@ -97,6 +99,7 @@ export const Main: React.FC = () => {
   // Level 1 is handled by Filters component
   useCardFilters();
   const { trendError } = useTrendPoints();
+  const { online, servingStale } = useOfflineStatus();
 
   // Determine which view to show based on displayMode
   const showListTable = viewOptions.displayMode.includes('table');
@@ -117,7 +120,11 @@ export const Main: React.FC = () => {
         <PriceExplorerButton />
         <MassEntryButton />
         <PrintButton busy={isLoading} />
+        {/* Below the divider sit the things that configure the app rather than the card
+            list: storage, appearance, account. Keeping the cache panel here leaves the
+            collapsible panels and the action buttons as two unbroken groups. */}
         <div className="sidebar-footer">
+          <CachePanel />
           <ThemeSelector />
           {session && (
             <div className="session-bar sidebar-session-bar">
@@ -129,6 +136,13 @@ export const Main: React.FC = () => {
       </Sidebar>
       <div className={`card-view${viewMode.kind === 'wishlist' ? ' card-view--wishlist' : ''}`}>
         <Search />
+        {(!online || servingStale) && (
+          <div className="main-status-message main-status-message--warning">
+            {online
+              ? 'Some data could not be refreshed, so saved copies are being shown.'
+              : 'You are offline. Showing the cards and prices saved on this device.'}
+          </div>
+        )}
         {isLoading && <div className="main-status-message">Loading cards...</div>}
         {error && <div className="main-status-message main-status-message--error">{error}</div>}
         {inventoryError && <div className="main-status-message main-status-message--warning">{inventoryError}</div>}

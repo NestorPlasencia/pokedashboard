@@ -5,6 +5,7 @@ import type {
   SourceCardsFile,
 } from "../types/source-card";
 import type { InventorySnapshot } from "./inventory";
+import { loadCached } from "./offlineCache";
 type PriceCacheMetadata = {
   version: 5;
   seriesId: number;
@@ -50,6 +51,10 @@ const priceCacheName = "pokedashboard-tcg-prices-v5";
 const priceTtlMs = 24 * 60 * 60 * 1000;
 const unavailablePriceTtlMs = 5 * 60 * 1000;
 const seriesTtlMs = 15 * 60 * 1000;
+// How long the stored copy of a series' source cards counts as current. Longer than the
+// in-memory TTL because the point of the stored copy is surviving reloads and outages;
+// card definitions barely move between set releases.
+const sourceCardsTtlMs = 12 * 60 * 60 * 1000;
 
 const pricesBySeries = new Map<number, AllPricesSnapshot>();
 const pendingPricesBySeries = new Map<number, Promise<AllPricesSnapshot>>();
@@ -367,10 +372,16 @@ export const applyInventoryToCards = (
 const generateUncached = async (seriesId: number): Promise<RuntimeCardsResult> => {
   console.info("[cards] Generating cards", { seriesId });
   const [source, prices] = await Promise.all([
-    fetchJson<SourceCardsFile>(`${pokeDbApiBaseUrl}/cards?seriesId=${seriesId}`),
+    // Stored between visits, and served past its TTL when the network is unreachable, so
+    // a series browsed once stays browsable offline.
+    loadCached(
+      `source-cards-${seriesId}`,
+      () => fetchJson<SourceCardsFile>(`${pokeDbApiBaseUrl}/cards?seriesId=${seriesId}`),
+      sourceCardsTtlMs
+    ),
     loadPricesOrEmpty(seriesId),
   ]);
-  const sourceCards = source.items || [];
+  const sourceCards = source.value.items || [];
   const cards = sourceCards
     .map((sourceCard) => createDashboardCard(sourceCard, prices.priceMap))
     .filter((card): card is Card => card !== null);

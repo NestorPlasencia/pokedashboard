@@ -2,7 +2,41 @@
  * Utility functions for synchronizing filters with URL query parameters
  */
 
-export interface FilterParams {
+/**
+ * The sidebar filters that carry a full include/exclude selection, named by their URL
+ * parameter. Each one also gets `not…` (excluded values) and the four advanced-setting
+ * parameters below, all derived from this list so the two directions cannot drift.
+ */
+export const FILTER_PARAM_NAMES = [
+  'series', 'set', 'rarity', 'type', 'energy', 'pokedexRegion',
+  'variants', 'cardVariantTopLevel', 'subtypes', 'artist',
+] as const;
+
+export type FilterParamName = (typeof FILTER_PARAM_NAMES)[number];
+
+const capitalize = <T extends string>(value: T) =>
+  `${value.charAt(0).toUpperCase()}${value.slice(1)}` as Capitalize<T>;
+
+export const excludeParam = <T extends FilterParamName>(name: T) => `not${capitalize(name)}` as `not${Capitalize<T>}`;
+export const includeModeParam = <T extends FilterParamName>(name: T) => `mode${capitalize(name)}` as `mode${Capitalize<T>}`;
+export const excludeModeParam = <T extends FilterParamName>(name: T) => `xmode${capitalize(name)}` as `xmode${Capitalize<T>}`;
+export const matchModeParam = <T extends FilterParamName>(name: T) => `match${capitalize(name)}` as `match${Capitalize<T>}`;
+export const zeroCountParam = <T extends FilterParamName>(name: T) => `zero${capitalize(name)}` as `zero${Capitalize<T>}`;
+
+type Capped = Capitalize<FilterParamName>;
+/** `notSeries`, `notSet`, … - the values a filter excludes. */
+export type ExcludeParamName = `not${Capped}`;
+/** The per-filter advanced settings, only present when they differ from the default. */
+export type FilterModeParamName = `mode${Capped}` | `xmode${Capped}` | `match${Capped}` | `zero${Capped}`;
+
+const EXCLUDE_PARAM_NAMES = FILTER_PARAM_NAMES.map(excludeParam);
+const FILTER_MODE_PARAM_NAMES: FilterModeParamName[] = FILTER_PARAM_NAMES.flatMap(name => [
+  includeModeParam(name), excludeModeParam(name), matchModeParam(name), zeroCountParam(name),
+]);
+
+export interface FilterParams extends
+  Partial<Record<ExcludeParamName, string[]>>,
+  Partial<Record<FilterModeParamName, string>> {
   series?: string[];
   set?: string[];
   rarity?: string[];
@@ -88,7 +122,7 @@ export const parseUrlParams = (): FilterParams => {
   
   // Parse array parameters (pipe-separated instead of comma to avoid encoding)
   // Note: These are now stored WITHOUT the "All" option - only specific selections
-  const arrayParams = ['series', 'set', 'rarity', 'tags', 'type', 'energy', 'pokedexRegion', 'pokedexCompletion', 'variants', 'cardVariantTopLevel', 'conditions', 'subtypes', 'artist', 'collections', 'pokedexRegions', 'groupingRegions', 'formsGroupingRegions', 'formsAllowVariants', 'formsHideVariants', 'formsEnabledVariants'];
+  const arrayParams = ['series', 'set', 'rarity', 'tags', 'type', 'energy', 'pokedexRegion', 'pokedexCompletion', 'variants', 'cardVariantTopLevel', 'conditions', 'subtypes', 'artist', 'collections', 'pokedexRegions', 'groupingRegions', 'formsGroupingRegions', 'formsAllowVariants', 'formsHideVariants', 'formsEnabledVariants', ...EXCLUDE_PARAM_NAMES];
   
   arrayParams.forEach(param => {
     const value = params.get(param);
@@ -178,6 +212,14 @@ export const parseUrlParams = (): FilterParams => {
     filters.trendXAxisScale = trendXAxisScale;
   }
 
+  // Parse the per-filter advanced settings
+  FILTER_MODE_PARAM_NAMES.forEach(param => {
+    const value = params.get(param);
+    if (value) {
+      (filters as Record<string, string>)[param] = value;
+    }
+  });
+
   // Parse browsing mode parameters
   const viewMode = params.get('viewMode');
   if (viewMode) {
@@ -211,7 +253,7 @@ export const generateUrlParams = (filters: Partial<FilterParams>): string => {
   const queryParts: string[] = [];
   
   // Add array parameters - but SKIP "All" values
-  const arrayParams: (keyof FilterParams)[] = ['series', 'set', 'rarity', 'tags', 'type', 'energy', 'pokedexRegion', 'pokedexCompletion', 'variants', 'cardVariantTopLevel', 'conditions', 'subtypes', 'artist', 'collections', 'pokedexRegions', 'groupingRegions', 'formsGroupingRegions', 'formsAllowVariants', 'formsHideVariants', 'formsEnabledVariants'];
+  const arrayParams: (keyof FilterParams)[] = ['series', 'set', 'rarity', 'tags', 'type', 'energy', 'pokedexRegion', 'pokedexCompletion', 'variants', 'cardVariantTopLevel', 'conditions', 'subtypes', 'artist', 'collections', 'pokedexRegions', 'groupingRegions', 'formsGroupingRegions', 'formsAllowVariants', 'formsHideVariants', 'formsEnabledVariants', ...EXCLUDE_PARAM_NAMES];
   
   arrayParams.forEach(param => {
     const value = filters[param];
@@ -343,6 +385,15 @@ export const generateUrlParams = (filters: Partial<FilterParams>): string => {
   TRUE_BY_DEFAULT_PARAMS.forEach(param => {
     if (filters[param] === 'false') {
       queryParts.push(`${param}=false`);
+    }
+  });
+
+  // Add the per-filter advanced settings. The writer only fills these in when they leave
+  // their default, so a filter at its defaults contributes nothing to the URL.
+  FILTER_MODE_PARAM_NAMES.forEach(param => {
+    const value = filters[param];
+    if (value) {
+      queryParts.push(`${param}=${value}`);
     }
   });
 
