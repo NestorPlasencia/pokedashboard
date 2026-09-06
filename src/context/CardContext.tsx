@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState, useMemo, ReactNode } from "react";
+import React, { createContext, useContext, useState, useMemo, useCallback, ReactNode } from "react";
 import { Card, PokemonWithoutCard, PokemonFormWithoutCard, PokemonFormData, PokemonGroupingOptions, CollectionFilterOptions, ViewOptions, SortConfig, Set, TrendSeries } from "../types/dashboard";
-import { initializeFiltersFromUrl } from "../utils/urlParams";
+import { initializeFiltersFromUrl, parseUrlParams, updateUrlParams } from "../utils/urlParams";
+import { initialCollectionFilter, initialPokemonGrouping, initialPriceRange, initialSortConfig, initialViewOptions } from "../utils/urlState";
+import { parseViewModeFromUrl, viewModeToParams, type ViewMode } from "../utils/viewMode";
 
 export type SeriesSelection = {
   included: string[];
@@ -84,9 +86,10 @@ interface CardContextType {
   viewOptions: ViewOptions;
   setViewOptions: React.Dispatch<React.SetStateAction<ViewOptions>>;
 
-  // Name of the Collectr collection being browsed on its own, "" when none.
-  viewedCollection: string;
-  setViewedCollection: React.Dispatch<React.SetStateAction<string>>;
+  // What the user is browsing: the catalog, one wishlist, or one collection. Single
+  // source of truth for all three, so two of them can never be active at once.
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
 }
 
 const CardContext = createContext<CardContextType | undefined>(undefined);
@@ -107,6 +110,8 @@ export const CardProvider: React.FC<{ children: ReactNode }> = ({
   const [trendLoading, setTrendLoading] = useState(false);
   const [trendError, setTrendError] = useState<string | null>(null);
   const [sets, setSets] = useState<Set[]>([]);
+  // Restored from the URL in one place, so everything the sidebar writes comes back.
+  const urlParams = useMemo(() => parseUrlParams(), []);
   const [seriesSelection, setSeriesSelection] = useState<SeriesSelection>(() => {
     const initialSeries = initializeFiltersFromUrl().series || [];
     return {
@@ -118,49 +123,25 @@ export const CardProvider: React.FC<{ children: ReactNode }> = ({
   // ========== Filter States ==========
   const [variantsFilter, setVariantsFilter] = useState<string[]>(["All"]);
   const [conditionsFilter, setConditionsFilter] = useState<string[]>(["All"]);
-  const [priceRange, setPriceRange] = useState<{ min: number | null; max: number | null }>({ min: null, max: null });
+  const [priceRange, setPriceRange] = useState<{ min: number | null; max: number | null }>(() => initialPriceRange(urlParams));
 
-  const [collectionFilter, setCollectionFilter] = useState<CollectionFilterOptions>(() => {
-    const initialFilters = initializeFiltersFromUrl();
-    return {
-      enabled: initialFilters.filterByCollections === "true",
-      mode: (initialFilters.viewCollectionOption || "none") as CollectionFilterOptions["mode"],
-      selectedCollections: initialFilters.collections || [],
-      limit: Number(initialFilters.limit || "1"),
-      conditionsFilter: initialFilters.conditions?.length
-        ? initialFilters.conditions
-        : ["All"],
-    };
-  });
+  const [collectionFilter, setCollectionFilter] = useState<CollectionFilterOptions>(() => initialCollectionFilter(urlParams));
 
-  const [pokemonGrouping, setPokemonGrouping] = useState<PokemonGroupingOptions>({
-    enabled: false,
-    filterByCollection: 'all',
-    groupingRegions: ["All"],
-    allowVariants: ['Default'],
-    hideVariants: [],
-    groupSortBy: 'default',
-    fallbackToDefault: false
-  });
+  const [pokemonGrouping, setPokemonGrouping] = useState<PokemonGroupingOptions>(() => initialPokemonGrouping(urlParams));
 
   const [pokemonFormsData, setPokemonFormsData] = useState<PokemonFormData[]>([]);
 
-  const [sortConfig, setSortConfig] = useState<SortConfig>({
-    field: 'number',
-    direction: 'asc'
-  });
+  const [sortConfig, setSortConfig] = useState<SortConfig>(() => initialSortConfig(urlParams));
 
-  const [viewedCollection, setViewedCollection] = useState<string>("");
+  const [viewOptions, setViewOptions] = useState<ViewOptions>(() => initialViewOptions(urlParams));
 
-  const [viewOptions, setViewOptions] = useState<ViewOptions>({
-    displayMode: 'cardsUngrouped',
-    trendSortDirection: 'desc',
-    trendXAxisScale: 'normal',
-    printTableImages: false,
-    printTableQuantityMissing: false,
-    printTableType: true,
-    printTableVariant: true,
-  });
+  const [viewMode, setViewModeState] = useState<ViewMode>(() => parseViewModeFromUrl());
+  // The mode and its URL parameters move together, so no caller can update one and
+  // forget the other.
+  const setViewMode = useCallback((mode: ViewMode) => {
+    setViewModeState(mode);
+    updateUrlParams(viewModeToParams(mode));
+  }, []);
 
   return (
     <CardContext.Provider
@@ -212,15 +193,15 @@ export const CardProvider: React.FC<{ children: ReactNode }> = ({
         setSortConfig,
         viewOptions,
         setViewOptions,
-        viewedCollection,
-        setViewedCollection
+        viewMode,
+        setViewMode
       }), [
         allCards, filteredCards, priceFilteredCards, sortedCards,
         collectionFilteredCards, groupedCards, visibleCards, renderCards, sets, seriesSelection,
         variantsFilter, conditionsFilter, priceRange,
         collectionFilter, pokemonGrouping, pokemonFormsData,
         sortConfig, viewOptions, trendByProductId, trendLoading, trendError,
-        viewedCollection
+        viewMode, setViewMode
       ])}
     >
       {children}

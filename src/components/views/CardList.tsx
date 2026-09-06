@@ -17,7 +17,7 @@ const CardListComponent: React.FC = () => {
     setSeriesSelection,
     sets,
     viewOptions,
-    viewedCollection
+    viewMode
   } = useCardContext();
 
   const [displayedCards, setDisplayedCards] = useState<Card[]>([]);
@@ -25,7 +25,9 @@ const CardListComponent: React.FC = () => {
   const [itemsToShow, setItemsToShow] = useState<number>(20);
 
   const wishlists = useWishlists();
-  const isFormsGrouping = pokemonGrouping.enabled && !wishlists.viewing && !viewedCollection;
+  // Grouping by Pokémon form only applies to the catalog; the other two modes render the
+  // exact set of cards they scope to.
+  const isFormsGrouping = pokemonGrouping.enabled && viewMode.kind === 'catalog';
 
   const availableSeries = useMemo(
     () => Array.from(new Set(sets.map((set) => set.series).filter(Boolean))),

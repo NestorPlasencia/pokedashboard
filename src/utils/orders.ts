@@ -1,4 +1,4 @@
-import { Card } from "../types/dashboard";
+import { Card, SortConfig } from "../types/dashboard";
 import {
   DEFAULT_ENERGY_TYPES_ORDER,
   DEFAULT_RARITIES_ORDER,
@@ -170,4 +170,53 @@ const sortBySetAndNumber = (a: Card, b: Card) => {
 
 export const orderBySetAndNumber = (cards: Card[]) => {
   return [...cards].sort(sortBySetAndNumber);
+};
+/** Sort options offered in the sidebar, in the order they are listed. */
+export const ORDER_OPTIONS = [
+  "None",
+  "Number",
+  "Set and Number",
+  "Pokedex",
+  "Energy",
+  "Rarities",
+  "Energy and Name",
+  "Energy and Pokedex",
+  "Price ↑",
+  "Price ↓",
+] as const;
+
+/** Sort options that only make sense in the trend view. */
+export const TREND_ORDER_OPTIONS = ["Trend score ↑", "Trend score ↓"] as const;
+
+/**
+ * Maps a sort option name to a SortConfig. Shared by the sidebar and by the URL restore
+ * so both always agree; an unknown name falls back to the default sort.
+ */
+export const orderToSortConfig = (order: string): SortConfig => {
+  switch (order) {
+    case "Number":
+      return { field: 'number', direction: 'asc' };
+    case "Set and Number":
+      return { field: 'setAndNumber', direction: 'asc' };
+    case "Pokedex":
+      return { field: 'pokedex', direction: 'asc' };
+    case "Energy":
+      return { field: 'energy', direction: 'asc' };
+    case "Rarities":
+      return { field: 'rarity', direction: 'asc' };
+    case "Energy and Name":
+      return { field: 'energyAndName', direction: 'asc' };
+    case "Energy and Pokedex":
+      return { field: 'energyAndPokedex', direction: 'asc' };
+    case "Price ↑":
+      return { field: 'price', direction: 'asc' };
+    case "Price ↓":
+      return { field: 'price', direction: 'desc' };
+    case "Trend score ↑":
+      return { field: 'buyTimingScore', direction: 'asc' };
+    case "Trend score ↓":
+      return { field: 'buyTimingScore', direction: 'desc' };
+    default:
+      return { field: 'number', direction: 'asc' };
+  }
 };

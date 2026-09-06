@@ -6,7 +6,7 @@ import { CollapsibleFieldset } from "../ui/CollapsibleFieldset";
 import { updateUrlParams } from "../../utils/urlParams";
 import type { CollectionFilterOptions, ConditionKey } from "../../types/dashboard";
 import { useAuth } from "../../context/AuthContext";
-import { useWishlists } from "../../context/WishlistsContext";
+import { CATALOG_VIEW } from "../../utils/viewMode";
 import type { InventoryStatus } from "../../hooks/useLoadCards";
 
 const CONDITION_KEYS: ConditionKey[] = ["Near Mint", "Lightly Played", "Moderately Played", "Damaged", "Heavily Played"];
@@ -29,9 +29,10 @@ export const Collections = ({
   inventoryUpdatedAt,
 }: CollectionsProps) => {
   const { collections } = useOptionsContext();
-  const { collectionFilter, setCollectionFilter, viewedCollection, setViewedCollection } = useCardContext();
+  const { collectionFilter, setCollectionFilter, viewMode, setViewMode } = useCardContext();
   const { session, isAuthLoading, refreshInventory, requestSignIn } = useAuth();
-  const wishlists = useWishlists();
+  // Switching to a collection cannot leave a wishlist open: the mode replaces it.
+  const viewedCollection = viewMode.kind === 'collection' ? viewMode.name : '';
 
   const requireSession = () => {
     if (session) return true;
@@ -218,11 +219,9 @@ export const Collections = ({
                   className="collections-view-btn"
                   title="View collection"
                   aria-label={`View cards in ${collection.name}`}
-                  onClick={() => {
-                    const next = viewedCollection === collection.name ? '' : collection.name;
-                    if (next) wishlists.setViewing(false);
-                    setViewedCollection(next);
-                  }}
+                  onClick={() => setViewMode(
+                    viewedCollection === collection.name ? CATALOG_VIEW : { kind: 'collection', name: collection.name }
+                  )}
                   aria-pressed={viewedCollection === collection.name}
                 >
                   <Eye size={13} aria-hidden="true" /> View

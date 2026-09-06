@@ -6,11 +6,12 @@ import { clearLocalBackup, fetchRemoteWishlists, readLocalBackup, saveRemoteWish
 import { isSupabaseConfigured } from '../services/supabase';
 import { useAuth } from './AuthContext';
 import { useCardContext } from './CardContext';
+import { CATALOG_VIEW } from '../utils/viewMode';
 const reference = (card: Card): SavedCard => ({ id: card.id, era: card.setSeries });
 
 function useWishlistsState() {
   const { session } = useAuth();
-  const { setViewedCollection } = useCardContext();
+  const { viewMode, setViewMode } = useCardContext();
   const userId = isSupabaseConfigured ? session?.user.id ?? '' : '';
   const [wishlists, setWishlists] = useState<Wishlist[]>([]);
   const [error, setError] = useState('');
@@ -20,24 +21,54 @@ function useWishlistsState() {
   const [wishlistId, setWishlistId] = useState('');
   const [subcollectionId, setSubcollectionId] = useState('');
   const [deleted, setDeleted] = useState<DeletedNode | null>(null);
-  const [viewing, setViewing] = useState(false);
+  // Browsing a wishlist is one of the app's view modes, so the flag lives with the other
+  // two rather than beside the selection.
+  const viewing = viewMode.kind === 'wishlist';
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
+  // A wishlist restored from the URL is only honoured on the first load; switching
+  // accounts later starts from a clean selection.
+  const pending = useRef(viewMode.kind === 'wishlist' ? { wishlistId: viewMode.wishlistId, subcollectionId: viewMode.subcollectionId } : null);
+  const firstLoad = useRef(true);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    setWishlistId('');
-    setSubcollectionId('');
-    setViewing(false);
+    const restore = pending.current;
+    pending.current = null;
+    // Only an account change clears the selection. On the first load there is nothing to
+    // clear, and blanking the mode here would throw away a collection restored from the URL.
+    if (!firstLoad.current) {
+      setWishlistId('');
+      setSubcollectionId('');
+      setViewMode(CATALOG_VIEW);
+    }
+    firstLoad.current = false;
     setDeleted(null);
+
+    // A restored wishlist only survives if it is still there: a deleted one, or one that
+    // belongs to another account, drops back to the catalog instead of showing nothing.
+    const reconcile = (data: Wishlist[]) => {
+      if (!restore) return;
+      const list = data.find(w => w.id === restore.wishlistId);
+      if (!list) {
+        setWishlistId('');
+        setSubcollectionId('');
+        setViewMode(CATALOG_VIEW);
+        return;
+      }
+      const subId = list.subcollections.some(s => s.id === restore.subcollectionId) ? restore.subcollectionId : '';
+      setWishlistId(list.id);
+      setSubcollectionId(subId);
+      if (subId !== restore.subcollectionId) setViewMode({ kind: 'wishlist', wishlistId: list.id, subcollectionId: subId });
+    };
 
     const load = async () => {
       if (!userId) {
         try {
           const data = readWishlists(localStorage);
-          if (!cancelled) { setWishlists(data); setBlocked(false); setError(''); }
+          if (!cancelled) { setWishlists(data); setBlocked(false); setError(''); reconcile(data); }
         } catch {
-          if (!cancelled) { setWishlists([]); setBlocked(true); setError('Could not read your saved wishlists. The original data was left untouched.'); }
+          if (!cancelled) { setWishlists([]); setBlocked(true); setError('Could not read your saved wishlists. The original data was left untouched.'); reconcile([]); }
         }
         return;
       }
@@ -49,14 +80,15 @@ function useWishlistsState() {
           await saveRemoteWishlists(userId, backup);
           clearLocalBackup();
         }
-        if (!cancelled) { setWishlists(backup ?? remote); setBlocked(false); setError(''); }
+        if (!cancelled) { const data = backup ?? remote; setWishlists(data); setBlocked(false); setError(''); reconcile(data); }
       } catch {
-        if (!cancelled) { setWishlists([]); setBlocked(true); setError('Could not load your wishlists from Supabase. Nothing will be saved until you reload.'); }
+        if (!cancelled) { setWishlists([]); setBlocked(true); setError('Could not load your wishlists from Supabase. Nothing will be saved until you reload.'); reconcile([]); }
       }
     };
 
     load().finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   const wishlist = wishlists.find(w => w.id === wishlistId);
@@ -85,12 +117,15 @@ function useWishlistsState() {
     }
     return true;
   };
+  // Picks the wishlist the sidebar acts on, and optionally browses it. Selecting is not
+  // the same as viewing: you can target a subcollection while still in the catalog.
   const select = (id: string, subId = '', open = false) => {
     setWishlistId(id);
     setSubcollectionId(subId);
-    setViewing(open);
-    // The two browsing modes are mutually exclusive.
-    if (open) setViewedCollection('');
+    setViewMode(open && id ? { kind: 'wishlist', wishlistId: id, subcollectionId: subId } : CATALOG_VIEW);
+  };
+  const setViewing = (open: boolean) => {
+    setViewMode(open && wishlistId ? { kind: 'wishlist', wishlistId, subcollectionId } : CATALOG_VIEW);
   };
   const create = (name: string, nested: boolean, parentId = wishlistId) => {
     name = name.trim();

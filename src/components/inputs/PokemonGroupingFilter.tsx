@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import { useCardContext } from "../../context/CardContext";
 import { CollapsibleFieldset } from "../ui/CollapsibleFieldset";
-import { updateUrlParams, parseUrlParams } from "../../utils/urlParams";
+import { updateUrlParams } from "../../utils/urlParams";
 import { POKEMON_FORM_VARIANTS_ORDER } from "../../constants/constants";
 
 const GROUPING_REGIONS = [
@@ -20,7 +20,6 @@ const GROUPING_REGIONS = [
 
 export const PokemonGroupingFilter = () => {
   const { pokemonGrouping, setPokemonGrouping, pokemonFormsData } = useCardContext();
-  const isFirstRenderRef = useRef(true);
 
   // Extract variant names from pokemon forms data (only relevant for forms mode)
   const availableVariants = useMemo(() => {
@@ -47,90 +46,26 @@ export const PokemonGroupingFilter = () => {
     return ['Default', ...sorted];
   }, [pokemonFormsData]);
 
-  // Initialize from URL on mount (backward compatible with old params)
+  // The initial values, including the legacy parameters, are restored in CardContext.
+  // This writes the current shape back and drops the parameters it replaced.
   useEffect(() => {
-    const params = parseUrlParams();
-
-    setPokemonGrouping(prev => {
-      const updated = { ...prev };
-
-      // Backward compat: old groupByPokedex or groupByForms param
-      if (params.groupByPokedex === 'true' || params.groupByForms === 'true') {
-        updated.enabled = true;
-      }
-
-      // New unified params
-      if (params.pokemonGroupingEnabled === 'true') {
-        updated.enabled = true;
-      }
-
-      // Shared params
-      if (params.filterByCollection) {
-        updated.filterByCollection = params.filterByCollection as 'all' | 'owned' | 'notOwned' | 'ownedNone';
-      } else if (params.formsFilterByCollection) {
-        updated.filterByCollection = params.formsFilterByCollection as 'all' | 'owned' | 'notOwned' | 'ownedNone';
-      }
-
-      // Grouping regions (try new param, then old pokedex, then old forms)
-      if (params.groupingRegions && params.groupingRegions.length > 0) {
-        updated.groupingRegions = params.groupingRegions;
-      } else if (params.formsGroupingRegions && params.formsGroupingRegions.length > 0) {
-        updated.groupingRegions = params.formsGroupingRegions;
-      }
-
-      // Legacy pokedex filter by collection
-      const hideNotOwnPokedex = params.hideNotOwnPokedex === 'true';
-      const hideObtainedPokedex = params.hideObtainedPokedex === 'true';
-      if (hideObtainedPokedex && updated.filterByCollection === 'all') {
-        updated.filterByCollection = 'notOwned';
-      } else if (hideNotOwnPokedex && updated.filterByCollection === 'all') {
-        updated.filterByCollection = 'owned';
-      }
-
-      // Forms-specific
-      if (params.formsAllowVariants && params.formsAllowVariants.length > 0) {
-        updated.allowVariants = params.formsAllowVariants;
-      } else if (params.formsEnabledVariants && params.formsEnabledVariants.length > 0) {
-        updated.allowVariants = params.formsEnabledVariants;
-      }
-      if (params.formsHideVariants && params.formsHideVariants.length > 0) {
-        updated.hideVariants = params.formsHideVariants;
-      }
-      if (params.formsGroupSortBy) {
-        updated.groupSortBy = params.formsGroupSortBy as 'default' | 'cardCount' | 'cardCountDesc';
-      }
-
-      if (params.formsFallbackToDefault === 'true') {
-        updated.fallbackToDefault = true;
-      }
-
-      return updated;
+    updateUrlParams({
+      pokemonGroupingEnabled: pokemonGrouping.enabled ? 'true' : 'false',
+      filterByCollection: pokemonGrouping.filterByCollection,
+      groupingRegions: pokemonGrouping.groupingRegions,
+      formsAllowVariants: pokemonGrouping.allowVariants,
+      formsHideVariants: pokemonGrouping.hideVariants,
+      formsGroupSortBy: pokemonGrouping.groupSortBy,
+      formsFallbackToDefault: pokemonGrouping.fallbackToDefault ? 'true' : 'false',
+      // Clear old params
+      pokemonGroupingMode: undefined,
+      groupByPokedex: undefined,
+      groupByForms: undefined,
+      includeWithoutCards: undefined,
+      formsFilterByCollection: undefined,
+      formsGroupingRegions: undefined,
+      formsEnabledVariants: undefined,
     });
-
-    isFirstRenderRef.current = false;
-  }, []); // Only run on mount
-
-  // Sync URL when filter changes
-  useEffect(() => {
-    if (!isFirstRenderRef.current) {
-      updateUrlParams({
-        pokemonGroupingEnabled: pokemonGrouping.enabled ? 'true' : 'false',
-        filterByCollection: pokemonGrouping.filterByCollection,
-        groupingRegions: pokemonGrouping.groupingRegions,
-        formsAllowVariants: pokemonGrouping.allowVariants,
-        formsHideVariants: pokemonGrouping.hideVariants,
-        formsGroupSortBy: pokemonGrouping.groupSortBy,
-        formsFallbackToDefault: pokemonGrouping.fallbackToDefault ? 'true' : 'false',
-        // Clear old params
-        pokemonGroupingMode: undefined,
-        groupByPokedex: undefined,
-        groupByForms: undefined,
-        includeWithoutCards: undefined,
-        formsFilterByCollection: undefined,
-        formsGroupingRegions: undefined,
-        formsEnabledVariants: undefined,
-      });
-    }
   }, [pokemonGrouping]);
 
   const handleGroupingRegionChange = (region: string): void => {

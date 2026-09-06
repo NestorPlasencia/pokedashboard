@@ -3,6 +3,7 @@ import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, ChevronDown, ChevronR
 import { CollapsibleFieldset } from './CollapsibleFieldset';
 import { useWishlists } from '../../context/WishlistsContext';
 import { useCardContext } from '../../context/CardContext';
+import { CATALOG_VIEW, assertNeverViewMode } from '../../utils/viewMode';
 import type { Card } from '../../types/dashboard';
 
 export function Wishlists({ busy }: { busy: boolean }) {
@@ -127,35 +128,45 @@ export function WishlistCardButton({ card }: { card: Card }) {
  *  the catalog. Doubling as the exit keeps it to one element and costs no extra row. */
 export function ViewModeBadge() {
   const wishlists = useWishlists();
-  const { allCards, viewedCollection, setViewedCollection } = useCardContext();
-  if (viewedCollection) {
-    return <button
-      type="button"
-      className="view-mode-badge view-mode-badge--collection"
-      onClick={() => setViewedCollection('')}
-      aria-label={`${viewedCollection} — back to catalog`}
-      title="Back to catalog"
-    >
-      <span className="view-mode-badge__name">{viewedCollection}</span>
-      <X size={12} aria-hidden="true" />
-    </button>;
+  const { allCards, viewMode, setViewMode } = useCardContext();
+  const backToCatalog = () => setViewMode(CATALOG_VIEW);
+  switch (viewMode.kind) {
+    case 'catalog':
+      return <span className="view-mode-badge" title="Browsing the full card catalog">Catalog</span>;
+    case 'collection':
+      return <button
+        type="button"
+        className="view-mode-badge view-mode-badge--collection"
+        onClick={backToCatalog}
+        aria-label={`${viewMode.name} — back to catalog`}
+        title="Back to catalog"
+      >
+        <span className="view-mode-badge__name">{viewMode.name}</span>
+        <X size={12} aria-hidden="true" />
+      </button>;
+    case 'wishlist': {
+      // The wishlist may still be loading, or may have vanished; until it resolves there
+      // is no name to show.
+      if (!wishlists.wishlist) {
+        return <span className="view-mode-badge" title="Opening the saved wishlist">Wishlist</span>;
+      }
+      const loaded = allCards.filter(c => wishlists.keys.has(JSON.stringify([c.setSeries, c.id]))).length;
+      const missing = wishlists.keys.size - loaded;
+      const name = wishlists.wishlist.name + (wishlists.subcollection ? ` / ${wishlists.subcollection.name}` : '');
+      return <button
+        type="button"
+        className="view-mode-badge view-mode-badge--wishlist"
+        onClick={backToCatalog}
+        aria-label={`${name} — back to catalog`}
+        title={`Back to catalog${missing > 0 ? ` · ${missing} saved cards are not in the loaded catalog` : ''}`}
+      >
+        <span className="view-mode-badge__name">{name}</span>
+        {missing > 0 && <span className="view-mode-badge__warning" role="status">{missing}!</span>}
+        <X size={12} aria-hidden="true" />
+      </button>;
+    }
+    default:
+      return assertNeverViewMode(viewMode);
   }
-  if (!wishlists.viewing || !wishlists.wishlist) {
-    return <span className="view-mode-badge" title="Browsing the full card catalog">Catalog</span>;
-  }
-  const loaded = allCards.filter(c => wishlists.keys.has(JSON.stringify([c.setSeries, c.id]))).length;
-  const missing = wishlists.keys.size - loaded;
-  const name = wishlists.wishlist.name + (wishlists.subcollection ? ` / ${wishlists.subcollection.name}` : '');
-  return <button
-    type="button"
-    className="view-mode-badge view-mode-badge--wishlist"
-    onClick={() => wishlists.setViewing(false)}
-    aria-label={`${name} — back to catalog`}
-    title={`Back to catalog${missing > 0 ? ` · ${missing} saved cards are not in the loaded catalog` : ''}`}
-  >
-    <span className="view-mode-badge__name">{name}</span>
-    {missing > 0 && <span className="view-mode-badge__warning" role="status">{missing}!</span>}
-    <X size={12} aria-hidden="true" />
-  </button>;
 }
 

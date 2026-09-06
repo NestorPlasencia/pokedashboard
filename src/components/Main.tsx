@@ -14,7 +14,6 @@ import { Collections } from "./inputs/Collections";
 import { PokemonGroupingFilter } from "./inputs/PokemonGroupingFilter";
 import { ViewOptionsComponent } from "./inputs/ViewOptionsComponent";
 import { useLoadCards } from "../hooks/useLoadCards";
-import { useUrlFilters } from "../hooks/useUrlFilters";
 import { useCardFilters } from "../hooks/useCardFilters";
 import { Summary } from "./ui/Summary";
 import { PrintButton } from "./ui/PrintButton";
@@ -23,6 +22,7 @@ import { MassEntryButton } from "./ui/MassEntryButton";
 import { PriceExplorerButton } from "./ui/PriceExplorerButton";
 import { useAuth } from "../context/AuthContext";
 import { useTrendPoints } from "../hooks/useTrendPoints";
+import { assertNeverViewMode } from "../utils/viewMode";
 
 // Lazy load heavy view components
 const CardList = lazy(() => import("./views/CardList").then(module => ({ default: module.CardList })));
@@ -47,7 +47,7 @@ export const Main: React.FC = () => {
     seriesSelection,
     collectionFilter,
     pokemonGrouping,
-    viewedCollection,
+    viewMode,
   } = useCardContext();
   const { setCollections } = useOptionsContext();
   const { session, signOut } = useAuth();
@@ -59,6 +59,22 @@ export const Main: React.FC = () => {
   const inventoryRequired =
     collectionFilter.enabled ||
     (pokemonGrouping.enabled && pokemonGrouping.filterByCollection !== "all");
+
+  // One place decides what the current mode needs from the loader. Adding a mode to
+  // ViewMode without handling it here stops compiling.
+  const modeOptions = ((): { series: typeof seriesSelection; collection: string } => {
+    switch (viewMode.kind) {
+      case 'catalog':
+        return { series: seriesSelection, collection: '' };
+      case 'wishlist':
+        // Saved cards come from whichever eras the wishlist touches, not the sidebar.
+        return { series: wishlists.seriesSelection, collection: '' };
+      case 'collection':
+        return { series: seriesSelection, collection: viewMode.name };
+      default:
+        return assertNeverViewMode(viewMode);
+    }
+  })();
 
   const {
     isLoading,
@@ -72,13 +88,10 @@ export const Main: React.FC = () => {
     setCollections,
     setSets,
     setPokemonFormsData,
-    wishlists.viewing ? wishlists.seriesSelection : seriesSelection,
-    inventoryRequired || Boolean(viewedCollection),
-    viewedCollection
+    modeOptions.series,
+    inventoryRequired || Boolean(modeOptions.collection),
+    modeOptions.collection
   );
-
-  // Sincronizar filtros con URL
-  useUrlFilters();
 
   // Activate hierarchical filter cascade (Levels 2-6)
   // Level 1 is handled by Filters component
@@ -114,7 +127,7 @@ export const Main: React.FC = () => {
           )}
         </div>
       </Sidebar>
-      <div className={`card-view${wishlists.viewing ? ' card-view--wishlist' : ''}`}>
+      <div className={`card-view${viewMode.kind === 'wishlist' ? ' card-view--wishlist' : ''}`}>
         <Search />
         {isLoading && <div className="main-status-message">Loading cards...</div>}
         {error && <div className="main-status-message main-status-message--error">{error}</div>}

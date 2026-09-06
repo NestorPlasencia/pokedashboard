@@ -1,54 +1,18 @@
 import { useEffect, useState } from "react";
 import { useCardContext } from "../../context/CardContext";
 import { updateUrlParams, parseUrlParams } from "../../utils/urlParams";
+import { ORDER_OPTIONS, TREND_ORDER_OPTIONS, orderToSortConfig } from "../../utils/orders";
 import { CollapsibleFieldset } from "../ui/CollapsibleFieldset";
 
 export const Orders = () => {
   const { viewOptions, setViewOptions, setSortConfig } = useCardContext();
-  const orders = ["None", "Number", "Set and Number", "Pokedex", "Energy", "Rarities", "Energy and Name", "Energy and Pokedex", "Price ↑", "Price ↓"];
-  const trendOrders = viewOptions.displayMode.includes('trend') ? ["Trend score ↑", "Trend score ↓"] : [];
-  const [checkedOrder, setCheckedOrder] = useState<string>(() => {
-    const params = parseUrlParams();
-    return params.order || "None";
-  });
+  const orders = ORDER_OPTIONS;
+  const trendOrders = viewOptions.displayMode.includes('trend') ? TREND_ORDER_OPTIONS : [];
+  // CardContext already turned this parameter into the initial sortConfig; the radio
+  // group only needs the name back so the right option starts checked.
+  const [checkedOrder, setCheckedOrder] = useState<string>(() => parseUrlParams().order || "None");
 
-  // Map order names to sortConfig
-  const orderToSortConfig = (order: string) => {
-    switch (order) {
-      case "Number":
-        return { field: 'number' as const, direction: 'asc' as const };
-      case "Set and Number":
-        return { field: 'setAndNumber' as const, direction: 'asc' as const };
-      case "Pokedex":
-        return { field: 'pokedex' as const, direction: 'asc' as const };
-      case "Energy":
-        return { field: 'energy' as const, direction: 'asc' as const };
-      case "Rarities":
-        return { field: 'rarity' as const, direction: 'asc' as const };
-      case "Energy and Name":
-        return { field: 'energyAndName' as const, direction: 'asc' as const };
-      case "Energy and Pokedex":
-        return { field: 'energyAndPokedex' as const, direction: 'asc' as const };
-      case "Price ↑":
-        return { field: 'price' as const, direction: 'asc' as const };
-      case "Price ↓":
-        return { field: 'price' as const, direction: 'desc' as const };
-      case "Trend score ↑":
-        return { field: 'buyTimingScore' as const, direction: 'asc' as const };
-      case "Trend score ↓":
-        return { field: 'buyTimingScore' as const, direction: 'desc' as const };
-      default:
-        return { field: 'number' as const, direction: 'asc' as const };
-    }
-  };
-
-  // Aplicar el ordenamiento inicial desde la URL al montar
-  useEffect(() => {
-    setSortConfig(orderToSortConfig(checkedOrder));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Solo al montar
-
-  // Actualizar sortConfig cuando checkedOrder cambia (por interacción del usuario)
+  // Keep sortConfig in step with the selected option.
   useEffect(() => {
     setSortConfig(orderToSortConfig(checkedOrder));
   }, [checkedOrder, setSortConfig]);

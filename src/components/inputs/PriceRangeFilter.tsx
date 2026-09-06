@@ -1,20 +1,19 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect } from "react";
 import { useCardContext } from "../../context/CardContext";
 import { CollapsibleFieldset } from "../ui/CollapsibleFieldset";
-import { updateUrlParams, parseUrlParams } from "../../utils/urlParams";
+import { updateUrlParams } from "../../utils/urlParams";
+import type { Card } from "../../types/dashboard";
 
 // The inputs use a normalized logarithmic scale. Prices stored in context and
 // in the URL remain regular dollar amounts.
 const PRICE_SLIDER_STEPS = 1000;
 
 export const PriceRangeFilter = () => {
+  // The range itself is restored from the URL in CardContext.
   const { filteredCards, priceRange, setPriceRange, conditionsFilter } = useCardContext();
-  
-  // Track if this is the first render to avoid clearing URL params on initial load
-  const isInitialRender = useRef(true);
 
   // Helper to get the best price for a card based on active conditions
-  const getCardVariantPrices = useCallback((card: any): number[] => {
+  const getCardVariantPrices = useCallback((card: Card): number[] => {
     // Determine which conditions to consider
     const activeConditions = conditionsFilter.includes('All')
       ? ['Near Mint']
@@ -26,7 +25,7 @@ export const PriceRangeFilter = () => {
     let bestPrice: number | null = null;
     
     activeConditions.forEach(condition => {
-      const price = card.prices?.[condition];
+      const price = card.prices?.[condition as keyof typeof card.prices];
       if (price !== null && price !== undefined) {
         if (bestPrice === null || price < bestPrice) {
           bestPrice = price;
@@ -106,36 +105,13 @@ export const PriceRangeFilter = () => {
     setPriceRange({ min: null, max: null });
   };
 
-  // Initialize from URL on mount (moved here to avoid race condition with useUrlFilters)
+  // Update URL when price range changes. An unset bound is `undefined`, which removes
+  // the parameter and keeps a clean URL clean.
   useEffect(() => {
-    const params = parseUrlParams();
-    if (!params.priceMin && !params.priceMax) {
-      // Only initialize if not already set by useUrlFilters
-      // This is a safety measure, useUrlFilters should handle it
-    }
-  }, []);
-
-  // Update URL when price range changes
-  useEffect(() => {
-    // Skip URL update on initial render to preserve URL params
-    if (isInitialRender.current) {
-      isInitialRender.current = false;
-      return;
-    }
-    
-    const params: Record<string, string> = {};
-    if (priceRange.min !== null) {
-      params.priceMin = String(priceRange.min);
-    }
-    if (priceRange.max !== null) {
-      params.priceMax = String(priceRange.max);
-    }
-    
-    if (Object.keys(params).length > 0) {
-      updateUrlParams(params as any);
-    } else {
-      updateUrlParams({ priceMin: undefined, priceMax: undefined } as any);
-    }
+    updateUrlParams({
+      priceMin: priceRange.min !== null ? String(priceRange.min) : undefined,
+      priceMax: priceRange.max !== null ? String(priceRange.max) : undefined,
+    });
   }, [priceRange.min, priceRange.max]);
 
   const minValue = priceRange.min !== null ? priceRange.min : globalMin;

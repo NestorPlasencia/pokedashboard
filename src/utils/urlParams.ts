@@ -51,7 +51,25 @@ export interface FilterParams {
   pokemonGroupingMode?: string;
   // Legacy parameter (backward compatibility)
   formsEnabledVariants?: string[];
+  // View options that are not filters but still describe what you are looking at
+  trendSortDirection?: string;
+  trendXAxisScale?: string;
+  printTableImages?: string;
+  printTableQuantityMissing?: string;
+  printTableType?: string;
+  printTableVariant?: string;
+  // Browsing mode. `viewedCollection` is the collection being browsed on its own and is
+  // unrelated to `collections`, which is the collection *filter*.
+  viewMode?: string;
+  viewWishlist?: string;
+  viewSubcollection?: string;
+  viewedCollection?: string;
 }
+
+/**
+ * Booleans whose default is `true`, so only the "off" state belongs in the URL.
+ */
+const TRUE_BY_DEFAULT_PARAMS = ['printTableType', 'printTableVariant'] as const;
 
 /**
  * Parse URL query parameters into filter state
@@ -86,7 +104,7 @@ export const parseUrlParams = (): FilterParams => {
   }
   
   // Parse boolean parameters (stored as "true" or "false")
-  const booleanParams = ['showTable', 'showListTable', 'showTrendPoints', 'groupByPokedex', 'hideNotOwnPokedex', 'hideObtainedPokedex', 'showOnlyMissing', 'showOnlyIncomplete', 'filterByCollections', 'pokedexEnabled', 'includeWithoutCards', 'groupByForms', 'pokemonGroupingEnabled', 'formsFallbackToDefault'];
+  const booleanParams = ['showTable', 'showListTable', 'showTrendPoints', 'groupByPokedex', 'hideNotOwnPokedex', 'hideObtainedPokedex', 'showOnlyMissing', 'showOnlyIncomplete', 'filterByCollections', 'pokedexEnabled', 'includeWithoutCards', 'groupByForms', 'pokemonGroupingEnabled', 'formsFallbackToDefault', 'printTableImages', 'printTableQuantityMissing', ...TRUE_BY_DEFAULT_PARAMS];
   booleanParams.forEach(param => {
     const value = params.get(param);
     if (value) {
@@ -148,7 +166,39 @@ export const parseUrlParams = (): FilterParams => {
   if (priceMax) {
     filters.priceMax = priceMax;
   }
-  
+
+  // Parse trend view parameters
+  const trendSortDirection = params.get('trendSortDirection');
+  if (trendSortDirection) {
+    filters.trendSortDirection = trendSortDirection;
+  }
+
+  const trendXAxisScale = params.get('trendXAxisScale');
+  if (trendXAxisScale) {
+    filters.trendXAxisScale = trendXAxisScale;
+  }
+
+  // Parse browsing mode parameters
+  const viewMode = params.get('viewMode');
+  if (viewMode) {
+    filters.viewMode = viewMode;
+  }
+
+  const viewWishlist = params.get('viewWishlist');
+  if (viewWishlist) {
+    filters.viewWishlist = viewWishlist;
+  }
+
+  const viewSubcollection = params.get('viewSubcollection');
+  if (viewSubcollection) {
+    filters.viewSubcollection = viewSubcollection;
+  }
+
+  const viewedCollection = params.get('viewedCollection');
+  if (viewedCollection) {
+    filters.viewedCollection = decodeValue(viewedCollection);
+  }
+
   return filters;
 };
 
@@ -273,7 +323,42 @@ export const generateUrlParams = (filters: Partial<FilterParams>): string => {
   if (filters.priceMax) {
     queryParts.push(`priceMax=${filters.priceMax}`);
   }
-  
+
+  // Add trend view parameters (only when they differ from their defaults)
+  if (filters.trendSortDirection && filters.trendSortDirection !== 'desc') {
+    queryParts.push(`trendSortDirection=${filters.trendSortDirection}`);
+  }
+  if (filters.trendXAxisScale && filters.trendXAxisScale !== 'normal') {
+    queryParts.push(`trendXAxisScale=${filters.trendXAxisScale}`);
+  }
+
+  // Add print column toggles. Images and Quantity default to off, Type and Variant to on,
+  // so each one only appears once it stops matching its default.
+  if (filters.printTableImages === 'true') {
+    queryParts.push('printTableImages=true');
+  }
+  if (filters.printTableQuantityMissing === 'true') {
+    queryParts.push('printTableQuantityMissing=true');
+  }
+  TRUE_BY_DEFAULT_PARAMS.forEach(param => {
+    if (filters[param] === 'false') {
+      queryParts.push(`${param}=false`);
+    }
+  });
+
+  // Add the browsing mode. Building it from one branch per mode keeps the URL from ever
+  // describing two modes at once, whatever the merged parameters happen to hold.
+  if (filters.viewMode === 'wishlist' && filters.viewWishlist) {
+    queryParts.push('viewMode=wishlist');
+    queryParts.push(`viewWishlist=${filters.viewWishlist}`);
+    if (filters.viewSubcollection) {
+      queryParts.push(`viewSubcollection=${filters.viewSubcollection}`);
+    }
+  } else if (filters.viewMode === 'collection' && filters.viewedCollection) {
+    queryParts.push('viewMode=collection');
+    queryParts.push(`viewedCollection=${filters.viewedCollection.replace(/\s+/g, '_').replace(/&/g, 'and')}`);
+  }
+
   return queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
 };
 
