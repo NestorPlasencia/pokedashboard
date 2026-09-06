@@ -9,6 +9,14 @@ import type { InventoryStatus } from "../../hooks/useLoadCards";
 
 const CONDITION_KEYS: ConditionKey[] = ["Near Mint", "Lightly Played", "Moderately Played", "Damaged", "Heavily Played"];
 
+const MODE_LABELS: Record<CollectionFilterOptions["mode"], string> = {
+  none: "",
+  hideNotOwned: "Hide not owned",
+  hideOwned: "Hide owned",
+  shadowOwned: "Dim owned",
+  shadowNotOwned: "Dim not owned",
+};
+
 type CollectionsProps = {
   inventoryStatus: InventoryStatus;
   inventoryUpdatedAt: number | null;
@@ -84,11 +92,31 @@ export const Collections = ({
     setCollectionFilter(prev => ({ ...prev, conditionsFilter: ["All"] }));
   };
 
+  // Shown while the panel is collapsed, so an active filter is never invisible.
+  const summaryParts: string[] = [];
+  if (collectionFilter.enabled) {
+    const selected = collectionFilter.selectedCollections;
+    summaryParts.push(
+      selected.length === 0 ? "No collections selected"
+        : selected.length <= 2 ? selected.join(", ")
+          : `${selected.length} collections`
+    );
+    if (collectionFilter.mode !== "none") summaryParts.push(MODE_LABELS[collectionFilter.mode]);
+    if (collectionFilter.limit !== 1) summaryParts.push(`min ${collectionFilter.limit}`);
+    const conditions = collectionFilter.conditionsFilter;
+    if (conditions.length > 0 && !conditions.includes("All")) {
+      summaryParts.push(conditions.length <= 2 ? conditions.join(", ") : `${conditions.length} conditions`);
+    }
+  }
+
   return (
     <div className="section-sidebar">
       <CollapsibleFieldset
         legend="Collections"
         defaultCollapsed={true}
+        collapsedSummary={summaryParts.length > 0 && (
+          <div className="filter-collapsed-summary">{summaryParts.join(" · ")}</div>
+        )}
       >
         <label>
           <input

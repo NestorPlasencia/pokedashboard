@@ -93,6 +93,23 @@ textarea {
 .sidebar-box {
   position: relative;
   transition: all 0.3s ease;
+  min-width: 0;
+}
+
+/* Both sidebars expanded used to overrun the layout: a flex item's automatic minimum
+   size is its min-content width, so neither the sidebars nor .card-view could shrink,
+   the row overflowed, and the absolutely positioned collapse handles ended up drawn
+   over the neighbouring column. Capping the sidebars and allowing the centre to shrink
+   keeps the three columns from colliding. The cap is desktop-only: below 760px each
+   panel is a full-width overlay instead of a column. */
+.sidebar {
+  min-width: 0;
+}
+
+@media (min-width: 761px) {
+  .sidebar:not(.collapsed) {
+    max-width: 38vw;
+  }
 }
 
 .sidebar {
@@ -190,6 +207,7 @@ textarea {
 
 .card-view {
   flex: 1;
+  min-width: 0;
   overflow-y: auto;
   box-sizing: border-box;
   justify-content: center;
@@ -2475,7 +2493,7 @@ td {
 
 .search-bar {
   display: grid;
-  grid-template-columns: minmax(0, 520px) auto;
+  grid-template-columns: auto minmax(0, 520px) auto;
   align-items: center;
   gap: 18px;
   min-height: 64px;
@@ -2515,11 +2533,20 @@ td {
   white-space: nowrap;
 }
 
+.search-field__icon {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  color: var(--text-muted);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
 .search-bar input {
   width: 100%;
   max-width: none;
   margin: 0;
-  padding: 10px 36px 10px 14px;
+  padding: 10px 36px 10px 36px;
   border: 1px solid var(--border-strong);
   border-radius: 10px;
   background: var(--surface-raised);
@@ -2590,20 +2617,60 @@ input:focus-visible {
 .sidebar .theme-selector {
   width: 100%;
   justify-content: space-between;
+}
+
+/* Account and appearance share one delimited block at the end of the sidebar,
+   so the separator belongs to the footer rather than to the theme selector. */
+.sidebar-footer {
   margin-top: 24px;
   padding-top: 14px;
   border-top: 1px solid var(--border);
 }
 
-.theme-selector select {
-  min-width: 92px;
-  margin: 0;
-  padding: 8px 28px 8px 10px;
+.sidebar-footer .sidebar-session-bar {
+  margin: 12px 0 0;
+  padding: 0;
+  border-bottom: 0;
+}
+
+/* Segmented control: one click per theme instead of opening a native select. */
+.theme-selector__options {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
   border: 1px solid var(--border-strong);
-  border-radius: 9px;
-  background-color: var(--surface-raised);
-  color: var(--text);
+  border-radius: 10px;
+  background: var(--surface-muted);
+}
+
+.theme-selector__option {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
   cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+
+.theme-selector__option:hover {
+  color: var(--text);
+}
+
+.theme-selector__option.is-active {
+  background: var(--surface-raised);
+  color: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.theme-selector__option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .collapsible-fieldset {
@@ -2939,6 +3006,7 @@ th[scope="row"],
 }
 
 .price-explorer-btn.sidebar-action-btn,
+button.print-btn.sidebar-action-btn,
 button.mass-entry-btn.sidebar-action-btn {
   display: flex !important;
   align-items: center;
@@ -2968,6 +3036,7 @@ button.mass-entry-btn.sidebar-action-btn {
 }
 
 .price-explorer-btn.sidebar-action-btn:hover,
+button.print-btn.sidebar-action-btn:hover:not(:disabled),
 button.mass-entry-btn.sidebar-action-btn:hover:not(:disabled) {
   transform: none;
   border-color: var(--accent);
@@ -3056,7 +3125,7 @@ button.mass-entry-btn.sidebar-action-btn:disabled {
   }
 
   .search-bar {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
   }
 
   .theme-selector__label,
@@ -3151,30 +3220,30 @@ button.mass-entry-btn.sidebar-action-btn:disabled {
     padding-inline: 12px;
   }
 
-  .theme-selector select {
-    min-width: 80px;
-  }
-
+  /* Room for the fixed bottom bar plus the floating search sitting above it. */
   .card-list {
     padding-inline: 14px;
-    padding-bottom: calc(110px + env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--mobile-nav-height) + var(--mobile-search-height) + 28px + env(safe-area-inset-bottom));
   }
 
+  /* Bottom bar spans the full width; the search floats just above it. */
   .mobile-panel-nav {
     position: fixed;
     z-index: 200;
-    left: 50%;
-    bottom: calc(12px + env(safe-area-inset-bottom));
-    transform: translateX(-50%);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    transform: none;
     display: grid;
-    grid-template-columns: repeat(3, minmax(72px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 4px;
-    width: min(360px, calc(100% - 24px));
-    padding: 6px;
-    border: 1px solid var(--border-strong);
-    border-radius: 20px;
+    width: 100%;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    border: 0;
+    border-top: 1px solid var(--border-strong);
+    border-radius: 0;
     background: color-mix(in srgb, var(--surface-raised) 94%, transparent);
-    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.32);
     backdrop-filter: blur(16px);
   }
 
@@ -3213,28 +3282,58 @@ button.mass-entry-btn.sidebar-action-btn:disabled {
 
 /* Final mobile constraints: override desktop image minimums and keep trend cards compact. */
 @media (max-width: 760px) {
+  :root {
+    --mobile-nav-height: 64px;
+    --mobile-search-height: 52px;
+  }
+
+  /* Mode tag and item count stay at the top; only the input floats down by the thumb.
+     The fixed field leaves the grid flow, so the two remaining items fill both tracks. */
   .search-bar {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: auto 1fr;
     gap: 8px;
-    min-height: 58px;
-    padding: 8px 10px;
+    min-height: 0;
+    padding: 8px 12px;
+    /* Must not create a containing block, or the fixed field would anchor here
+       instead of the viewport. The blur moves to the floating field itself. */
+    backdrop-filter: none;
+  }
+
+  .search-item-count {
+    justify-self: end;
+  }
+
+  .search-field {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + 8px);
+    z-index: 190;
+    min-height: var(--mobile-search-height);
+    padding: 6px;
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--surface-raised) 94%, transparent);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.34);
+    backdrop-filter: blur(16px);
+  }
+
+  .search-bar .search-clear-button {
+    right: 14px;
+  }
+
+  .search-field__icon {
+    left: 18px;
   }
 
   .search-bar input {
     min-width: 0;
     height: 40px;
-    padding: 8px 10px;
+    /* Keeps the gutters the search icon and the clear button sit in. */
+    padding: 8px 32px;
   }
 
   .theme-selector {
     min-width: 0;
-    max-width: 92px;
-  }
-
-  .theme-selector select {
-    width: 92px;
-    min-width: 0;
-    margin: 0;
   }
 
   .session-bar {
@@ -3249,6 +3348,26 @@ button.mass-entry-btn.sidebar-action-btn:disabled {
     white-space: nowrap;
   }
 
+  /* Appearance and the account fit on a single row; the email absorbs the slack
+     and truncates so Sign out always stays reachable. */
+  .sidebar-footer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .sidebar-footer .theme-selector {
+    flex: 0 0 auto;
+    width: auto;
+  }
+
+  .sidebar-footer .sidebar-session-bar {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+  }
+
   .card-view .card-list:not(.card-list--trend) {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3257,6 +3376,20 @@ button.mass-entry-btn.sidebar-action-btn:disabled {
     gap: 12px;
     width: 100%;
     padding: 12px 10px calc(110px + env(safe-area-inset-bottom));
+  }
+
+  /* A wishlist section is a full-width band; the two-column grid belongs to the cards
+     inside it, not to the sections themselves. */
+  .card-view .card-list:not(.card-list--trend) .wishlist-section {
+    grid-column: 1 / -1;
+  }
+
+  .wishlist-section__cards:not(.wishlist-section__cards--trend) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    justify-content: stretch;
+    gap: 12px;
   }
 
   .card-view .card-list:not(.card-list--trend) .card-view-card {
@@ -3388,3 +3521,92 @@ button.mass-entry-btn.sidebar-action-btn:disabled {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Purple identifies the wishlist feature, keeping it distinct from the Collectr
+   inventory panel (accent) and from the Missing badge (red). Scoped to the feature
+   so the global palette stays untouched. */
+.wishlists, .card-view { --wishlist: #6b3fb8; --wishlist-soft: #f1eafc; }
+:root[data-theme="dark"] .wishlists, :root[data-theme="dark"] .card-view { --wishlist: #b49bf0; --wishlist-soft: #2a2350; }
+
+/* Icon + label controls: keep the glyph optically centered against the text.
+   The tree name button is deliberately excluded so its ellipsis truncation still works. */
+.wishlist-tree-toggle, .wishlist-tree-view, .wishlist-tree-more, .wishlist-tree-new, .wishlist-tree-add,
+.wishlist-tree-actions button, .wishlist-tree-context button, .wishlist-tree-create button,
+.card .wishlist-card-button,
+.card-price-explorer-link, .card-trend-card-info__prices-link, .trend-card-view__prices {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.wishlists svg, .card .wishlist-card-button svg,
+.card-price-explorer-link svg, .card-trend-card-info__prices-link svg, .trend-card-view__prices svg { flex: 0 0 auto; }
+
+.wishlists-controls { display: grid; gap: 8px; }
+.wishlists-controls > small { color: var(--text-muted); line-height: 1.5; }
+.wishlists-controls form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px; }
+.wishlists-controls .filter-search-input { min-width: 0; margin: 0; }
+.wishlists-controls form button { margin: 0; }
+.wishlists-controls button:disabled { opacity: .5; cursor: default; }
+.wishlists-controls > p { margin: 0; overflow-wrap: anywhere; }
+.wishlists .filter-collapsed-summary { overflow-wrap: anywhere; }
+.wishlist-card-button { padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; background: var(--surface); color: inherit; }
+.wishlists button:disabled { opacity: .5; cursor: default; }
+.wishlist-card-button { position: relative; z-index: 2; display: block; margin: 4px; background: var(--wishlist-soft); color: var(--wishlist); font-size: 11px; border-color: var(--wishlist); }
+/* Browsing the catalog the control sits top-left, clear of Owned (top-right),
+   Missing (bottom-right) and Prices (bottom-left), which all keep their corners. */
+.card .wishlist-card-button { position: absolute; top: 6px; left: 6px; z-index: 11; margin: 0; max-width: calc(100% - 86px); padding: 5px 9px; border: 1px solid rgba(255, 255, 255, 0.72); border-radius: 999px; background: linear-gradient(135deg, #4c2a86, #7145c4); color: #fff; font-size: 10px; font-weight: 700; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35); }
+/* Inside the wishlist view it takes over the slot the "Missing" badge would use. */
+.card .wishlist-card-button--slot { top: auto; left: auto; bottom: 8px; right: 8px; }
+.card .wishlist-card-button--saved { background: linear-gradient(135deg, #14684a, #1e9b6b); }
+.card .wishlist-card-button:hover { filter: brightness(1.15); }
+
+/* Wishlist view: one titled section per subcollection, its cards laid out underneath.
+   Sections span the full row in both the flex grid and the trend grid. */
+.wishlist-section { flex: 1 0 100%; width: 100%; min-width: 0; }
+.card-list--trend .wishlist-section { grid-column: 1 / -1; }
+.wishlist-section + .wishlist-section { margin-top: 26px; }
+.wishlist-section__title { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; padding-bottom: 6px; border-bottom: 1px solid var(--border); color: var(--wishlist); font-size: 14px; }
+.wishlist-section__count { padding: 2px 8px; border-radius: 999px; background: var(--wishlist-soft); color: var(--wishlist); font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.wishlist-section__cards { display: flex; flex-wrap: wrap; align-content: flex-start; align-items: flex-start; justify-content: center; gap: 18px; }
+.wishlist-section__cards--trend { display: grid; grid-template-columns: repeat(2, minmax(430px, 1fr)); align-items: stretch; gap: 12px; }
+@media (max-width: 1450px) { .wishlist-section__cards--trend { grid-template-columns: minmax(0, 1fr); } }
+
+/* Mode indicator: a single tag in the search row, so it costs no vertical space. */
+.view-mode-badge { justify-self: start; max-width: 240px; padding: 3px 9px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-muted); color: var(--text-muted); font-size: 10px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+/* In a wishlist the badge is also the way out, so it renders as a button. */
+/* The name is a proper noun, so it keeps its own casing unlike the "Catalog" label. */
+button.view-mode-badge--wishlist { display: inline-flex; align-items: center; gap: 6px; margin: 0; border-color: var(--wishlist); background: var(--wishlist); color: #fff; cursor: pointer; font: inherit; font-size: 11px; font-weight: 700; letter-spacing: 0; text-transform: none; }
+button.view-mode-badge--wishlist:hover { filter: brightness(1.12); }
+.view-mode-badge__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.view-mode-badge__warning { padding: 0 5px; border-radius: 999px; background: rgba(255, 255, 255, 0.24); font-variant-numeric: tabular-nums; }
+.card-view--wishlist { box-shadow: inset 0 3px 0 var(--wishlist); }
+@media print { .wishlist-card-button, .wishlists, .view-mode-badge { display: none !important; } }
+
+/* Local collections use the sidebar's existing surfaces and controls. */
+.wishlist-tree, .wishlist-tree-children { list-style: none; padding: 0; margin: 0; min-width: 0; }
+.wishlist-tree-children { margin-left: 13px; padding-left: 9px; border-left: 1px solid var(--border); }
+.wishlist-tree-row { display: flex; align-items: center; gap: 4px; min-height: 34px; border-radius: var(--radius-sm); }
+.wishlist-tree-row:hover { background: var(--surface-muted); }
+.wishlist-tree-row.is-selected { background: var(--wishlist-soft); color: var(--wishlist); }
+.wishlists .wishlist-tree-row button { border: 0; background: transparent; margin: 0; padding: 5px; color: inherit; }
+.wishlists .wishlist-tree-name { flex: 1; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wishlist-tree-toggle, .wishlist-tree-leaf { width: 22px; flex: 0 0 22px; text-align: center; color: var(--text-muted); }
+.wishlist-tree-count { color: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.wishlists .wishlist-tree-more { visibility: hidden; font-size: 18px; line-height: 1; }
+.wishlist-tree-row:hover .wishlist-tree-more, .wishlist-tree-row:focus-within .wishlist-tree-more, .wishlist-tree-row.is-selected .wishlist-tree-more, .wishlist-tree-more[aria-expanded="true"] { visibility: visible; }
+.wishlists .wishlist-tree-view { flex: 0 0 auto; font-size: 11px; color: var(--wishlist); white-space: nowrap; }
+.wishlists .wishlist-tree-view:hover { background: var(--wishlist-soft); }
+.wishlists .wishlist-tree-new { justify-self: start; text-align: left; border: 0; background: transparent; color: var(--text-muted); padding: 5px; margin: 0; }
+.wishlists .wishlist-tree-new:hover { color: var(--wishlist); background: var(--wishlist-soft); }
+.wishlist-tree-actions { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 5px 7px 24px; }
+.wishlists .wishlist-tree-actions button { margin: 0; font-size: 11px; padding: 4px 6px; }
+.wishlists .wishlist-tree-delete { color: var(--danger); }
+.wishlists-controls .wishlist-tree-create { display: flex; gap: 4px; padding: 4px 0; }
+.wishlist-tree-create input { flex: 1; width: 0; }
+.wishlist-tree-context { display: grid; gap: 4px; padding-top: 8px; border-top: 1px solid var(--border); }
+.wishlist-tree-context small, .wishlist-tree-undo { color: var(--text-muted); font-size: 11px; overflow-wrap: anywhere; }
+.wishlists .wishlist-tree-add { color: var(--wishlist); background: var(--wishlist-soft); border-color: var(--wishlist); }
+.wishlist-tree-undo { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.wishlists button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (hover: none) { .wishlists .wishlist-tree-more { visibility: visible; } }

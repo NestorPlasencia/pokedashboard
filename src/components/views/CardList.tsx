@@ -1,3 +1,4 @@
+import { useWishlists } from "../../context/WishlistsContext";
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { CardView } from "./CardView";
 import { TrendCardView } from "./TrendCardView";
@@ -22,7 +23,8 @@ const CardListComponent: React.FC = () => {
   const [displayedFormGroups, setDisplayedFormGroups] = useState<Record<string, { form: PokemonFormData; cards: (Card | PokemonFormWithoutCard)[] }>>({});
   const [itemsToShow, setItemsToShow] = useState<number>(20);
 
-  const isFormsGrouping = pokemonGrouping.enabled;
+  const wishlists = useWishlists();
+  const isFormsGrouping = pokemonGrouping.enabled && !wishlists.viewing;
 
   const availableSeries = useMemo(
     () => Array.from(new Set(sets.map((set) => set.series).filter(Boolean))),
@@ -185,9 +187,20 @@ const CardListComponent: React.FC = () => {
             <CardGroup key={formName} cards={group.cards} groupName={group.form.name} groupImage={group.form.image} />
           );
         })}
-      {!isFormsGrouping && displayedCards.map((card, index) => viewOptions.displayMode.includes('trend')
-        ? <TrendCardView key={`${card.id}-${index}`} card={card} />
-        : <CardView key={`${card.id}-${index}`} card={card} />)}
+      {!isFormsGrouping && (wishlists.viewing
+        ? wishlists.groupCards(displayedCards).map(group => (
+          <section className="wishlist-section" key={group.label}>
+            <h3 className="wishlist-section__title">{group.label}<span className="wishlist-section__count">{group.cards.length}</span></h3>
+            <div className={`wishlist-section__cards${viewOptions.displayMode.includes('trend') ? ' wishlist-section__cards--trend' : ''}`}>
+              {group.cards.map((card, index) => viewOptions.displayMode.includes('trend')
+                ? <TrendCardView key={`${card.id}-${index}`} card={card} />
+                : <CardView key={`${card.id}-${index}`} card={card} />)}
+            </div>
+          </section>
+        ))
+        : displayedCards.map((card, index) => viewOptions.displayMode.includes('trend')
+          ? <TrendCardView key={`${card.id}-${index}`} card={card} />
+          : <CardView key={`${card.id}-${index}`} card={card} />))}
       <div id="sentinel" className="card-list-sentinel" />
     </div>
   );

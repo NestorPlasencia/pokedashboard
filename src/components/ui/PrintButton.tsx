@@ -1,3 +1,5 @@
+import { Printer } from "lucide-react";
+import { useWishlists } from "../../context/WishlistsContext";
 import React, { useMemo } from "react";
 import { useCardContext } from "../../context/CardContext";
 import { Card, TrendSeries } from "../../types/dashboard";
@@ -52,7 +54,8 @@ const buildPrintableTrendChart = (trend: TrendSeries, xAxisScale: 'normal' | 'se
   </svg>`;
 };
 
-export const PrintButton: React.FC = () => {
+export const PrintButton: React.FC<{ busy?: boolean }> = ({ busy = false }) => {
+  const wishlists = useWishlists();
   const { renderCards, collectionFilter, viewOptions, sets, trendByProductId, trendLoading } = useCardContext();
 
   const setSymbolById = useMemo(() => {
@@ -68,6 +71,10 @@ export const PrintButton: React.FC = () => {
     return renderCards.filter(card => !('isPlaceholder' in card)) as Card[];
   }, [renderCards]);
 
+  // When printing a saved collection, group the cards by subcollection instead of
+  // leaving them interleaved in whatever sort/search order was active on screen.
+  const printGroups = wishlists.groupCards(actualCards);
+
   const getOwnedQuantity = (card: Card) => {
     return (card.collections || [])
       .filter(c => collectionFilter.selectedCollections.includes(c.name))
@@ -81,6 +88,33 @@ export const PrintButton: React.FC = () => {
 
   const getPrice = (card: Card) => {
     return card.prices?.["Near Mint"] ?? null;
+  };
+
+  // Wishlist print: suggest a target price the way real sellers price a buylist -
+  // a "nice" round whole number a bit under market, not an exact percentage. Sellers
+  // favor numbers ending in 0, then 5 - never cents. Rounding DOWN (not to nearest)
+  // guarantees the real discount never dips below the 15% floor.
+  // Discount band: 15% floor always. Ceiling depends on price tier - 20% for high-cost
+  // cards ($100+), 25% for the middle tier, up to 30% for small amounts (<$20).
+  const getWishlistPrice = (card: Card) => {
+    const price = getPrice(card);
+    if (price === null || price <= 0) return null;
+    const step = price >= 100 ? 10 : price >= 20 ? 5 : 1;
+    const minDiscount = 0.15;
+    const maxDiscount = price >= 100 ? 0.20 : price >= 20 ? 0.25 : 0.30;
+    const lower = price * (1 - maxDiscount); // steepest discount allowed
+    const upper = price * (1 - minDiscount); // shallowest discount allowed
+    const candidates: number[] = [];
+    for (let value = Math.ceil(lower / step) * step; value <= upper + 1e-9; value += step) {
+      if (value > 0) candidates.push(value);
+    }
+    // The [lower, upper] window can be narrower than one rounding step for cheap cards -
+    // when no nice multiple falls inside it, favor staying under the max-discount cap.
+    const roundedPrice = candidates.length
+      ? candidates[Math.floor(Math.random() * candidates.length)]
+      : Math.max(1, Math.ceil(lower));
+    const percent = Math.round((1 - roundedPrice / price) * 100);
+    return { price: roundedPrice, percent };
   };
 
   const formatCurrency = (value: number | null) => {
@@ -99,6 +133,37 @@ export const PrintButton: React.FC = () => {
     const showListTable = viewOptions.displayMode.includes('table');
     const showTrendPoints = viewOptions.displayMode.includes('trend');
 
+    // Computed once so the per-group headings and the card badges always agree on the same numbers.
+    const wishlistPriceByCard = new Map<string, { price: number; percent: number }>();
+    if (wishlists.viewing && wishlists.wishlist) {
+      actualCards.forEach(card => {
+        const value = getWishlistPrice(card);
+        if (value) wishlistPriceByCard.set(card.id, value);
+      });
+    }
+
+    const summarizeGroup = (cards: Card[]) => {
+      const priced = cards.filter(card => getPrice(card) !== null);
+      const realTotal = priced.reduce((sum, card) => sum + (getPrice(card) ?? 0), 0);
+      const discounted = cards.filter(card => wishlistPriceByCard.has(card.id));
+      const discountedTotal = discounted.reduce((sum, card) => sum + (wishlistPriceByCard.get(card.id)?.price ?? 0), 0);
+      return {
+        count: cards.length,
+        realTotal,
+        realAvg: priced.length ? realTotal / priced.length : 0,
+        discountedTotal,
+        discountedAvg: discounted.length ? discountedTotal / discounted.length : 0,
+      };
+    };
+
+    // Inline stats in each group's own heading, right where its cards are printed -
+    // not a separate summary page disconnected from the cards it describes.
+    const groupHeadingText = (group: { label: string; cards: Card[] }) => {
+      if (!group.label) return '';
+      const stats = summarizeGroup(group.cards);
+      return `${escapeHtml(group.label)} <span class="print-group-stats">— ${stats.count} items · Market: ${formatCurrency(stats.realTotal)} total, ${formatCurrency(stats.realAvg)} average · Target: ${formatCurrency(stats.discountedTotal)} total, ${formatCurrency(stats.discountedAvg)} average</span>`;
+    };
+
     if (showTrendPoints) {
       const trendHTML = `<!DOCTYPE html><html><head><title>Print - Trend Points</title><style>
         *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact} body{font-family:Arial,sans-serif;margin:0;padding:12px;color:#172033;background:#fff} h1{font-size:18px;margin:0 0 8px}
@@ -106,11 +171,15 @@ export const PrintButton: React.FC = () => {
         .trend-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.trend-row{display:grid;grid-template-columns:76px minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:8px;align-items:stretch;min-width:0;padding:7px;border:1px solid #ccd4df;border-radius:8px;break-inside:avoid;page-break-inside:avoid}.print-left{grid-column:1;grid-row:1;display:grid;grid-template-rows:109px minmax(0,1fr);gap:5px;min-height:0;overflow:hidden}.card-image{width:76px;height:109px;object-fit:contain;border-radius:5px}.print-info{display:flex;align-content:flex-start;align-items:center;flex-wrap:wrap;gap:3px 5px;min-height:0;padding:5px;border:1px solid #d9e0e9;border-radius:5px;color:#657080;font-size:7px;overflow:hidden}.set-row{display:flex;align-items:center;gap:3px;min-width:0;max-width:52px}.set-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.set-symbol{width:10px;height:10px;object-fit:contain}.card-number{margin-left:auto;white-space:nowrap}.info-price{color:#172033;font-size:9px;font-weight:800}.missing{padding:2px 4px;border-radius:999px;background:#d9534f;color:#fff;font-size:6px;font-weight:800;text-transform:uppercase}.owned{flex-basis:100%;font-size:6px}.prices-label{padding:2px 4px;border:1px solid #9aa6b5;border-radius:999px;color:#354154;font-size:6px;font-weight:700}.print-main{grid-column:2;grid-row:1;display:flex;flex-direction:column;min-width:0;min-height:0;padding:5px;border:1px solid #d9e0e9;border-radius:6px;overflow:hidden}.heading{display:flex;justify-content:space-between;gap:8px;min-width:0;font-size:11px;font-weight:700}.heading span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.score{font-size:15px;white-space:nowrap}.label{display:flex;align-items:center;gap:4px;font-size:9px;font-weight:700;margin-top:1px}.label .timing-dot{width:6px;height:6px}.trend-row.timing-good .score,.trend-row.timing-good .label{color:#19875f}.trend-row.timing-fair .score,.trend-row.timing-fair .label{color:#a86f00}.trend-row.timing-bad .score,.trend-row.timing-bad .label{color:#c83f3f}.trend-row.timing-unknown .score,.trend-row.timing-unknown .label{color:#657080}.chart-footer{display:flex;justify-content:space-between;align-items:center;gap:5px;color:#657080;font-size:6px}.mini-legend{display:flex;align-items:center;gap:3px;white-space:nowrap}.mini-legend span{display:inline-flex;align-items:center;gap:1px}.mini-legend .timing-dot{width:4px;height:4px}
         .trend-chart{display:block;width:100%;height:auto;flex:1;min-height:0}.grid{stroke:#dbe2ea;stroke-width:1}.tick{fill:#657080;font-size:10px}.sector-line{stroke:#94a3b8;stroke-width:1;stroke-dasharray:5 4}.sector-label{fill:#657080;font-size:9px}.limit{stroke-width:1.25;stroke-dasharray:5 4}.max{stroke:#d96b36}.min{stroke:#39966c}.limit-label{font-size:13px;font-weight:700}.max-text{fill:#bd5728}.min-text{fill:#25845c}.trend-line{fill:none;stroke:#8b5fc7;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}.point{fill:#8b5fc7}.final-point{fill:#fff;stroke:#8b5fc7;stroke-width:2}.final-label{fill:#172033;font-size:13px;font-weight:800;paint-order:stroke;stroke:#fff;stroke-width:4px}.no-trend{padding:35px;color:#777}
         .trend-chart.timing-good .trend-line{stroke:#43a66c}.trend-chart.timing-good .point{fill:#43a66c}.trend-chart.timing-good .final-point{stroke:#43a66c}.trend-chart.timing-fair .trend-line{stroke:#d99a22}.trend-chart.timing-fair .point{fill:#d99a22}.trend-chart.timing-fair .final-point{stroke:#d99a22}.trend-chart.timing-bad .trend-line{stroke:#d9534f}.trend-chart.timing-bad .point{fill:#d9534f}.trend-chart.timing-bad .final-point{stroke:#d9534f}
+        .print-group-heading{font-size:13px;margin:14px 0 6px;padding-bottom:3px;border-bottom:1px solid #ccd4df;break-after:avoid;break-inside:avoid}
+        .print-group-stats{font-weight:400;font-size:0.72em;color:#657080}
         @media screen and (max-width:850px){.trend-list{grid-template-columns:1fr}}
         @media print{
           @page{size:portrait;margin:6mm}
           body{padding:0}
           h1{display:none}
+          .print-group-heading{font-size:11px;margin:6px 0 3px}
+          .print-group-stats{font-size:8px}
           .trend-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:1.5mm 2.5mm}
           .trend-row{grid-template-columns:18mm minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:1.5mm;min-height:0;height:45mm;padding:1mm;border-radius:2mm;overflow:hidden}
           .print-left{grid-template-rows:29mm minmax(0,1fr);gap:.8mm}
@@ -128,15 +197,15 @@ export const PrintButton: React.FC = () => {
           .chart-footer{font-size:5.5px}.mini-legend{gap:.7mm}.mini-legend .timing-dot{width:1mm;height:1mm}
           .no-trend{padding:10mm 0;font-size:8px}
         }
-      </style></head><body><h1>Trend points</h1><div class="trend-list">${actualCards.map(card => {
+      </style></head><body><h1>Trend points</h1>${printGroups.map(group => `${group.label ? `<h2 class="print-group-heading">${groupHeadingText(group)}</h2>` : ''}<div class="trend-list">${group.cards.map(card => {
         const trend = card.productId ? trendByProductId.get(card.productId) : undefined;
         const timingTone = getTimingTone(trend?.buyTimingScore);
         const timingDot = timingTone === 'unknown' ? '' : `<i class="timing-dot timing-dot--${timingTone}"></i>`;
         const owned = getOwnedQuantity(card); const price = getPrice(card); const symbol = getSetSymbol(card);
         const sortedTrendPoints = trend ? [...trend.points].sort((a, b) => a.date.localeCompare(b.date)) : [];
         const startDate = sortedTrendPoints[0]?.date || '—'; const endDate = trend?.latest?.date || sortedTrendPoints[sortedTrendPoints.length - 1]?.date || '—';
-        return `<article class="trend-row timing-${timingTone}"><div class="print-left"><img class="card-image" src="${escapeHtml(card.image || '')}" alt=""><div class="print-info"><span class="set-row">${symbol ? `<img class="set-symbol" src="${escapeHtml(symbol)}" alt="">` : ''}<span>${escapeHtml(card.setName)}</span></span><span class="card-number">#${escapeHtml(card.number)}</span>${price !== null ? `<strong class="info-price">${escapeHtml(formatCurrency(price))}</strong>` : ''}${owned > 0 ? `<span class="owned">Owned ${owned}</span>` : ''}<span class="prices-label">↗ Prices</span></div></div><div class="print-main"><div class="heading"><span>${escapeHtml(card.name)} · ${escapeHtml(card.variant || 'Normal')}</span><span class="score">${trend?.buyTimingScore ?? '—'}/100</span></div><div class="label">${timingDot}${escapeHtml(trend?.buyTimingLabel || 'No trend data')}</div>${trend ? buildPrintableTrendChart(trend, viewOptions.trendXAxisScale) : '<div class="no-trend">No trend data</div>'}<div class="chart-footer"><span>${escapeHtml(startDate)} → ${escapeHtml(endDate)} · latest ${trend?.latest ? escapeHtml(formatCurrency(trend.latest.price)) : '—'}</span><span class="mini-legend"><span><i class="timing-dot timing-dot--good"></i>Bueno</span><span><i class="timing-dot timing-dot--fair"></i>Regular</span><span><i class="timing-dot timing-dot--bad"></i>Malo</span></span></div></div></article>`;
-      }).join('')}</div></body></html>`;
+        return `<article class="trend-row timing-${timingTone}"><div class="print-left"><img class="card-image" src="${escapeHtml(card.image || '')}" alt=""><div class="print-info"><span class="set-row">${symbol ? `<img class="set-symbol" src="${escapeHtml(symbol)}" alt="">` : ''}<span>${escapeHtml(card.setName)}</span></span><span class="card-number">#${escapeHtml(card.number)}</span>${price !== null ? `<strong class="info-price">${escapeHtml(formatCurrency(price))}</strong>` : ''}${owned > 0 ? `<span class="owned">Owned ${owned}</span>` : ''}<span class="prices-label">↗ Prices</span></div></div><div class="print-main"><div class="heading"><span>${escapeHtml(card.name)} · ${escapeHtml(card.variant || 'Normal')}</span><span class="score">${trend?.buyTimingScore ?? '—'}/100</span></div><div class="label">${timingDot}${escapeHtml(trend?.buyTimingLabel || 'No trend data')}</div>${trend ? buildPrintableTrendChart(trend, viewOptions.trendXAxisScale) : '<div class="no-trend">No trend data</div>'}<div class="chart-footer"><span>${escapeHtml(startDate)} → ${escapeHtml(endDate)} · latest ${trend?.latest ? escapeHtml(formatCurrency(trend.latest.price)) : '—'}</span><span class="mini-legend"><span><i class="timing-dot timing-dot--good"></i>Good</span><span><i class="timing-dot timing-dot--fair"></i>Fair</span><span><i class="timing-dot timing-dot--bad"></i>Bad</span></span></div></div></article>`;
+      }).join('')}</div>`).join('')}</body></html>`;
       printWindow.document.write(trendHTML);
     } else if (showListTable) {
       // Formato tabla
@@ -226,6 +295,15 @@ export const PrintButton: React.FC = () => {
               background-color: #fff3e0 !important;
               border-left: 2px solid #ff9800;
             }
+            .print-group-row td {
+              background-color: #eef2f7 !important;
+              font-weight: 700;
+              border-left: none;
+            }
+            .print-group-stats {
+              font-weight: 400;
+              opacity: 0.75;
+            }
             @media print {
               @page {
                 size: auto;
@@ -280,7 +358,7 @@ export const PrintButton: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              ${actualCards.map(card => {
+              ${printGroups.map(group => `${group.label ? `<tr class="print-group-row"><td colspan="${tableColumnCount}">${groupHeadingText(group)}</td></tr>` : ''}${group.cards.map(card => {
         const owned = getOwnedQuantity(card);
         const missing = getMissingToLimit(card);
         const price = getPrice(card);
@@ -308,7 +386,7 @@ export const PrintButton: React.FC = () => {
                     <td class="number-cell">${formatCurrency(price)}</td>
                   </tr>
                 `;
-      }).join('')}
+      }).join('')}`).join('')}
             </tbody>
           </table>
         </body>
@@ -334,6 +412,19 @@ export const PrintButton: React.FC = () => {
               margin: 10px 0;
               font-size: 16px;
               color: white;
+            }
+            .print-group-heading {
+              color: white;
+              font-size: 13px;
+              margin: 10px 4px 6px;
+              padding-bottom: 3px;
+              border-bottom: 1px solid #666;
+              break-after: avoid;
+            }
+            .print-group-stats {
+              font-weight: 400;
+              font-size: 0.72em;
+              color: #bbb;
             }
             .card-grid {
               display: flex;
@@ -490,6 +581,34 @@ export const PrintButton: React.FC = () => {
               font-size: 11px;
             }
 
+            .wishlist-price-box {
+              position: absolute;
+              bottom: 8px;
+              right: 8px;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              padding: 3px 10px;
+              border-radius: 10px;
+              background: rgba(0, 0, 0, 0.7);
+              color: white;
+              box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+              z-index: 3;
+            }
+
+            .wishlist-price-box__amount {
+              font-size: 22px;
+              font-weight: 800;
+              line-height: 1.15;
+            }
+
+            .wishlist-price-box__percent {
+              font-size: 9px;
+              font-weight: 700;
+              opacity: 0.85;
+              line-height: 1;
+            }
+
             @media print {
               @page {
                 size: auto;
@@ -508,6 +627,17 @@ export const PrintButton: React.FC = () => {
 
               h1 {
                 display: none;
+              }
+
+              .print-group-heading {
+                color: #111;
+                font-size: 11px;
+                margin: 6px 4px 4px;
+                border-bottom-color: #ccc;
+              }
+
+              .print-group-stats {
+                color: #555;
               }
 
               .card-grid {
@@ -537,19 +667,27 @@ export const PrintButton: React.FC = () => {
               .missing-box {
                 border: 1px solid rgba(255, 255, 255, 0.9);
               }
+
+              .wishlist-price-box__amount {
+                font-size: 18px;
+              }
+
+              .wishlist-price-box__percent {
+                font-size: 7px;
+              }
             }
           </style>
         </head>
         <body>
           <h1>Cards</h1>
-          <div class="card-grid">
-            ${actualCards.map(card => {
+          ${printGroups.map(group => `${group.label ? `<h2 class="print-group-heading">${groupHeadingText(group)}</h2>` : ''}<div class="card-grid">${group.cards.map(card => {
         const currentVariant = card.variant || 'Normal';
         const topLevelVariant = card.cardVariantTopLevel || currentVariant;
         const imageUrl = card.image || '';
         const missing = getMissingToLimit(card);
         const cardClass = card.shadow ? 'card shadowed' : 'card';
         const nearMintPrice = getPrice(card);
+        const wishlistPrice = wishlistPriceByCard.get(card.id) ?? null;
         const setIcon = getSetSymbol(card);
         const countersHtml = collectionFilter.selectedCollections
           .map((collection) => {
@@ -572,17 +710,21 @@ export const PrintButton: React.FC = () => {
                   </div>
                   ${nearMintPrice !== null ? `<div class="prices">${formatCurrency(nearMintPrice)}</div>` : ''}
                   ${countersHtml ? `<div class="counters"><span class="counters__label">Owned</span>${countersHtml}</div>` : ''}
-                  ${(missing > 0 && collectionFilter.enabled) ? `<div class="missing-box"><span class="missing-box__label">Missing</span><strong class="missing-box__value">${missing}</strong></div>` : ''}
+                  ${wishlistPrice !== null
+        ? `<div class="wishlist-price-box"><span class="wishlist-price-box__amount">${wishlistPrice.price}</span><span class="wishlist-price-box__percent">-${wishlistPrice.percent}%</span></div>`
+        : (missing > 0 && collectionFilter.enabled) ? `<div class="missing-box"><span class="missing-box__label">Missing</span><strong class="missing-box__value">${missing}</strong></div>` : ''}
                 </div>
               `;
-      }).join('')}
-          </div>
+      }).join('')}</div>`).join('')}
         </body>
         </html>
       `;
       printWindow.document.write(cardsHTML);
     }
 
+    if (wishlists.viewing && wishlists.wishlist) {
+      printWindow.document.title = wishlists.wishlist.name + (wishlists.subcollection ? ` / ${wishlists.subcollection.name}` : '');
+    }
     printWindow.document.close();
     printWindow.onload = () => {
       printWindow.focus();
@@ -591,8 +733,10 @@ export const PrintButton: React.FC = () => {
   };
 
   return (
-    <button onClick={handlePrint} className="print-btn" title={trendLoading ? "Wait for trend data to finish loading" : "Print"} disabled={viewOptions.displayMode.includes('trend') && trendLoading}>
-      🖨️ Print
+    <button onClick={handlePrint} className="print-btn sidebar-action-btn" title={trendLoading ? "Wait for trend data to finish loading" : "Print"} disabled={busy || !actualCards.length || (viewOptions.displayMode.includes('trend') && trendLoading)}>
+      <span className="sidebar-action-btn__icon" aria-hidden="true"><Printer size={16} /></span>
+      <span className="sidebar-action-btn__label">Print</span>
+      <span className="sidebar-action-btn__count" aria-label={`${actualCards.length} cards`}>{actualCards.length}</span>
     </button>
   );
 };

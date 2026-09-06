@@ -22,7 +22,6 @@ export const useCardFilters = () => {
     setSortedCards,
     setCollectionFilteredCards,
     setGroupedCards,
-    setVisibleCards,
     variantsFilter,
     conditionsFilter,
     priceRange,
@@ -123,11 +122,6 @@ export const useCardFilters = () => {
   useEffect(() => {
     setGroupedCards(groupedCards);
   }, [groupedCards, setGroupedCards]);
-
-  // Level 6: Store final cards (for search to use)
-  useEffect(() => {
-    setVisibleCards(groupedCards);
-  }, [groupedCards, setVisibleCards]);
 
   return {
     priceFilteredCards,

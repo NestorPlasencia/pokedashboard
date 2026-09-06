@@ -1,3 +1,4 @@
+import { TrendingUp } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { useCardContext } from "../../context/CardContext";
 import type { Card } from "../../types/dashboard";
@@ -63,7 +64,7 @@ export const PriceExplorerButton: React.FC = () => {
           rel="noopener noreferrer"
           title={`Explore price history for filtered products ${batchStart}-${batchEnd} of ${totalIds}`}
         >
-          <span className="sidebar-action-btn__icon" aria-hidden="true">↗</span>
+          <span className="sidebar-action-btn__icon" aria-hidden="true"><TrendingUp size={16} /></span>
           <span className="sidebar-action-btn__label">Explore prices</span>
           <span className="sidebar-action-btn__count" aria-label={`${totalIds} products`}>{totalIds}</span>
         </a>
@@ -74,7 +75,7 @@ export const PriceExplorerButton: React.FC = () => {
           disabled
           title="No visible cards have a TCGplayer product ID"
         >
-          <span className="sidebar-action-btn__icon" aria-hidden="true">↗</span>
+          <span className="sidebar-action-btn__icon" aria-hidden="true"><TrendingUp size={16} /></span>
           <span className="sidebar-action-btn__label">Explore prices</span>
           <span className="sidebar-action-btn__count" aria-label="0 products">0</span>
         </button>

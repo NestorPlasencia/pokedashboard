@@ -1,3 +1,6 @@
+import { TrendingUp } from "lucide-react";
+import { WishlistCardButton } from "../ui/Wishlists";
+import { useWishlists } from "../../context/WishlistsContext";
 import React, { useMemo } from "react";
 import { Card } from "../../types/dashboard";
 import { useCardContext } from "../../context/CardContext";
@@ -13,6 +16,11 @@ const CardViewComponent: React.FC<{
 }> = ({ card }) => {
 
   const { collectionFilter, sets, trendByProductId, viewOptions, trendLoading } = useCardContext();
+  const wishlists = useWishlists();
+  const showWishlistButton = wishlists.canToggle(card);
+  // The control only takes over the "Missing" slot inside the wishlist view.
+  // Browsing the catalog, Missing keeps its corner even with a subcollection selected.
+  const wishlistTakesMissingSlot = showWishlistButton && wishlists.viewing;
   const trend = card.productId ? trendByProductId.get(card.productId) : undefined;
   const trendStartDate = trend?.points.reduce<string | null>((earliest, point) => !earliest || point.date < earliest ? point.date : earliest, null) ?? null;
 
@@ -81,8 +89,8 @@ const CardViewComponent: React.FC<{
         <span className="card-trend-card-info__number">#{card.number}</span>
         {nearMintPrice !== null && <div className="card-price-container card-price-container--relative card-trend-card-info__price">{card.productId ? <a href={`https://www.tcgplayer.com/product/${card.productId}?Language=English&Condition=Near+Mint`} target="_blank" rel="noopener noreferrer" onClick={(event) => event.stopPropagation()}>{formatCurrency(nearMintPrice)}</a> : <strong>{formatCurrency(nearMintPrice)}</strong>}{priceBreakdown.length > 0 && <div className="card-price-tooltip"><div className="card-price-tooltip-title">{variantName}</div>{priceBreakdown.map((item, idx) => <div key={idx} className="tooltip-price-line"><span className="tooltip-condition-label">{item.condition}:</span><span className="tooltip-price-value">{item.price}</span></div>)}</div>}</div>}
         {ownedCounters.length > 0 && <span className="card-trend-card-info__inventory" aria-label="Owned quantities by selected collection"><span className="card-trend-card-info__inventory-label">Owned</span>{ownedCounters.map(({ collection, quantity }) => <span className={`card-trend-card-info__collection ${quantity >= 3 ? 'card-trend-card-info__collection--high' : ''}`} key={collection} title={`${collection}: ${quantity} owned`}>{quantity}</span>)}</span>}
-        {missingToLimit > 0 && collectionFilter.enabled && <span className="card-trend-card-info__missing">Missing {missingToLimit}</span>}
-        {priceExplorerUrl && <a className="card-trend-card-info__prices-link" href={priceExplorerUrl} target="_blank" rel="noopener noreferrer" title={`Explore price history for ${card.name}`} onClick={(event) => event.stopPropagation()}>↗ Prices</a>}
+        {!wishlistTakesMissingSlot && missingToLimit > 0 && collectionFilter.enabled && <span className="card-trend-card-info__missing">Missing {missingToLimit}</span>}
+        {priceExplorerUrl && <a className="card-trend-card-info__prices-link" href={priceExplorerUrl} target="_blank" rel="noopener noreferrer" title={`Explore price history for ${card.name}`} onClick={(event) => event.stopPropagation()}><TrendingUp size={11} aria-hidden="true" /> Prices</a>}
       </div>}
       <div className="card-tags">
         <div
@@ -177,16 +185,17 @@ const CardViewComponent: React.FC<{
           aria-label={`Explore price history for ${card.name}`}
           onClick={(event) => event.stopPropagation()}
         >
-          ↗ Prices
+          <TrendingUp size={12} aria-hidden="true" /> Prices
         </a>
       )}
       {viewOptions.displayMode.includes('trend') && <div className="card-trend" aria-label={trend ? `${trend.buyTimingLabel}, score ${trend.buyTimingScore ?? 'unavailable'}` : 'Trend loading'}>
         <div className="card-trend__header"><span><strong>{card.name}</strong> · {variantName}</span><span className={`card-trend__score card-trend__score--${getTimingTone(trend?.buyTimingScore ?? null)}`}>{trend?.buyTimingScore ?? '—'}/100</span></div>
         <div className={`card-trend__label card-trend__label--${getTimingTone(trend?.buyTimingScore ?? null)}`}>{trendLoading && !trend ? 'Loading trend…' : trend?.buyTimingLabel || 'No trend data'}</div>
         {trendLoading && !trend ? <div className="card-trend__empty">Loading trend…</div> : trend ? <TrendSparkline points={trend.points} xAxisScale={viewOptions.trendXAxisScale} timingScore={trend.buyTimingScore} /> : <div className="card-trend__empty">No trend data</div>}
-        {trend && <div className="card-trend__footer"><span>{trendStartDate} → {trend.latest?.date ?? trend.points[trend.points.length - 1]?.date} · latest {trend.latest ? formatCurrency(trend.latest.price) : '—'}</span><span className="card-trend__legend"><i className="card-trend__legend-dot card-trend__legend-dot--good" />Bueno <i className="card-trend__legend-dot card-trend__legend-dot--fair" />Regular <i className="card-trend__legend-dot card-trend__legend-dot--bad" />Malo</span></div>}
+        {trend && <div className="card-trend__footer"><span>{trendStartDate} → {trend.latest?.date ?? trend.points[trend.points.length - 1]?.date} · latest {trend.latest ? formatCurrency(trend.latest.price) : '—'}</span><span className="card-trend__legend"><i className="card-trend__legend-dot card-trend__legend-dot--good" />Good <i className="card-trend__legend-dot card-trend__legend-dot--fair" />Fair <i className="card-trend__legend-dot card-trend__legend-dot--bad" />Bad</span></div>}
       </div>}
-      {missingToLimit > 0 && collectionFilter.enabled && (
+      {showWishlistButton && <WishlistCardButton card={card} />}
+      {!wishlistTakesMissingSlot && missingToLimit > 0 && collectionFilter.enabled && (
         <div
           className="missing-box"
           title={`${missingToLimit} ${missingToLimit === 1 ? 'copy' : 'copies'} missing to reach the target`}

@@ -1,3 +1,6 @@
+import { LayoutGrid, Sigma, SlidersHorizontal, type LucideIcon } from "lucide-react";
+import { useWishlists } from "../context/WishlistsContext";
+import { Wishlists } from "./ui/Wishlists";
 import React, { Suspense, lazy, useState } from "react";
 import { Filters } from "./inputs/Filters";
 import { Orders } from "./inputs/Orders";
@@ -27,7 +30,14 @@ const CardListTable = lazy(() => import("./views/CardListTable").then(module => 
 
 type MobilePanel = 'filters' | 'cards' | 'summary';
 
+const MOBILE_NAVIGATION: { id: MobilePanel; label: string; Icon: LucideIcon }[] = [
+  { id: 'filters', label: 'Filters', Icon: SlidersHorizontal },
+  { id: 'cards', label: 'Cards', Icon: LayoutGrid },
+  { id: 'summary', label: 'Summary', Icon: Sigma },
+];
+
 export const Main: React.FC = () => {
+  const wishlists = useWishlists();
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>('cards');
   const {
     setAllCards,
@@ -61,7 +71,7 @@ export const Main: React.FC = () => {
     setCollections,
     setSets,
     setPokemonFormsData,
-    seriesSelection,
+    wishlists.viewing ? wishlists.seriesSelection : seriesSelection,
     inventoryRequired
   );
 
@@ -76,21 +86,9 @@ export const Main: React.FC = () => {
   // Determine which view to show based on displayMode
   const showListTable = viewOptions.displayMode.includes('table');
 
-  const mobileNavigation: { id: MobilePanel; label: string; icon: string }[] = [
-    { id: 'filters', label: 'Filters', icon: '☷' },
-    { id: 'cards', label: 'Cards', icon: '▦' },
-    { id: 'summary', label: 'Summary', icon: '∑' }
-  ];
-
   return (
     <div className={`main mobile-panel--${mobilePanel}`}>
       <Sidebar position="left">
-        {session && (
-          <div className="session-bar sidebar-session-bar">
-            <span>{session.user.email}</span>
-            <button type="button" onClick={handleSignOut}>Sign out</button>
-          </div>
-        )}
         <Filters />
         <PriceRangeFilter />
         <Orders />
@@ -100,12 +98,21 @@ export const Main: React.FC = () => {
         />
         <PokemonGroupingFilter />
         <ViewOptionsComponent />
+        <Wishlists busy={isLoading} />
         <PriceExplorerButton />
         <MassEntryButton />
-        <PrintButton />
-        <ThemeSelector />
+        <PrintButton busy={isLoading} />
+        <div className="sidebar-footer">
+          <ThemeSelector />
+          {session && (
+            <div className="session-bar sidebar-session-bar">
+              <span>{session.user.email}</span>
+              <button type="button" onClick={handleSignOut}>Sign out</button>
+            </div>
+          )}
+        </div>
       </Sidebar>
-      <div className="card-view">
+      <div className={`card-view${wishlists.viewing ? ' card-view--wishlist' : ''}`}>
         <Search />
         {isLoading && <div className="main-status-message">Loading cards...</div>}
         {error && <div className="main-status-message main-status-message--error">{error}</div>}
@@ -126,16 +133,16 @@ export const Main: React.FC = () => {
         <Summary />
       </Sidebar>
       <nav className="mobile-panel-nav" aria-label="Mobile sections">
-        {mobileNavigation.map((item) => (
+        {MOBILE_NAVIGATION.map(({ id, label, Icon }) => (
           <button
-            key={item.id}
+            key={id}
             type="button"
-            className={mobilePanel === item.id ? 'is-active' : ''}
-            aria-pressed={mobilePanel === item.id}
-            onClick={() => setMobilePanel(item.id)}
+            className={mobilePanel === id ? 'is-active' : ''}
+            aria-pressed={mobilePanel === id}
+            onClick={() => setMobilePanel(id)}
           >
-            <span className="mobile-panel-nav__icon" aria-hidden="true">{item.icon}</span>
-            <span>{item.label}</span>
+            <Icon className="mobile-panel-nav__icon" size={20} aria-hidden="true" />
+            <span>{label}</span>
           </button>
         ))}
       </nav>

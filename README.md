@@ -221,3 +221,18 @@ Manages UI options and settings like table/list view toggle and collection selec
 - Runtime responses retain the last cached result while their server instance remains warm
 - Collection dates are stored in folder names (e.g., `11-13-25`)
 - Some cards have special handling (e.g., `cel25c` set requires custom numbering)
+
+## Local wishlists
+
+Create a collection and subcollection in the local collections panel. The bulk
+add button saves all actual cards in the rendered result, including shadowed
+cards and results beyond the scroll viewport, after search and all filters.
+Individual add/remove buttons appear with a selected subcollection in every view.
+Placeholders are excluded and duplicate additions are ignored.
+
+Lists persist in this browser under `pokedashboard.local-collections.v1`, without
+requiring a login. Entries store the final card ID and era. Opening a saved list
+loads its eras and displays its members independently of catalog filters. Select
+all subcollections or one, search within it, and use any existing print format.
+Clear the search to print the entire selection. Unavailable catalog references
+remain saved and are reported. Clearing browser site data deletes these lists.

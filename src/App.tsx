@@ -1,3 +1,4 @@
+import { WishlistsProvider } from "./context/WishlistsContext";
 import React from "react";
 import { Main } from "./components/Main";
 import { CardProvider } from "./context/CardContext";
@@ -8,7 +9,9 @@ const App: React.FC = () => (
   <AuthProvider>
     <CardProvider>
       <OptionsProvider>
-        <Main />
+        <WishlistsProvider>
+          <Main />
+        </WishlistsProvider>
       </OptionsProvider>
     </CardProvider>
   </AuthProvider>

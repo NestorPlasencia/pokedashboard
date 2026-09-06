@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
+import { Monitor, Moon, Sun, type LucideIcon } from "lucide-react";
 
 type ThemePreference = "system" | "light" | "dark";
+
+const THEME_OPTIONS: { value: ThemePreference; label: string; Icon: LucideIcon }[] = [
+  { value: "light", label: "Light", Icon: Sun },
+  { value: "dark", label: "Dark", Icon: Moon },
+  { value: "system", label: "System", Icon: Monitor },
+];
 
 const STORAGE_KEY = "pokedashboard-theme";
 const systemTheme = () => window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
@@ -41,17 +48,23 @@ export const ThemeSelector = () => {
   };
 
   return (
-    <label className="theme-selector">
-      <span className="theme-selector__label">Appearance</span>
-      <select
-        value={preference}
-        onChange={(event) => handleChange(event.target.value as ThemePreference)}
-        aria-label="Color theme"
-      >
-        <option value="system">System</option>
-        <option value="light">Light</option>
-        <option value="dark">Dark</option>
-      </select>
-    </label>
+    <div className="theme-selector">
+      <span className="theme-selector__label" id="theme-selector-label">Appearance</span>
+      <div className="theme-selector__options" role="group" aria-labelledby="theme-selector-label">
+        {THEME_OPTIONS.map(({ value, label, Icon }) => (
+          <button
+            key={value}
+            type="button"
+            className={`theme-selector__option${preference === value ? " is-active" : ""}`}
+            aria-pressed={preference === value}
+            aria-label={`${label} theme`}
+            title={`${label} theme`}
+            onClick={() => handleChange(value)}
+          >
+            <Icon size={15} aria-hidden="true" />
+          </button>
+        ))}
+      </div>
+    </div>
   );
 };

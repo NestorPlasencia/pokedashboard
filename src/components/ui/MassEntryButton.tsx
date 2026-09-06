@@ -1,3 +1,4 @@
+import { Check, Copy } from "lucide-react";
 import React, { useMemo, useState } from "react";
 import { useCardContext } from "../../context/CardContext";
 import type { Card } from "../../types/dashboard";
@@ -110,7 +111,7 @@ export const MassEntryButton: React.FC = () => {
       disabled={lines.length === 0}
       title={`Copy ${lines.length} visible cards in TCGPlayer Mass Entry format`}
     >
-      <span className="sidebar-action-btn__icon" aria-hidden="true">{status === "copied" || status === "partial" ? "✓" : "⧉"}</span>
+      <span className="sidebar-action-btn__icon" aria-hidden="true">{status === "copied" || status === "partial" ? <Check size={16} /> : <Copy size={16} />}</span>
       <span className="sidebar-action-btn__label">{label}</span>
       <span className="sidebar-action-btn__count" aria-label={`${lines.length} cards`}>{lines.length}</span>
     </button>

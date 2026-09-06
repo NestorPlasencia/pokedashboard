@@ -1,3 +1,6 @@
+import { TrendingUp } from "lucide-react";
+import { WishlistCardButton } from "../ui/Wishlists";
+import { useWishlists } from "../../context/WishlistsContext";
 import React, { useMemo } from "react";
 import { useCardContext } from "../../context/CardContext";
 import type { Card } from "../../types/dashboard";
@@ -9,6 +12,10 @@ const getTimingTone = (score: number | null) => score === null ? "unknown" : sco
 
 const TrendCardViewComponent: React.FC<{ card: Card }> = ({ card }) => {
   const { collectionFilter, sets, trendByProductId, viewOptions, trendLoading } = useCardContext();
+  const wishlists = useWishlists();
+  const showWishlistButton = wishlists.canToggle(card);
+  // The control only replaces "Missing" inside the wishlist view; the catalog keeps it.
+  const wishlistTakesMissingSlot = showWishlistButton && wishlists.viewing;
   const trend = card.productId ? trendByProductId.get(card.productId) : undefined;
   const variantName = card.variant || "Normal";
   const trendStartDate = trend?.points.reduce<string | null>((earliest, point) => !earliest || point.date < earliest ? point.date : earliest, null) ?? null;
@@ -43,15 +50,16 @@ const TrendCardViewComponent: React.FC<{ card: Card }> = ({ card }) => {
           {priceBreakdown.length > 0 && <div className="card-price-tooltip"><div className="card-price-tooltip-title">{variantName}</div>{priceBreakdown.map((item, index) => <div key={index} className="tooltip-price-line"><span className="tooltip-condition-label">{item.condition}:</span><span className="tooltip-price-value">{item.price}</span></div>)}</div>}
         </div>}
         {ownedCounters.length > 0 && <span className="trend-card-view__inventory"><span className="trend-card-view__inventory-label">Owned</span>{ownedCounters.map(({ collection, quantity }) => <span className={`trend-card-view__owned${quantity >= 3 ? " trend-card-view__owned--high" : ""}`} key={collection} title={`${collection}: ${quantity} owned`}>{quantity}</span>)}</span>}
-        {missingToLimit > 0 && collectionFilter.enabled && <span className="trend-card-view__missing">Missing {missingToLimit}</span>}
-        {priceExplorerUrl && <a className="trend-card-view__prices" href={priceExplorerUrl} target="_blank" rel="noopener noreferrer">↗ Prices</a>}
+        {!wishlistTakesMissingSlot && missingToLimit > 0 && collectionFilter.enabled && <span className="trend-card-view__missing">Missing {missingToLimit}</span>}
+        {showWishlistButton && <WishlistCardButton card={card} />}
+        {priceExplorerUrl && <a className="trend-card-view__prices" href={priceExplorerUrl} target="_blank" rel="noopener noreferrer"><TrendingUp size={11} aria-hidden="true" /> Prices</a>}
       </aside>
 
       <section className="trend-card-view__graph" aria-label={trend ? `${trend.buyTimingLabel}, score ${trend.buyTimingScore ?? "unavailable"}` : "Trend loading"}>
         <div className="card-trend__header"><span><strong>{card.name}</strong> · {variantName}</span><span className={`card-trend__score card-trend__score--${getTimingTone(trend?.buyTimingScore ?? null)}`}>{trend?.buyTimingScore ?? "—"}/100</span></div>
         <div className={`card-trend__label card-trend__label--${getTimingTone(trend?.buyTimingScore ?? null)}`}>{trendLoading && !trend ? "Loading trend…" : trend?.buyTimingLabel || "No trend data"}</div>
         {trendLoading && !trend ? <div className="card-trend__empty">Loading trend…</div> : trend ? <TrendChart points={trend.points} xAxisScale={viewOptions.trendXAxisScale} timingScore={trend.buyTimingScore} /> : <div className="card-trend__empty">No trend data</div>}
-        {trend && <div className="card-trend__footer"><span>{trendStartDate} → {trend.latest?.date ?? trend.points[trend.points.length - 1]?.date} · latest {trend.latest ? formatCurrency(trend.latest.price) : "—"}</span><span className="card-trend__legend"><i className="card-trend__legend-dot card-trend__legend-dot--good" />Bueno <i className="card-trend__legend-dot card-trend__legend-dot--fair" />Regular <i className="card-trend__legend-dot card-trend__legend-dot--bad" />Malo</span></div>}
+        {trend && <div className="card-trend__footer"><span>{trendStartDate} → {trend.latest?.date ?? trend.points[trend.points.length - 1]?.date} · latest {trend.latest ? formatCurrency(trend.latest.price) : "—"}</span><span className="card-trend__legend"><i className="card-trend__legend-dot card-trend__legend-dot--good" />Good <i className="card-trend__legend-dot card-trend__legend-dot--fair" />Fair <i className="card-trend__legend-dot card-trend__legend-dot--bad" />Bad</span></div>}
       </section>
     </article>
   );
