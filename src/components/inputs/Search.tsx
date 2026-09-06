@@ -63,7 +63,27 @@ export const Search: React.FC = () => {
   }, [isViewingWishlist]);
   const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const scrolledForQuery = useRef(query);
+
+  /** The panel that scrolls, reached from inside rather than by a global lookup. */
+  const listPanel = () => barRef.current?.closest('.card-view') ?? null;
+
+  // Opening the on-screen keyboard shrinks the viewport, and the browser scrolls the list
+  // to keep the focused field in view. The field is pinned to the bottom on mobile, so
+  // that scroll pushes the results off the top - the ones the search just found. Putting
+  // the list back on every viewport resize while the field has focus beats the browser to
+  // it, however many times it adjusts as the keyboard animates in.
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const keepResultsInView = () => {
+      if (document.activeElement !== inputRef.current) return;
+      listPanel()?.scrollTo({ top: 0 });
+    };
+    viewport.addEventListener('resize', keepResultsInView);
+    return () => viewport.removeEventListener('resize', keepResultsInView);
+  }, []);
 
   // A new query replaces the list under the viewport, so staying where the old list was
   // scrolled to hides the very matches that were just asked for. On mobile it is worse:
@@ -75,7 +95,7 @@ export const Search: React.FC = () => {
     scrolledForQuery.current = query;
     // The panel is the scroll container, not the page; reached from inside rather than by
     // a global lookup so it stays correct if the layout is ever nested differently.
-    barRef.current?.closest('.card-view')?.scrollTo({ top: 0 });
+    listPanel()?.scrollTo({ top: 0 });
   }, [query]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -134,9 +154,11 @@ export const Search: React.FC = () => {
       <div className="search-field">
         <SearchIcon className="search-field__icon" size={16} aria-hidden="true" />
         <input
+          ref={inputRef}
           type="text"
           value={query}
           onChange={handleChange}
+          onFocus={() => listPanel()?.scrollTo({ top: 0 })}
           placeholder="Search"
           aria-label="Search by card name"
         />
