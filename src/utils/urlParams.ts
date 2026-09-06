@@ -478,9 +478,13 @@ export const updateUrlParams = (filters: Partial<FilterParams>): void => {
 
 export const initializeFiltersFromUrl = (): FilterParams => {
   const urlParams = parseUrlParams();
-  
-  // Set defaults for empty filters
+
   return {
+    // Everything parsed passes through untouched; the entries below only add a default
+    // where one is needed. Listing keys by hand instead meant a parameter added later -
+    // the per-filter exclusions and modes, say - was written to the URL and then read
+    // back from an object that never carried it.
+    ...urlParams,
     series: urlParams.series?.length ? urlParams.series : ['All'],
     set: urlParams.set?.length ? urlParams.set : ['All'],
     rarity: urlParams.rarity?.length ? urlParams.rarity : ['All'],

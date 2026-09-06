@@ -12,7 +12,7 @@ globalThis.window = {
   },
 };
 
-const { parseUrlParams, updateUrlParams, generateUrlParams } = await import('../src/utils/urlParams.ts');
+const { parseUrlParams, updateUrlParams, generateUrlParams, initializeFiltersFromUrl } = await import('../src/utils/urlParams.ts');
 const { parseViewModeFromUrl, viewModeToParams } = await import('../src/utils/viewMode.ts');
 const {
   initialPriceRange, initialSortConfig, initialViewOptions, initialPokemonGrouping,
@@ -142,4 +142,36 @@ test('arming is independent of viewing, so browsing a wishlist does not arm it',
   updateUrlParams(viewModeToParams({ kind: 'wishlist', wishlistId: 'w-1', subcollectionId: 'sub-1' }));
   assert.equal(parseUrlParams().addWishlist, undefined);
   assert.deepEqual(parseViewModeFromUrl(), { kind: 'wishlist', wishlistId: 'w-1', subcollectionId: 'sub-1' });
+});
+
+test('every parameter written survives the round trip the filters actually use', () => {
+  // Filters.tsx reads through initializeFiltersFromUrl, not parseUrlParams. Anything that
+  // gets lost in there is written to the URL and silently dropped on reload.
+  updateUrlParams({
+    rarity: ['Rare'],
+    ...filterSettingsToParams('rarity', {
+      excludedValues: ['Common', 'Uncommon'],
+      includeMode: 'ALL',
+      excludeMode: 'NOT_ALL',
+      singleIncludeMatch: 'EXACT_SINGLE',
+      hideZeroCount: true,
+    }),
+  });
+
+  const restored = initializeFiltersFromUrl();
+  assert.deepEqual(restored.rarity, ['Rare']);
+  assert.deepEqual(initialFilterSettings('rarity', restored), {
+    excludedValues: ['Common', 'Uncommon'],
+    includeMode: 'ALL',
+    excludeMode: 'NOT_ALL',
+    singleIncludeMatch: 'EXACT_SINGLE',
+    hideZeroCount: true,
+  });
+});
+
+test('defaults still apply to filters the URL says nothing about', () => {
+  const restored = initializeFiltersFromUrl();
+  assert.deepEqual(restored.series, ['All']);
+  assert.deepEqual(restored.rarity, ['All']);
+  assert.deepEqual(initialFilterSettings('rarity', restored).excludedValues, []);
 });
