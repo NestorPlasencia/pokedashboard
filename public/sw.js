@@ -130,7 +130,7 @@ self.addEventListener('fetch', event => {
   const isAppShell =
     CACHE_APP_SHELL &&
     url.origin === self.location.origin &&
-    (request.mode === 'navigate' || ['script', 'style', 'font'].includes(request.destination));
+    (request.mode === 'navigate' || ['script', 'style', 'font', 'manifest'].includes(request.destination));
   if (isAppShell) {
     event.respondWith(handleAppShell(request));
   }

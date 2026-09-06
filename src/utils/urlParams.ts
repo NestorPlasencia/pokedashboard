@@ -1,6 +1,7 @@
 /**
  * Utility functions for synchronizing filters with URL query parameters
  */
+import { rememberUrl } from '../services/launchUrl.ts';
 
 /**
  * The sidebar filters that carry a full include/exclude selection, named by their URL
@@ -466,6 +467,9 @@ export const updateUrlParams = (filters: Partial<FilterParams>): void => {
   const newUrl = `${window.location.pathname}${queryString}`;
   
   window.history.replaceState({ filters: mergedFilters }, '', newUrl);
+  // Installed launches start at the manifest's start_url, so the only way back to this
+  // state is to have remembered it.
+  rememberUrl();
 };
 
 /**

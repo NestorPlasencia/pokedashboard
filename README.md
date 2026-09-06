@@ -130,6 +130,23 @@ Row Level Security then limits inventory queries to the signed-in owner. Use
 only the browser-safe publishable key. Never put a service-role key, database
 password, or connection string in this app.
 
+### Installing it as an app
+
+`public/manifest.webmanifest` plus the service worker make the dashboard installable, so
+it can live on a home screen and open without browser chrome. Installation needs HTTPS
+(or localhost) and the production build - the worker only caches the app shell when
+registered with `shell=1`, which `npm run dev` does not do.
+
+An installed app always launches at the manifest's `start_url`, which would drop the query
+string the whole dashboard state lives in. `src/services/launchUrl.ts` remembers the last
+URL and restores it on an installed launch, so closing and reopening returns you to the
+same filters, sort and view. A launch that carries its own parameters - a shared link -
+always wins, and a plain browser tab is left alone so typing the bare address still gives
+a clean slate.
+
+Icons are generated, not hand-drawn: `node scripts/generate-icons.mjs` rewrites
+`public/icons/`. The output is committed, so it only needs running if the mark changes.
+
 The files in `supabase/` are run by hand, once each, in the Supabase SQL editor:
 
 | File | What it stores |
