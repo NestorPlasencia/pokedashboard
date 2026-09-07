@@ -1,15 +1,26 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useCardContext } from '../context/CardContext';
 import { fetchTrendPoints } from '../services/trendPoints';
 import type { Card } from '../types/dashboard';
 
 export function useTrendPoints() {
   const { visibleCards, viewOptions, variantsFilter, conditionsFilter, setRenderCards, trendByProductId, setTrendByProductId, trendLoading, setTrendLoading, trendError, setTrendError } = useCardContext();
-  const ids = visibleCards.filter((card): card is Card => !('isPlaceholder' in card) && Number.isInteger(card.productId) && (card.productId ?? 0) > 0).map(card => card.productId as number);
-  const idKey = [...new Set(ids)].sort((a, b) => a - b).join(',');
+  const showsTrend = viewOptions.displayMode.includes('trend');
+
+  // Deduplicating and sorting every visible product id into one long string is what tells
+  // the effect below whether the set of cards really changed. It used to run on every
+  // render, in every view: with a large result set that is several milliseconds and a
+  // six-figure string rebuilt on each keystroke, for a value only the trend view reads.
+  const idKey = useMemo(() => {
+    if (!showsTrend) return '';
+    const ids = visibleCards
+      .filter((card): card is Card => !('isPlaceholder' in card) && Number.isInteger(card.productId) && (card.productId ?? 0) > 0)
+      .map(card => card.productId as number);
+    return [...new Set(ids)].sort((a, b) => a - b).join(',');
+  }, [showsTrend, visibleCards]);
 
   useEffect(() => {
-    if (!viewOptions.displayMode.includes('trend') || !idKey) {
+    if (!showsTrend || !idKey) {
       setRenderCards(visibleCards);
       setTrendByProductId(new Map());
       return;
@@ -44,7 +55,7 @@ export function useTrendPoints() {
     };
     load();
     return () => { cancelled = true; };
-  }, [idKey, viewOptions.displayMode, viewOptions.trendSortDirection, variantsFilter, conditionsFilter, visibleCards, setRenderCards, setTrendByProductId, setTrendLoading, setTrendError]);
+  }, [idKey, showsTrend, viewOptions.trendSortDirection, variantsFilter, conditionsFilter, visibleCards, setRenderCards, setTrendByProductId, setTrendLoading, setTrendError]);
 
   return { trendByProductId, trendLoading, trendError };
 }

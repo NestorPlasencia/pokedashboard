@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useWishlists } from "../../context/WishlistsContext";
 import { ViewModeBadge } from "../ui/Wishlists";
 import { EditTargetBadge } from "../ui/EditTargetBadge";
-import React, { useEffect, useState, useRef } from "react";
+import React, { useDeferredValue, useEffect, useState, useRef } from "react";
 import { useCardContext } from "../../context/CardContext";
 import { parseUrlParams, updateUrlParams } from "../../utils/urlParams";
 import { assertNeverViewMode } from "../../utils/viewMode";
@@ -118,20 +118,40 @@ export const Search: React.FC = () => {
     };
   }, [query]);
 
-  useEffect(() => {
-    const normalized = query.trim().toLocaleLowerCase();
-    const result = sourceCards.filter(card => {
-      if (!normalized) return true;
+  // One lowercased haystack per card, rebuilt only when the card list itself changes.
+  // Doing this inside the filter meant every keystroke allocated an array per card and ran
+  // locale-aware lowercasing over every field of every card - the reason typing stuttered.
+  // The newline separator keeps fields from matching across their boundary; a trimmed
+  // single-line query can never contain one.
+  const searchIndex = useMemo(
+    () => sourceCards.map(card => {
       if ('isPlaceholder' in card) {
         const number = 'pokedexNumber' in card ? card.pokedexNumber : card.pokemonNumber;
-        return card.name.toLocaleLowerCase().includes(normalized) || String(number).includes(normalized);
+        return `${card.name}\n${number}`.toLocaleLowerCase();
       }
       const actual = card as Card;
       return [actual.name, actual.id, actual.setName, actual.number, ...(actual.setNames || [])]
-        .some(value => value?.toLocaleLowerCase().includes(normalized));
-    });
-    setVisibleCards(result);
-  }, [sourceCards, query, setVisibleCards]);
+        .filter(Boolean).join('\n').toLocaleLowerCase();
+    }),
+    [sourceCards]
+  );
+
+  // Filtering thousands of cards is far too slow to hold up a keypress. Deferring it lets
+  // React paint the typed character first and rebuild the list at a lower priority, so the
+  // field never lags behind the keyboard.
+  const deferredQuery = useDeferredValue(query);
+
+  useEffect(() => {
+    const normalized = deferredQuery.trim().toLocaleLowerCase();
+    // An empty query is every card, so filtering would copy the whole list to reach the
+    // list it started from. Handing back the same reference also lets React skip the
+    // re-render entirely - this is the case that stalled when deleting the last character.
+    setVisibleCards(
+      normalized
+        ? sourceCards.filter((_, index) => searchIndex[index].includes(normalized))
+        : sourceCards
+    );
+  }, [sourceCards, searchIndex, deferredQuery, setVisibleCards]);
 
   return (
     <div className="search-bar" ref={barRef}>
