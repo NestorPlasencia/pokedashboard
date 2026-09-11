@@ -125,10 +125,10 @@ $env:VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_your_key"
 ```
 
 The public catalog, prices, search, and non-collection filters work without a
-session. Opening Collections prompts the user to sign in through Supabase Auth;
-Row Level Security then limits inventory queries to the signed-in owner. Use
-only the browser-safe publishable key. Never put a service-role key, database
-password, or connection string in this app.
+session. Opening Collections prompts the user to sign in with Google through the
+Supabase-hosted OAuth flow; Row Level Security then limits inventory queries to the
+signed-in owner. Use only the browser-safe publishable key. Never put a service-role
+key, database password, or connection string in this app.
 
 ### Installing it as an app
 
@@ -147,20 +147,14 @@ a clean slate.
 Icons are generated, not hand-drawn: `node scripts/generate-icons.mjs` rewrites
 `public/icons/`. The output is committed, so it only needs running if the mark changes.
 
-The files in `supabase/` are run by hand, once each, in the Supabase SQL editor:
+The dashboard now consumes the shared Collectr Supabase schema directly. Inventory reads
+active `card_copies`, catalog data from `collectr_cards`, current collections from
+`collectr_collections`, and collection-level printing labels from `collection_printings`.
+The dashboard never calls the extension's private sync RPCs.
 
-| File | What it stores |
-| --- | --- |
-| `wishlist_collections.sql` | Wishlists and their subcollections |
-| `owned_collections.sql` | Collections you keep yourself, for cards bought outside Collectr |
-
-Both hold one JSONB document per user behind Row Level Security. Until a table
-exists the matching feature keeps its data in `localStorage` and moves it up on
-the first load after the table appears, so running the SQL late loses nothing.
-
-Cards recorded in your own collections are merged into the inventory in memory.
-Nothing in the app writes to `card_copies` or `collectr_collections` - the
-Collectr import rebuilds those, so anything written there would be lost.
+The shared schema and all of its RLS policies live in the collectr-extension repository
+(`extension/supabase/schema.sql`, documented by its `collectr-supabase` skill); this app
+adds no policies or schema migrations of its own.
 
 Run the production build locally:
 
@@ -187,7 +181,7 @@ still run without them; the Poke DB URL remains optional.
 
 - **Card Data**: Poke DB API, requested by series
 - **TCG Player Pricing**: `/api/prices` with 24-hour Vercel CDN and browser caches
-- **Collection Data**: Supabase `card_copies`, `collectr_collections`, and `collectr_cards` behind Auth and RLS
+- **Collection Data**: Supabase `card_copies`, `collectr_cards`, `collectr_collections`, and `collection_printings` behind Google Supabase Auth and RLS
 - **Fix Data**: Manual corrections and patches in `public/data/fix/`
 
 ## Data Flow
@@ -262,9 +256,10 @@ cards and results beyond the scroll viewport, after search and all filters.
 Individual add/remove buttons appear with a selected subcollection in every view.
 Placeholders are excluded and duplicate additions are ignored.
 
-Lists persist in this browser under `pokedashboard.local-collections.v1`, without
-requiring a login. Entries store the final card ID and era. Opening a saved list
-loads its eras and displays its members independently of catalog filters. Select
-all subcollections or one, search within it, and use any existing print format.
-Clear the search to print the entire selection. Unavailable catalog references
-remain saved and are reported. Clearing browser site data deletes these lists.
+When signed in, wishlists and their subcollections are persisted as `collections` with a
+`wish` tag, and their wanted cards are represented by active `card_copies` keyed by
+`product_id`. Signed-out lists still use the browser backup under
+`pokedashboard.local-collections.v1`; that backup is retained when it lacks the product
+identity required by the new schema. Opening a saved list loads its members independently
+of catalog filters. Select all subcollections or one, search within it, and use any
+existing print format.

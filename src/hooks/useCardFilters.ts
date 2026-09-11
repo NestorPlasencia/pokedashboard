@@ -28,7 +28,8 @@ export const useCardFilters = () => {
     collectionFilter,
     pokemonGrouping,
     pokemonFormsData,
-    sortConfig
+    sortConfig,
+    viewMode
   } = useCardContext();
 
   // NOTE: Level 1 (basic filters) is handled by Filters.tsx component
@@ -62,18 +63,19 @@ export const useCardFilters = () => {
     if (sortedCards.length === 0) return [];
     return applyCollectionFilter(
       sortedCards,
-      collectionFilter.enabled ? collectionFilter.mode : 'none',
+      collectionFilter.selectedCollections.length > 0 ? collectionFilter.mode : 'none',
       collectionFilter.selectedCollections,
       collectionFilter.limit,
-      collectionFilter.conditionsFilter
+      // Condition belongs to a collection view, never to a hidden ownership filter.
+      viewMode.kind === 'collection' ? collectionFilter.conditionsFilter : ['All']
     );
   }, [
     sortedCards,
-    collectionFilter.enabled,
     collectionFilter.mode,
     collectionFilter.selectedCollections,
     collectionFilter.limit,
-    collectionFilter.conditionsFilter
+    collectionFilter.conditionsFilter,
+    viewMode.kind
   ]);
 
   // Level 5: Apply Pokemon Grouping (Forms mode)

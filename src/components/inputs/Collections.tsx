@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Check, Eye, Pencil, PencilOff, Plus, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Eye } from "lucide-react";
 import { useOptionsContext } from "../../context/OptionsContext";
 import { useCardContext } from "../../context/CardContext";
 import { CollapsibleSection } from "../ui/CollapsibleSection";
@@ -7,8 +7,9 @@ import { updateUrlParams } from "../../utils/urlParams";
 import type { CollectionFilterOptions, ConditionKey } from "../../types/dashboard";
 import { useAuth } from "../../context/AuthContext";
 import { CATALOG_VIEW } from "../../utils/viewMode";
-import { useOwnedCollections } from "../../context/OwnedCollectionsContext";
-import type { InventoryStatus } from "../../hooks/useLoadCards";
+import { navigate } from "../../utils/route";
+import { collectionScopeNames } from "../../utils/collectionTree";
+import { countCopies } from "../../utils/copyCount";
 
 const CONDITION_KEYS: ConditionKey[] = ["Near Mint", "Lightly Played", "Moderately Played", "Damaged", "Heavily Played"];
 
@@ -20,32 +21,46 @@ const MODE_LABELS: Record<CollectionFilterOptions["mode"], string> = {
   shadowNotOwned: "Dim not owned",
 };
 
-type CollectionsProps = {
-  inventoryStatus: InventoryStatus;
-  inventoryUpdatedAt: number | null;
-};
-
-export const Collections = ({
-  inventoryStatus,
-  inventoryUpdatedAt,
-}: CollectionsProps) => {
+export const Collections = () => {
   const { collections } = useOptionsContext();
-  const { collectionFilter, setCollectionFilter, viewMode, setViewMode } = useCardContext();
-  const { session, isAuthLoading, refreshInventory, requestSignIn } = useAuth();
-  const owned = useOwnedCollections();
-  const [draftName, setDraftName] = useState<string | null>(null);
-  const [notice, setNotice] = useState("");
+  const { allCards, sortedCards, collectionFilter, setCollectionFilter, viewMode, setViewMode } = useCardContext();
+  const { session, isAuthLoading } = useAuth();
+  const [conditionMode, setConditionMode] = useState<'include' | 'exclude'>('include');
+  const [conditionSearchVisible, setConditionSearchVisible] = useState(false);
+  const [conditionSearch, setConditionSearch] = useState('');
   // Switching to a collection cannot leave a wishlist open: the mode replaces it.
   const viewedCollection = viewMode.kind === 'collection' ? viewMode.name : '';
+  const isViewingCollection = viewMode.kind === 'collection';
 
+  // Match Region's visible/total convention, but quantities here are physical copies.
+  // The visible side follows every card filter except Condition itself; the total is the
+  // complete viewed collection, including every nested subcollection.
+  const conditionCounts = useMemo(() => {
+    const empty = () => Object.fromEntries(
+      CONDITION_KEYS.map(condition => [condition, 0])
+    ) as Record<ConditionKey, number>;
+    if (!isViewingCollection) return { visible: empty(), total: empty() };
+    const scope = new Set(collectionScopeNames(collections, viewedCollection));
+    const count = (cards: typeof allCards) => {
+      const totals = empty();
+      cards.forEach(card => card.collections?.forEach(entry => {
+        if (!scope.has(entry.name)) return;
+        CONDITION_KEYS.forEach(condition => {
+          totals[condition] += countCopies(entry.quantity, [condition]);
+        });
+      }));
+      return totals;
+    };
+    return { visible: count(sortedCards), total: count(allCards) };
+  }, [allCards, collections, isViewingCollection, sortedCards, viewedCollection]);
+
+  // Signing in lives on the Collections page, so a control that needs a session sends you
+  // there instead of opening the sign-in dialog over the catalog.
   const requireSession = () => {
     if (session) return true;
-    if (!isAuthLoading) requestSignIn();
+    if (!isAuthLoading) navigate("collections");
     return false;
   };
-
-  const isInventoryLoading =
-    inventoryStatus === "loading" || inventoryStatus === "refreshing";
 
   useEffect(() => {
     if (isAuthLoading || session) return;
@@ -59,8 +74,8 @@ export const Collections = ({
 
   // Sync URL when collection filter changes
   useEffect(() => {
-    updateUrlParams({ 
-      filterByCollections: collectionFilter.enabled ? 'true' : 'false',
+    updateUrlParams({
+      filterByCollections: collectionFilter.selectedCollections.length > 0 ? 'true' : 'false',
       viewCollectionOption: collectionFilter.mode,
       collections: collectionFilter.selectedCollections,
       limit: String(collectionFilter.limit),
@@ -69,40 +84,62 @@ export const Collections = ({
   }, [collectionFilter]);
 
   const handleCollectionsChange = (collection: string): void => {
-    setCollectionFilter(prev => ({
-      ...prev,
-      selectedCollections: prev.selectedCollections.includes(collection)
-        ? prev.selectedCollections.filter((c) => c !== collection)
-        : [...prev.selectedCollections, collection]
-    }));
+    if (!requireSession()) return;
+    setCollectionFilter(prev => {
+      const selectedCollections = prev.selectedCollections.includes(collection)
+        ? prev.selectedCollections.filter((candidate) => candidate !== collection)
+        : [...prev.selectedCollections, collection];
+      return {
+        ...prev,
+        enabled: selectedCollections.length > 0,
+        selectedCollections,
+      };
+    });
   };
 
   const handleResetCollections = () => {
     setCollectionFilter(prev => ({
       ...prev,
+      enabled: false,
       selectedCollections: [],
-      conditionsFilter: ["All"]
     }));
-    updateUrlParams({ collections: [], conditions: ["All"] });
+    updateUrlParams({ collections: [] });
   };
 
-  const handleConditionChange = (condition: ConditionKey) => {
+  // This uses the same include/exclude affordance as the catalog filters. The persisted
+  // collection setting remains an inclusion list: an exclusion selection is stored as
+  // the complement, while no condition selection is represented by All.
+  const includedConditions = CONDITION_KEYS.filter(condition => collectionFilter.conditionsFilter.includes(condition));
+  const conditionValuesForMode = conditionMode === 'include'
+    ? (collectionFilter.conditionsFilter.includes('All') ? [] : includedConditions)
+    : (collectionFilter.conditionsFilter.includes('All')
+      ? []
+      : CONDITION_KEYS.filter(condition => !includedConditions.includes(condition)));
+
+  const setConditionValues = (values: ConditionKey[], mode = conditionMode) => {
     setCollectionFilter(prev => {
-      const current = prev.conditionsFilter.includes("All") ? [] : [...prev.conditionsFilter];
-      const updated = current.includes(condition)
-        ? current.filter(c => c !== condition)
-        : [...current, condition];
-      return { ...prev, conditionsFilter: updated.length === 0 ? ["All"] : updated };
+      if (mode === 'include') {
+        return { ...prev, conditionsFilter: values.length > 0 ? values : ['All'] };
+      }
+      return {
+        ...prev,
+        conditionsFilter: values.length === 0
+          ? ['All']
+          : CONDITION_KEYS.filter(condition => !values.includes(condition)),
+      };
     });
   };
 
-  const handleConditionAll = () => {
-    setCollectionFilter(prev => ({ ...prev, conditionsFilter: ["All"] }));
+  const toggleCondition = (condition: ConditionKey) => {
+    const next = conditionValuesForMode.includes(condition)
+      ? conditionValuesForMode.filter(value => value !== condition)
+      : [...conditionValuesForMode, condition];
+    setConditionValues(next);
   };
 
   // Shown while the panel is collapsed, so an active filter is never invisible.
   const summaryParts: string[] = [];
-  if (collectionFilter.enabled) {
+  if (collectionFilter.selectedCollections.length > 0) {
     const selected = collectionFilter.selectedCollections;
     summaryParts.push(
       selected.length === 0 ? "No collections selected"
@@ -117,263 +154,219 @@ export const Collections = ({
     }
   }
 
+  // Nothing to filter by until there are collections. The component stays mounted either
+  // way, so the effects above still switch the filter off on sign-out and keep the URL in
+  // step - and a filter that is already on is never hidden.
+  if (collections.length === 0 && collectionFilter.selectedCollections.length === 0) return null;
+  const hasSelectedCollections = collectionFilter.selectedCollections.length > 0;
+
   return (
-    <div className="section-sidebar">
-      <CollapsibleSection
-        title="Collections"
-        defaultCollapsed={true}
-        collapsedSummary={summaryParts.length > 0 && (
-          <div className="filter-collapsed-summary">{summaryParts.join(" · ")}</div>
-        )}
-      >
-        <label>
-          <input
-            type="checkbox"
-            value="ownedCards"
-            checked={collectionFilter.enabled}
-            onChange={() => {
-              if (!requireSession()) return;
-              setCollectionFilter(prev => ({
-                ...prev,
-                enabled: !prev.enabled
-              }));
-            }}
-            aria-label="Enable collection filters"
-          />
-          Filter by collection
-        </label>
-
-        {/* Your own collections, for cards bought outside Collectr. Kept out of the
-            "Filter by collection" branch on purpose: recording what you own has nothing to
-            do with filtering by it, and Collectr's collections cannot be edited from here
-            anyway - its import rebuilds them. */}
-        <div className="collections-own">
-          <div className="collections-own__header">
-            <span>My collections</span>
-            {draftName === null && (
-              <button type="button" className="collections-new-btn" onClick={() => { setDraftName(""); setNotice(""); }}>
-                <Plus size={12} aria-hidden="true" /> New
-              </button>
-            )}
-          </div>
-
-          {owned.collections.map((collection) => {
-            const isTarget = owned.selectedId === collection.id;
-            const copies = collection.cards.length;
-            return (
-              <div key={collection.id} className={`collections-own__row${isTarget ? " is-target" : ""}`}>
-                <span className="collections-own__name">
-                  <span>{collection.name}</span>
-                  <span className="collections-own__count">{copies}</span>
-                </span>
-                {/* Adding is armed on purpose and never as a side effect of looking at a
-                    collection, so a stray click on a card cannot record a purchase. */}
-                <button
-                  type="button"
-                  className={`collections-own__arm${isTarget ? " is-armed" : ""}`}
-                  aria-pressed={isTarget}
-                  title={isTarget ? `Stop adding to ${collection.name}` : `Add the cards you buy to ${collection.name}`}
-                  aria-label={isTarget ? `Stop adding to ${collection.name}` : `Add the cards you buy to ${collection.name}`}
-                  onClick={() => { owned.setSelectedId(isTarget ? "" : collection.id); setNotice(""); }}
-                >
-                  {isTarget ? <PencilOff size={13} aria-hidden="true" /> : <Pencil size={13} aria-hidden="true" />}
-                </button>
-                <button
-                  type="button"
-                  className="collections-view-btn"
-                  title="View collection"
-                  aria-label={`View cards in ${collection.name}`}
-                  aria-pressed={viewedCollection === collection.name}
-                  onClick={() => setViewMode(
-                    viewedCollection === collection.name ? CATALOG_VIEW : { kind: 'collection', name: collection.name }
-                  )}
-                >
-                  <Eye size={13} aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  className="collections-own__delete"
-                  title={`Delete ${collection.name}`}
-                  aria-label={`Delete collection ${collection.name}`}
-                  onClick={() => { owned.remove(collection.id); setNotice(`${collection.name} deleted.`); }}
-                >
-                  <Trash2 size={13} aria-hidden="true" />
-                </button>
-              </div>
-            );
-          })}
-
-          {draftName !== null && (
-            <form
-              className="collections-own__form"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const name = draftName.trim();
-                // Collections are addressed by name everywhere downstream - the filter, the
-                // URL, the merged inventory - so a duplicate would be ambiguous, including
-                // against a name that came from Collectr.
-                if (collections.some((entry) => entry.name === name) || owned.collections.some((entry) => entry.name === name)) {
-                  setNotice("A collection with that name already exists.");
-                  return;
-                }
-                if (!owned.create(name)) return;
-                setDraftName(null);
-                setNotice(`${name} created. It is now the target for cards you add.`);
-              }}
-            >
-              <input
-                autoFocus
-                className="filter-search-input"
-                placeholder="Collection name"
-                aria-label="New collection name"
-                value={draftName}
-                maxLength={120}
-                required
-                onChange={(event) => setDraftName(event.target.value)}
-                onKeyDown={(event) => { if (event.key === "Escape") { setDraftName(null); setNotice(""); } }}
-              />
-              {draftName.trim() && (
-                <button type="submit" title="Create" aria-label="Create collection">
-                  <Check size={14} aria-hidden="true" />
-                </button>
-              )}
-              <button type="button" onClick={() => { setDraftName(null); setNotice(""); }} title="Cancel" aria-label="Cancel creation">
-                <X size={14} aria-hidden="true" />
-              </button>
-            </form>
+    <>
+      <div className="section-sidebar">
+        <CollapsibleSection
+          title="Collections"
+          defaultCollapsed={true}
+          collapsedSummary={summaryParts.length > 0 && (
+            <div className="filter-collapsed-summary">{summaryParts.join(" · ")}</div>
           )}
-
-          {owned.loading
-            ? <small role="status">Loading collections…</small>
-            : owned.selected
-              ? <small role="status">Adding to <strong>{owned.selected.name}</strong>. Use + on a card to record a copy.</small>
-              : owned.collections.length === 0 && draftName === null
-                ? <small>Create one to track cards you buy outside Collectr.</small>
-                : <small>Use the pencil to start adding the cards you buy.</small>}
-          {owned.remoteUnavailable && (
-            <small>Saved in this browser only — run supabase/owned_collections.sql to sync them.</small>
+        >
+          <p>Select collections:</p>
+          {collections.length === 0 && (
+            <span>No collections available</span>
           )}
-          {owned.error && <small role="alert">{owned.error}</small>}
-          {notice && <small role="status">{notice}</small>}
-        </div>
-
-        {collectionFilter.enabled && (
-          <>
-            <div className="collections-inventory-actions">
+          {collections.map((collection) => (
+            <div key={collection.name} className="collections-row">
+              <label className="collections-checkbox-label">
+                <input
+                  type="checkbox"
+                  value={collection.name}
+                  checked={collectionFilter.selectedCollections.includes(collection.name)}
+                  onChange={() => handleCollectionsChange(collection.name)}
+                  aria-label={`Select collection ${collection.name}`}
+                />
+                <span>{collection.name}</span>
+              </label>
+              {/* The printings behind the collection, so its type is readable without
+                  opening it - a hand-kept collection simply has none. */}
+              {collection.printings.map((printing) => (
+                <span key={printing} className="collection-printing-tag">{printing}</span>
+              ))}
               <button
                 type="button"
-                onClick={refreshInventory}
-                disabled={isInventoryLoading}
+                className="collections-view-btn"
+                title="View collection"
+                aria-label={`View cards in ${collection.name}`}
+                onClick={() => setViewMode(
+                  viewedCollection === collection.name ? CATALOG_VIEW : { kind: 'collection', name: collection.name }
+                )}
+                aria-pressed={viewedCollection === collection.name}
               >
-                {inventoryStatus === "refreshing"
-                  ? "Refreshing collections..."
-                  : "Refresh collections"}
+                <Eye size={13} aria-hidden="true" /> View
               </button>
-              {inventoryStatus === "loading" && (
-                <span role="status">Loading collections...</span>
-              )}
-              {inventoryStatus === "error" && (
-                <span role="alert">Collections could not be loaded.</span>
-              )}
-              {inventoryStatus === "ready" && inventoryUpdatedAt && (
-                <small>
-                  Updated {new Date(inventoryUpdatedAt).toLocaleTimeString()}
-                </small>
-              )}
             </div>
-            <select
-              id="filterByCollections"
-              value={collectionFilter.mode}
-              onChange={(e) => {
-                setCollectionFilter(prev => ({
-                  ...prev,
-                  mode: e.target.value as CollectionFilterOptions["mode"]
-                }));
-              }}
-              aria-label="Select collection filter mode"
-            >
-              <option value="none">None</option>
-              <option value="hideNotOwned">Hide not owned</option>
-              <option value="hideOwned">Hide owned</option>
-              <option value="shadowOwned">Dim owned</option>
-              <option value="shadowNotOwned">Dim not owned</option>
-            </select>
-            <div className="collections-limit-row">
-              <label htmlFor="limitInput">Quantity required to count as owned:</label>
-              <input
-                id="limitInput"
-                type="number"
-                min={1}
-                value={collectionFilter.limit}
-                onChange={e => {
-                  setCollectionFilter(prev => ({
-                    ...prev,
-                    limit: Number(e.target.value)
-                  }));
-                }}
-                className="collections-limit-input"
-              />
-            </div>
-            <button onClick={handleResetCollections} type="button" className="collections-reset-btn">
-              Clear collection selection
-            </button>
-            <p>Select collections:</p>
-            {!isInventoryLoading && collections.length === 0 && (
-              <span>No collections available</span>
-            )}
-            {collections.map((collection) => (
-              <div key={collection.name} className="collections-row">
-                <label className="collections-checkbox-label">
-                  <input
-                    type="checkbox"
-                    value={collection.name}
-                    checked={collectionFilter.selectedCollections.includes(collection.name)}
-                    onChange={() => handleCollectionsChange(collection.name)}
-                    aria-label={`Select collection ${collection.name}`}
-                  />
-                  <span>{collection.name}</span>
-                </label>
-                <button
-                  type="button"
-                  className="collections-view-btn"
-                  title="View collection"
-                  aria-label={`View cards in ${collection.name}`}
-                  onClick={() => setViewMode(
-                    viewedCollection === collection.name ? CATALOG_VIEW : { kind: 'collection', name: collection.name }
-                  )}
-                  aria-pressed={viewedCollection === collection.name}
+          ))}
+
+          {/* One row of controls: the panel is wide, so stacking them only added height. */}
+          {hasSelectedCollections && (
+            <div className="collections-filter-controls">
+              <div className="collections-filter-field">
+                <label htmlFor="filterByCollections">Show</label>
+                <select
+                  id="filterByCollections"
+                  value={collectionFilter.mode}
+                  onChange={(e) => {
+                    setCollectionFilter(prev => ({
+                      ...prev,
+                      mode: e.target.value as CollectionFilterOptions["mode"]
+                    }));
+                  }}
+                  aria-label="Select collection filter mode"
                 >
-                  <Eye size={13} aria-hidden="true" /> View
-                </button>
+                  <option value="none">None</option>
+                  <option value="hideNotOwned">Hide not owned</option>
+                  <option value="hideOwned">Hide owned</option>
+                  <option value="shadowOwned">Dim owned</option>
+                  <option value="shadowNotOwned">Dim not owned</option>
+                </select>
               </div>
-            ))}
-            {collectionFilter.selectedCollections.length > 0 && (
-              <CollapsibleSection title="Condition:" defaultCollapsed={false}>
-                <label className="collections-checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={collectionFilter.conditionsFilter.includes("All")}
-                    onChange={handleConditionAll}
-                    aria-label="All conditions"
-                  />
-                  <span>All</span>
-                </label>
-                {CONDITION_KEYS.map(condition => (
-                  <label key={condition} className="collections-checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={!collectionFilter.conditionsFilter.includes("All") && collectionFilter.conditionsFilter.includes(condition)}
-                      onChange={() => handleConditionChange(condition)}
-                      aria-label={`Filter by condition ${condition}`}
-                    />
-                    <span>{condition}</span>
-                  </label>
-                ))}
-              </CollapsibleSection>
-            )}
-          </>
-        )}
-      </CollapsibleSection>
-    </div>
+              <div className="collections-filter-field">
+                <label htmlFor="limitInput" title="Quantity required to count as owned">Owned at</label>
+                <input
+                  id="limitInput"
+                  type="number"
+                  min={1}
+                  value={collectionFilter.limit}
+                  onChange={e => {
+                    setCollectionFilter(prev => ({
+                      ...prev,
+                      limit: Number(e.target.value)
+                    }));
+                  }}
+                  aria-label="Quantity required to count as owned"
+                  className="collections-limit-input"
+                />
+              </div>
+              <button onClick={handleResetCollections} type="button" className="collections-reset-btn">
+                Clear selection
+              </button>
+            </div>
+          )}
+        </CollapsibleSection>
+      </div>
+
+      {isViewingCollection && (
+        <div className="section-sidebar">
+          <CollapsibleSection title="Condition" defaultCollapsed={false}>
+            <div className="filter-panel-body">
+              <div className="filter-toolbar">
+                <div className="filter-segmented" role="group" aria-label="Condition selection mode">
+                  <button
+                    type="button"
+                    className={conditionMode === 'include' ? 'active' : ''}
+                    onClick={() => setConditionMode('include')}
+                    aria-label="Include conditions"
+                    title="Include conditions"
+                  >
+                    ✓
+                  </button>
+                  <button
+                    type="button"
+                    className={conditionMode === 'exclude' ? 'active' : ''}
+                    onClick={() => setConditionMode('exclude')}
+                    aria-label="Exclude conditions"
+                    title="Exclude conditions"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="filter-toolbar-actions">
+                  <button
+                    type="button"
+                    className={`filter-icon-btn ${conditionSearchVisible ? 'active' : ''}`}
+                    onClick={() => setConditionSearchVisible(visible => !visible)}
+                    aria-label="Show or hide condition search"
+                    title="Search"
+                  >
+                    🔍
+                  </button>
+                  <button
+                    type="button"
+                    className={`filter-icon-btn ${conditionValuesForMode.length === CONDITION_KEYS.length ? 'active' : ''}`}
+                    onClick={() => setConditionValues(
+                      conditionValuesForMode.length === CONDITION_KEYS.length ? [] : CONDITION_KEYS
+                    )}
+                    aria-label={conditionValuesForMode.length === CONDITION_KEYS.length ? 'Deselect all conditions' : 'Select all conditions'}
+                    title={conditionValuesForMode.length === CONDITION_KEYS.length ? 'Deselect all' : 'Select all'}
+                  >
+                    ☑
+                  </button>
+                  <button
+                    type="button"
+                    className="filter-icon-btn danger"
+                    onClick={() => setConditionValues([])}
+                    aria-label="Clear condition filter"
+                    title="Clear all"
+                  >
+                    🗑
+                  </button>
+                </div>
+              </div>
+
+              {conditionValuesForMode.length > 0 && (
+                <div className="filter-chip-groups">
+                  {conditionValuesForMode.map(condition => (
+                    <button
+                      key={condition}
+                      type="button"
+                      className={`filter-chip ${conditionMode === 'include' ? 'include' : 'exclude'}`}
+                      onClick={() => toggleCondition(condition)}
+                      aria-label={`Remove ${condition}`}
+                    >
+                      {condition} <span>×</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {conditionSearchVisible && (
+                <input
+                  className="filter-search-input"
+                  type="text"
+                  value={conditionSearch}
+                  onChange={event => setConditionSearch(event.target.value)}
+                  placeholder="Search conditions..."
+                  aria-label="Search conditions"
+                />
+              )}
+
+              <div className="filter-options-list">
+                {CONDITION_KEYS
+                  .filter(condition => condition.toLowerCase().includes(conditionSearch.trim().toLowerCase()))
+                  .map(condition => (
+                    <label
+                      key={condition}
+                      className={`filter-option-item ${conditionValuesForMode.includes(condition)
+                        ? (conditionMode === 'include' ? 'included' : 'excluded')
+                        : 'neutral'}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={conditionValuesForMode.includes(condition)}
+                        onChange={() => toggleCondition(condition)}
+                        aria-label={`Toggle ${condition} in ${conditionMode} mode`}
+                      />
+                      <span className="filter-option-item-label">{condition}</span>
+                      <span className="filter-option-item-count" title="visible copies / total copies">
+                        ({conditionCounts.visible[condition]}/{conditionCounts.total[condition]})
+                      </span>
+                    </label>
+                  ))}
+              </div>
+            </div>
+          </CollapsibleSection>
+        </div>
+      )}
+    </>
   );
 };

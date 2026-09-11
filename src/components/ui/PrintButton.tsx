@@ -3,7 +3,8 @@ import { useWishlists } from "../../context/WishlistsContext";
 import React, { useMemo } from "react";
 import { useCardContext } from "../../context/CardContext";
 import { Card, TrendSeries } from "../../types/dashboard";
-import { getCollectionTotalQuantity } from "../../utils/utils";
+import { activeFilterCollectionNames, quantityCollectionNames, quantityForCollections } from "../../utils/collectionQuantity";
+import { useOptionsContext } from "../../context/OptionsContext";
 
 const escapeHtml = (value: string | number) => String(value).replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character] || character);
 const getTimingTone = (score: number | null | undefined) => score === null || score === undefined ? 'unknown' : score >= 70 ? 'good' : score >= 40 ? 'fair' : 'bad';
@@ -56,7 +57,8 @@ const buildPrintableTrendChart = (trend: TrendSeries, xAxisScale: 'normal' | 'se
 
 export const PrintButton: React.FC<{ busy?: boolean }> = ({ busy = false }) => {
   const wishlists = useWishlists();
-  const { renderCards, collectionFilter, viewOptions, sets, trendByProductId, trendLoading } = useCardContext();
+  const { renderCards, collectionFilter, viewOptions, sets, trendByProductId, trendLoading, viewMode } = useCardContext();
+  const { collections } = useOptionsContext();
 
   const setSymbolById = useMemo(() => {
     return new Map(sets.map((set) => [set.id, set.images?.symbol || set.symbolImage || ""]));
@@ -74,11 +76,16 @@ export const PrintButton: React.FC<{ busy?: boolean }> = ({ busy = false }) => {
   // When printing a saved collection, group the cards by subcollection instead of
   // leaving them interleaved in whatever sort/search order was active on screen.
   const printGroups = wishlists.groupCards(actualCards);
+  const quantityNames = viewMode.kind === "collection"
+    ? quantityCollectionNames(viewMode, collections, [])
+    : activeFilterCollectionNames(collectionFilter.selectedCollections);
 
   const getOwnedQuantity = (card: Card) => {
-    return (card.collections || [])
-      .filter(c => collectionFilter.selectedCollections.includes(c.name))
-      .reduce((sum, c) => sum + getCollectionTotalQuantity(c), 0);
+    return quantityForCollections(
+      card,
+      quantityNames,
+      viewMode.kind === "collection" ? collectionFilter.conditionsFilter : ["All"]
+    );
   };
 
   const getMissingToLimit = (card: Card) => {
@@ -363,7 +370,7 @@ export const PrintButton: React.FC<{ busy?: boolean }> = ({ busy = false }) => {
         const missing = getMissingToLimit(card);
         const price = getPrice(card);
 
-        const rowClass = collectionFilter.selectedCollections.length > 0
+        const rowClass = quantityNames.length > 0
           ? (owned > 0 ? 'owned-card' : 'not-owned-card')
           : '';
 
@@ -689,10 +696,16 @@ export const PrintButton: React.FC<{ busy?: boolean }> = ({ busy = false }) => {
         const nearMintPrice = getPrice(card);
         const wishlistPrice = wishlistPriceByCard.get(card.id) ?? null;
         const setIcon = getSetSymbol(card);
-        const countersHtml = collectionFilter.selectedCollections
+        const countersHtml = quantityNames
           .map((collection) => {
             const col = card.collections?.find((c) => c.name === collection);
-            const quantity = col ? getCollectionTotalQuantity(col) : 0;
+            const quantity = col
+              ? quantityForCollections(
+                card,
+                [collection],
+                viewMode.kind === "collection" ? collectionFilter.conditionsFilter : ["All"]
+              )
+              : 0;
             if (quantity <= 0) return '';
             return `<span class="counter ${quantity >= 3 ? 'counter--high' : ''}">${quantity}</span>`;
           })
@@ -712,7 +725,7 @@ export const PrintButton: React.FC<{ busy?: boolean }> = ({ busy = false }) => {
                   ${countersHtml ? `<div class="counters"><span class="counters__label">Owned</span>${countersHtml}</div>` : ''}
                   ${wishlistPrice !== null
         ? `<div class="wishlist-price-box"><span class="wishlist-price-box__amount">${wishlistPrice.price}</span><span class="wishlist-price-box__percent">-${wishlistPrice.percent}%</span></div>`
-        : (missing > 0 && collectionFilter.enabled) ? `<div class="missing-box"><span class="missing-box__label">Missing</span><strong class="missing-box__value">${missing}</strong></div>` : ''}
+        : (missing > 0 && collectionFilter.selectedCollections.length > 0) ? `<div class="missing-box"><span class="missing-box__label">Missing</span><strong class="missing-box__value">${missing}</strong></div>` : ''}
                 </div>
               `;
       }).join('')}</div>`).join('')}

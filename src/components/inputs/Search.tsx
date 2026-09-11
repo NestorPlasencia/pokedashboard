@@ -6,53 +6,90 @@ import { ViewModeBadge } from "../ui/Wishlists";
 import { EditTargetBadge } from "../ui/EditTargetBadge";
 import React, { useDeferredValue, useEffect, useState, useRef } from "react";
 import { useCardContext } from "../../context/CardContext";
+import { useOptionsContext } from "../../context/OptionsContext";
+import { collectionScopeNames } from "../../utils/collectionTree";
 import { parseUrlParams, updateUrlParams } from "../../utils/urlParams";
 import { assertNeverViewMode } from "../../utils/viewMode";
-import { applySorting, applyPriceFilter, applyCollectionFilter } from "../../utils/filters";
+import { applySorting, applyPriceFilter, applyCollectionFilter, applyFormsFilter } from "../../utils/filters";
 import { Card } from "../../types/dashboard";
+import type { CollectionEnrichment } from "../../hooks/useLoadCards";
+import { countCopies } from "../../utils/copyCount";
 
-export const Search: React.FC = () => {
+type SearchProps = {
+  /** How far the viewed collection has been matched to the external catalog. */
+  collectionEnrichment?: CollectionEnrichment;
+};
+
+export const Search: React.FC<SearchProps> = ({ collectionEnrichment }) => {
   // A search restored from the URL is applied on the first render, so a shared link
   // lands on the same result list it was copied from.
   const [query, setQuery] = useState<string>(() => parseUrlParams().search ?? "");
   const wishlists = useWishlists();
-  const { groupedCards, sortedCards, allCards, visibleCards, setVisibleCards, sortConfig, variantsFilter, priceRange, conditionsFilter, collectionFilter, viewMode } = useCardContext();
+  const { collections } = useOptionsContext();
+  const { groupedCards, sortedCards, allCards, visibleCards, setVisibleCards, sortConfig, variantsFilter, priceRange, conditionsFilter, collectionFilter, pokemonGrouping, pokemonFormsData, viewMode } = useCardContext();
   const sourceCards = useMemo(() => {
     switch (viewMode.kind) {
       case 'catalog':
         return groupedCards;
       case 'collection': {
-        // sortedCards is the pipeline through price and sort but before the collection
-        // filter, which is exactly "every filter except Collections". Scoping is by
-        // ownership, so the collection filter would only fight the scope.
-        const name = viewMode.name;
-        return sortedCards.filter(c => c.collections?.some(entry => entry.name === name));
+        // First scope to the collection being viewed (including its subcollections), then
+        // apply any marked collection as a second ownership filter. Thus Hide not owned is
+        // an intersection, not a replacement of the view: viewed collection ∩ selection.
+        const names = new Set(collectionScopeNames(collections, viewMode.name));
+        const scopedCards = sortedCards.filter(card => card.collections?.some(entry =>
+          names.has(entry.name) && countCopies(entry.quantity, collectionFilter.conditionsFilter) > 0
+        ));
+        const ownershipFiltered = applyCollectionFilter(
+          scopedCards,
+          collectionFilter.selectedCollections.length > 0 ? collectionFilter.mode : 'none',
+          collectionFilter.selectedCollections,
+          collectionFilter.limit,
+          ['All']
+        );
+        // Grouping runs last, on the scoped cards, so the Pokémon missing from this
+        // collection show up as placeholders just as they do in the catalog.
+        if (!pokemonGrouping.enabled || ownershipFiltered.length === 0) return ownershipFiltered;
+        return applyFormsFilter(ownershipFiltered, pokemonFormsData, {
+          filterByCollection: pokemonGrouping.filterByCollection,
+          groupingRegions: pokemonGrouping.groupingRegions,
+          allowVariants: pokemonGrouping.allowVariants,
+          hideVariants: pokemonGrouping.hideVariants,
+          selectedCollections: collectionFilter.selectedCollections,
+          collectionMode: collectionFilter.mode,
+          fallbackToDefault: pokemonGrouping.fallbackToDefault,
+        });
       }
       case 'wishlist': {
         // A wishlist starts from allCards instead, skipping the catalog's Level 1 filters
         // (set, rarity, type…) so a saved card never vanishes for an unrelated reason.
         // Price, sort and the collection filter do apply - the last one dims and hides.
-        const savedCards = allCards.filter(c => wishlists.keys.has(cardKey({ id: c.id, era: c.setSeries })));
+        const savedCards = allCards.filter(c => wishlists.keys.has(cardKey({
+          id: c.id,
+          era: c.setSeries,
+          productId: c.productId,
+          printing: c.printing || c.variant || null,
+        })));
         const priceFiltered = applyPriceFilter(savedCards, priceRange.min, priceRange.max, variantsFilter, conditionsFilter);
         const sorted = applySorting(priceFiltered, sortConfig.field, sortConfig.direction, variantsFilter);
         return applyCollectionFilter(
           sorted,
-          collectionFilter.enabled ? collectionFilter.mode : 'none',
+          collectionFilter.selectedCollections.length > 0 ? collectionFilter.mode : 'none',
           collectionFilter.selectedCollections,
           collectionFilter.limit,
-          collectionFilter.conditionsFilter
+          ['All']
         );
       }
       default:
         return assertNeverViewMode(viewMode);
     }
   }, [
-    viewMode, sortedCards,
+    viewMode, sortedCards, collections,
     wishlists.keys, allCards, groupedCards,
     priceRange.min, priceRange.max, conditionsFilter,
     sortConfig.field, sortConfig.direction, variantsFilter,
-    collectionFilter.enabled, collectionFilter.mode, collectionFilter.selectedCollections,
+    collectionFilter.mode, collectionFilter.selectedCollections,
     collectionFilter.limit, collectionFilter.conditionsFilter,
+    pokemonGrouping, pokemonFormsData,
   ]);
   // Leaving or entering a wishlist changes what is on screen, so the query starts over.
   const isViewingWishlist = viewMode.kind === 'wishlist';
@@ -160,6 +197,16 @@ export const Search: React.FC = () => {
           a second row and overflows the viewport. */}
       <div className="search-bar__modes">
         <ViewModeBadge />
+        {collectionEnrichment?.status === 'loading' && (
+          <span
+            className="collection-progress"
+            role="status"
+            title={`Matching catalog data: ${collectionEnrichment.matched} of ${collectionEnrichment.total} cards`}
+          >
+            <span className="collection-progress__spinner" aria-hidden="true" />
+            {collectionEnrichment.matched}/{collectionEnrichment.total}
+          </span>
+        )}
         <EditTargetBadge />
       </div>
       <div className="search-field">

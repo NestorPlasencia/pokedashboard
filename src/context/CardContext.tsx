@@ -9,6 +9,16 @@ export type SeriesSelection = {
   excluded: string[];
 };
 
+/**
+ * A change to the series and set selection made outside the Filters panel. A field left out
+ * keeps its current selection, so dropping the set can leave the series alone.
+ */
+export type CatalogSelectionRequest = {
+  series?: SeriesSelection;
+  /** Included sets; any excluded ones are cleared with them. */
+  sets?: string[];
+};
+
 interface CardContextType {
   // ========== Card Data States (hierarchical order) ==========
   // All imported cards (base data)
@@ -90,6 +100,16 @@ interface CardContextType {
   // source of truth for all three, so two of them can never be active at once.
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
+
+  // A pending selection made outside the sidebar. The Filters panel owns the series and set
+  // selection, so it applies the request and clears it.
+  catalogSelectionRequest: CatalogSelectionRequest | null;
+  requestCatalogSelection: (request: CatalogSelectionRequest | null) => void;
+
+  // The sets included in the Filters panel, published for the breadcrumb. Read-only
+  // elsewhere: changes go through requestCatalogSelection.
+  selectedSets: string[];
+  setSelectedSets: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
 const CardContext = createContext<CardContextType | undefined>(undefined);
@@ -143,6 +163,9 @@ export const CardProvider: React.FC<{ children: ReactNode }> = ({
     updateUrlParams(viewModeToParams(mode));
   }, []);
 
+  const [catalogSelectionRequest, requestCatalogSelection] = useState<CatalogSelectionRequest | null>(null);
+  const [selectedSets, setSelectedSets] = useState<string[]>([]);
+
   return (
     <CardContext.Provider
       value={useMemo(() => ({
@@ -194,14 +217,18 @@ export const CardProvider: React.FC<{ children: ReactNode }> = ({
         viewOptions,
         setViewOptions,
         viewMode,
-        setViewMode
+        setViewMode,
+        catalogSelectionRequest,
+        requestCatalogSelection,
+        selectedSets,
+        setSelectedSets
       }), [
         allCards, filteredCards, priceFilteredCards, sortedCards,
         collectionFilteredCards, groupedCards, visibleCards, renderCards, sets, seriesSelection,
         variantsFilter, conditionsFilter, priceRange,
         collectionFilter, pokemonGrouping, pokemonFormsData,
         sortConfig, viewOptions, trendByProductId, trendLoading, trendError,
-        viewMode, setViewMode
+        viewMode, setViewMode, catalogSelectionRequest, selectedSets
       ])}
     >
       {children}

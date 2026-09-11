@@ -71,6 +71,7 @@ const sortByPokedex = (a: Card, b: Card) => {
 
 // Price helpers
 const getCardPrice = (card: Card, _variantsFilter: string[] = ["All"]): number | undefined => {
+  void _variantsFilter;
   if (!card.prices) return undefined;
   
   const prices = card.prices;

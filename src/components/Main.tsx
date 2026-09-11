@@ -1,7 +1,6 @@
-import { LayoutGrid, Sigma, SlidersHorizontal, type LucideIcon } from "lucide-react";
+import { LayoutGrid, Library, Sigma, SlidersHorizontal, type LucideIcon } from "lucide-react";
 import { useWishlists } from "../context/WishlistsContext";
-import { Wishlists } from "./ui/Wishlists";
-import React, { Suspense, lazy, useState } from "react";
+import React, { Suspense, lazy, useMemo, useState } from "react";
 import { Filters } from "./inputs/Filters";
 import { Orders } from "./inputs/Orders";
 import { Search } from "./inputs/Search";
@@ -21,10 +20,14 @@ import { CachePanel } from "./ui/CachePanel";
 import { ThemeSelector } from "./ui/ThemeSelector";
 import { MassEntryButton } from "./ui/MassEntryButton";
 import { PriceExplorerButton } from "./ui/PriceExplorerButton";
-import { useAuth } from "../context/AuthContext";
+import { AppNav } from "./ui/AppNav";
+import { CollectionsPage } from "./pages/CollectionsPage";
 import { useTrendPoints } from "../hooks/useTrendPoints";
 import { useOfflineStatus } from "../hooks/useOfflineStatus";
+import { useRoute } from "../hooks/useRoute";
+import { navigate } from "../utils/route";
 import { assertNeverViewMode } from "../utils/viewMode";
+import { collectionScopeNames } from "../utils/collectionTree";
 
 // Lazy load heavy view components
 const CardList = lazy(() => import("./views/CardList").then(module => ({ default: module.CardList })));
@@ -40,6 +43,7 @@ const MOBILE_NAVIGATION: { id: MobilePanel; label: string; Icon: LucideIcon }[] 
 
 export const Main: React.FC = () => {
   const wishlists = useWishlists();
+  const route = useRoute();
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>('cards');
   const {
     setAllCards,
@@ -51,15 +55,14 @@ export const Main: React.FC = () => {
     pokemonGrouping,
     viewMode,
   } = useCardContext();
-  const { setCollections } = useOptionsContext();
-  const { session, signOut } = useAuth();
-
-  const handleSignOut = async () => {
-    await signOut();
-  };
-
+  const { collections, setCollections } = useOptionsContext();
+  // A collection shows the cards of its subcollections too.
+  const viewedCollectionScope = useMemo(
+    () => (viewMode.kind === 'collection' ? collectionScopeNames(collections, viewMode.name) : []),
+    [collections, viewMode]
+  );
   const inventoryRequired =
-    collectionFilter.enabled ||
+    collectionFilter.selectedCollections.length > 0 ||
     (pokemonGrouping.enabled && pokemonGrouping.filterByCollection !== "all");
 
   // One place decides what the current mode needs from the loader. Adding a mode to
@@ -84,6 +87,9 @@ export const Main: React.FC = () => {
     inventoryStatus,
     inventoryUpdatedAt,
     inventoryError,
+    collectionCardCounts,
+    collectionCopyCounts,
+    collectionEnrichment,
     error,
   } = useLoadCards(
     setAllCards,
@@ -92,7 +98,9 @@ export const Main: React.FC = () => {
     setPokemonFormsData,
     modeOptions.series,
     inventoryRequired || Boolean(modeOptions.collection),
-    modeOptions.collection
+    modeOptions.collection,
+    viewMode.kind === 'wishlist',
+    viewedCollectionScope
   );
 
   // Activate hierarchical filter cascade (Levels 2-6)
@@ -105,76 +113,100 @@ export const Main: React.FC = () => {
   const showListTable = viewOptions.displayMode.includes('table');
 
   return (
-    <div className={`main mobile-panel--${mobilePanel}`}>
-      <Sidebar position="left">
-        <Filters />
-        <PriceRangeFilter />
-        <Orders />
-        <Collections
-          inventoryStatus={inventoryStatus}
-          inventoryUpdatedAt={inventoryUpdatedAt}
-        />
-        <PokemonGroupingFilter />
-        <ViewOptionsComponent />
-        <Wishlists busy={isLoading} />
-        <PriceExplorerButton />
-        <MassEntryButton />
-        <PrintButton busy={isLoading} />
-        {/* Below the divider sit the things that configure the app rather than the card
-            list: storage, appearance, account. Keeping the cache panel here leaves the
-            collapsible panels and the action buttons as two unbroken groups. */}
-        <div className="sidebar-footer">
-          <CachePanel />
-          <ThemeSelector />
-          {session && (
-            <div className="session-bar sidebar-session-bar">
-              <span>{session.user.email}</span>
-              <button type="button" onClick={handleSignOut}>Sign out</button>
+    <>
+      {/* The catalog stays mounted while another page is open. Its cards, filters and
+          scroll position survive the round trip, and it is what loads the collection list
+          and the inventory the Collections page reads. */}
+      <div className={`main mobile-panel--${mobilePanel}`} hidden={route !== 'catalog'}>
+        <Sidebar position="left">
+          <AppNav />
+          <Filters />
+          <PriceRangeFilter />
+          <Collections />
+          <Orders />
+          <PokemonGroupingFilter />
+          <ViewOptionsComponent />
+          <PriceExplorerButton />
+          <MassEntryButton />
+          <PrintButton busy={isLoading} />
+          {/* Below the divider sit the things that configure the app rather than the card
+              list: storage and appearance. Keeping the cache panel here leaves the
+              collapsible panels and the action buttons as two unbroken groups. The account -
+              signing in and out - lives on the Collections page, the part that needs it. */}
+          <div className="sidebar-footer">
+            <CachePanel />
+            <ThemeSelector />
+          </div>
+        </Sidebar>
+        <div className={`card-view${viewMode.kind === 'wishlist' ? ' card-view--wishlist' : ''}`}>
+          <Search collectionEnrichment={viewMode.kind === 'collection' ? collectionEnrichment : undefined} />
+          {(!online || servingStale) && (
+            <div className="main-status-message main-status-message--warning">
+              {online
+                ? 'Some data could not be refreshed, so saved copies are being shown.'
+                : 'You are offline. Showing the cards and prices saved on this device.'}
             </div>
           )}
+          {isLoading && (
+            <div className="main-status-message main-status-message--loading" role="status">
+              {viewMode.kind === 'collection' ? 'Loading collection…' : 'Loading cards…'}
+            </div>
+          )}
+          {error && <div className="main-status-message main-status-message--error">{error}</div>}
+          {inventoryError && <div className="main-status-message main-status-message--warning">{inventoryError}</div>}
+          {trendError && viewOptions.displayMode.includes('trend') && <div className="main-status-message main-status-message--warning">{trendError}</div>}
+          {!isLoading && !error && isInventoryEmpty && (
+            <div className="main-status-message main-status-message--warning">
+              Your Supabase inventory has no active card copies.
+            </div>
+          )}
+          {!isLoading && !error && (
+            <Suspense fallback={<div className="main-status-message">Loading view...</div>}>
+              {showListTable ? <CardListTable /> : <CardList />}
+            </Suspense>
+          )}
         </div>
-      </Sidebar>
-      <div className={`card-view${viewMode.kind === 'wishlist' ? ' card-view--wishlist' : ''}`}>
-        <Search />
-        {(!online || servingStale) && (
-          <div className="main-status-message main-status-message--warning">
-            {online
-              ? 'Some data could not be refreshed, so saved copies are being shown.'
-              : 'You are offline. Showing the cards and prices saved on this device.'}
-          </div>
-        )}
-        {isLoading && <div className="main-status-message">Loading cards...</div>}
-        {error && <div className="main-status-message main-status-message--error">{error}</div>}
-        {inventoryError && <div className="main-status-message main-status-message--warning">{inventoryError}</div>}
-        {trendError && viewOptions.displayMode.includes('trend') && <div className="main-status-message main-status-message--warning">{trendError}</div>}
-        {!isLoading && !error && isInventoryEmpty && (
-          <div className="main-status-message main-status-message--warning">
-            Your Supabase inventory has no active card copies.
-          </div>
-        )}
-        {!isLoading && !error && (
-          <Suspense fallback={<div className="main-status-message">Loading view...</div>}>
-            {showListTable ? <CardListTable /> : <CardList />}
-          </Suspense>
-        )}
+        <Sidebar position="right">
+          <Summary />
+        </Sidebar>
       </div>
-      <Sidebar position="right">
-        <Summary />
-      </Sidebar>
+      {route === 'collections' && (
+        <CollectionsPage
+          inventoryStatus={inventoryStatus}
+          inventoryUpdatedAt={inventoryUpdatedAt}
+          cardCounts={collectionCardCounts}
+          copyCounts={collectionCopyCounts}
+        />
+      )}
+      {/* Outside the catalog so it stays on every page. A panel button from another page
+          returns to the catalog with that panel open. */}
       <nav className="mobile-panel-nav" aria-label="Mobile sections">
-        {MOBILE_NAVIGATION.map(({ id, label, Icon }) => (
-          <button
-            key={id}
-            type="button"
-            className={mobilePanel === id ? 'is-active' : ''}
-            aria-pressed={mobilePanel === id}
-            onClick={() => setMobilePanel(id)}
-          >
-            <Icon className="mobile-panel-nav__icon" size={20} aria-hidden="true" />
-            <span>{label}</span>
-          </button>
-        ))}
+        {MOBILE_NAVIGATION.map(({ id, label, Icon }) => {
+          const isActive = route === 'catalog' && mobilePanel === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              className={isActive ? 'is-active' : ''}
+              aria-pressed={isActive}
+              onClick={() => { setMobilePanel(id); navigate('catalog'); }}
+            >
+              <Icon className="mobile-panel-nav__icon" size={20} aria-hidden="true" />
+              <span>{label}</span>
+            </button>
+          );
+        })}
+        {/* A page rather than a panel, but on a phone this bar is where the thumb looks. */}
+        <button
+          type="button"
+          className={route === 'collections' ? 'is-active' : ''}
+          aria-current={route === 'collections' ? 'page' : undefined}
+          onClick={() => navigate('collections')}
+        >
+          <Library className="mobile-panel-nav__icon" size={20} aria-hidden="true" />
+          <span>Collections</span>
+        </button>
       </nav>
-    </div>
+    </>
   );
 };

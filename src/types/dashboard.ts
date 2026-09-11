@@ -1,4 +1,5 @@
 import { SetTcgData, CardTcgData } from "./tcg-data";
+import type { CollectionOption } from "../services/inventory";
 import { CardCollector } from "./collector";
 
 export interface Set extends SetTcgData {
@@ -50,6 +51,9 @@ export interface Card extends PickAndCardUpdatePropertiesCard {
   /** Card variant name (e.g. "Normal", "Reverse Holo", "Normal Holo", etc.) */
   variant: string;
 
+  /** Physical printing label (e.g. "Normal", "Holofoil", "Reverse Holofoil"). */
+  printing?: string;
+
   /** Top-level card variant name (e.g. "Standard", "Reverse", etc.) */
   cardVariantTopLevel?: string;
 
@@ -70,15 +74,24 @@ export type Condition = {
 }
 
 
+/**
+ * How copies are counted per collection. `Unknown` holds copies whose condition was never
+ * recorded (null in the shared schema, e.g. every copy Collectr syncs): they count as held,
+ * but never match a filter for a specific condition.
+ */
+export type QuantityKey = ConditionKey | "Unknown";
+
 export interface Collection {
   name: string;
   collectorName: string;
-  quantity: Partial<Record<ConditionKey, number>>;
+  quantity: Partial<Record<QuantityKey, number>>;
 }
 
-export interface OptionsCollection {
-  name: string;
-}
+/**
+ * A collection as the sidebar offers it. Defined by the service that loads it, because
+ * collections of every origin - Collectr's mirror and the app's own - are one row shape.
+ */
+export type OptionsCollection = CollectionOption;
 
 export interface SetEquivalent {
   series: string;

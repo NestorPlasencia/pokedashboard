@@ -6,6 +6,7 @@ import type {
 } from "../types/source-card";
 import type { InventorySnapshot } from "./inventory";
 import { loadCached } from "./offlineCache";
+import { findPrintingMatch } from "../utils/collectionEnrichment";
 type PriceCacheMetadata = {
   version: 5;
   seriesId: number;
@@ -310,6 +311,7 @@ const createDashboardCard = (
     },
     shadow: false,
     variant,
+    printing: printing || undefined,
     cardVariantTopLevel: sourceCard.cardVariantTopLevel?.name || variant,
     rarities: (sourceCard.rarities || [])
       .map((entry) => entry.rarity.name)
@@ -333,11 +335,88 @@ const createDashboardCard = (
   return card;
 };
 
+const emptyCollectionPrices = () => ({
+  "Near Mint": null,
+  "Lightly Played": null,
+  "Moderately Played": null,
+  "Heavily Played": null,
+  Damaged: null,
+});
+
+/**
+ * Builds the selected collection from the shared Supabase catalog. Collection mode
+ * must not depend on the external series hierarchy: card_copies already identifies
+ * the product, printing, and collection, while cards contains the display metadata.
+ */
+export const generateCardsForCollection = (
+  inventory: InventorySnapshot,
+  /** The collection and, when it has any, its subcollections. */
+  collectionNames: string[]
+): RuntimeCardsResult => {
+  const items: Card[] = [];
+  const names = new Set(collectionNames);
+
+  for (const [productId, entries] of inventory.entriesByProductId) {
+    for (const entry of entries) {
+      if (!names.has(entry.collectionName)) continue;
+
+      const setName = entry.catalogGroup || "Unknown set";
+      const printing = entry.printing?.trim() || "Normal";
+      const cardKey = `${productId}-${entry.collectionId}-${printing}`;
+      items.push({
+        id: `supabase-${cardKey}`,
+        productId,
+        name: entry.productName || `Product ${productId}`,
+        types: [],
+        number: entry.catalogNumber || "",
+        artist: "",
+        subtypes: [],
+        supertype: "",
+        nationalPokedexNumbers: [],
+        image: entry.catalogImageUrl || "",
+        rarity: entry.catalogRarity || "",
+        setId: setName,
+        setName,
+        setSeries: setName,
+        setSeriesNames: [setName],
+        cardType: "",
+        prices: emptyCollectionPrices(),
+        shadow: false,
+        variant: printing,
+        printing: entry.printing || undefined,
+        cardVariantTopLevel: printing,
+        rarities: entry.catalogRarity ? [entry.catalogRarity] : [],
+        setNames: [setName],
+        // Keep the aggregate quantity from Supabase on the immediately rendered card.
+        // Enrichment replaces catalog fields later, but deliberately preserves this array.
+        collections: [{
+          name: entry.collectionName,
+          collectorName: entry.productName,
+          quantity: entry.conditions,
+        }],
+      });
+    }
+  }
+
+  return {
+    items,
+    meta: {
+      seriesId: 0,
+      sourceCards: items.length,
+      generatedCards: items.length,
+      priceSets: 0,
+      priceProducts: 0,
+      priceCacheExpiresAt: new Date(0).toISOString(),
+      generatedAt: new Date().toISOString(),
+    },
+  };
+};
+
 export const applyInventoryToCards = (
   cards: Card[],
   inventory: InventorySnapshot
 ): Card[] => {
-  const enrichedCards = cards.map((card) => ({ ...card, collections: [] }));
+  const enrichedCards: Card[] = cards.map((card) => ({ ...card, collections: [] }));
   const cardsByProduct = new Map<number, Card[]>();
   for (const card of enrichedCards) {
     if (!card.productId) continue;
@@ -347,17 +426,8 @@ export const applyInventoryToCards = (
   }
   for (const [productId, candidates] of cardsByProduct) {
     for (const entry of inventory.entriesByProductId.get(productId) || []) {
-      const printing = entry.printing?.trim().toLowerCase();
-      const exactPrinting = printing
-        ? candidates.find((card) => card.variant.toLowerCase() === printing)
-        : undefined;
-      const wantsReverse = printing
-        ? printing.includes("reverse")
-        : entry.collectionName.toLowerCase().includes("reverse");
-      const preferred = exactPrinting ?? (wantsReverse
-        ? candidates.find((card) => card.variant === "Reverse Holo")
-        : candidates.find((card) => card.variant !== "Reverse Holo"));
-      const card = preferred || candidates[0];
+      // The same rule a collection uses to find its catalog cards, so the two always agree.
+      const card = findPrintingMatch(candidates, entry.printing, entry.collectionName) ?? candidates[0];
       card.collections ||= [];
       card.collections.push({
         name: entry.collectionName,

@@ -3,8 +3,10 @@ import { OwnedCardButton } from "../ui/OwnedCardButton";
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useCardContext } from "../../context/CardContext";
 import { Card } from "../../types/dashboard";
-import { getCollectionTotalQuantity } from "../../utils/utils";
 import { buildPriceExplorerUrl } from "../../utils/priceExplorer";
+import { SeriesStarter } from "./SeriesStarter";
+import { activeFilterCollectionNames, quantityCollectionNames, quantityForCollections } from "../../utils/collectionQuantity";
+import { useOptionsContext } from "../../context/OptionsContext";
 
 const formatCurrency = (value: number | undefined | null) => {
   if (value === undefined || value === null) return '-';
@@ -17,7 +19,8 @@ const escapeCsvValue = (value: string | number | null | undefined): string => {
 };
 
 const CardListTableComponent: React.FC = () => {
-  const { renderCards, collectionFilter, sets, seriesSelection } = useCardContext();
+  const { renderCards, collectionFilter, sets, seriesSelection, viewMode } = useCardContext();
+  const { collections } = useOptionsContext();
   const [itemsToShow, setItemsToShow] = useState<number>(50);
 
   // Memoize the load more callback
@@ -71,10 +74,14 @@ const CardListTableComponent: React.FC = () => {
 
   // Memoize helper functions
   const getOwnedQuantity = useCallback((card: Card) => {
-    return (card.collections || [])
-      .filter(c => collectionFilter.selectedCollections.includes(c.name))
-      .reduce((sum, c) => sum + getCollectionTotalQuantity(c), 0);
-  }, [collectionFilter.selectedCollections]);
+    return quantityForCollections(
+      card,
+      viewMode.kind === "collection"
+        ? quantityCollectionNames(viewMode, collections, [])
+        : activeFilterCollectionNames(collectionFilter.selectedCollections),
+      viewMode.kind === "collection" ? collectionFilter.conditionsFilter : ["All"]
+    );
+  }, [collectionFilter.selectedCollections, collectionFilter.conditionsFilter, collections, viewMode]);
 
   const getMissingToLimit = useCallback((card: Card) => {
     const owned = getOwnedQuantity(card);
@@ -146,11 +153,16 @@ const CardListTableComponent: React.FC = () => {
   }, [displayData, getOwnedQuantity, getMissingToLimit, getPrice, getSetSymbol]);
 
   if (displayData.length === 0) {
-    const isAwaitingSeries = seriesSelection.included.length === 0 && seriesSelection.excluded.length === 0;
-    return (
-      <div className="card-list-table-empty">
-        {isAwaitingSeries ? 'Select a series to start exploring cards.' : 'No cards match your current filters.'}
+    const isAwaitingSeries =
+      viewMode.kind === 'catalog' &&
+      seriesSelection.included.length === 0 &&
+      seriesSelection.excluded.length === 0;
+    return isAwaitingSeries ? (
+      <div className="card-list-table-empty card-list-empty--starter">
+        <SeriesStarter />
       </div>
+    ) : (
+      <div className="card-list-table-empty">No cards match your current filters.</div>
     );
   }
 

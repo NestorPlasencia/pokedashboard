@@ -4,7 +4,6 @@ import {
   useEffect,
   useMemo,
   useState,
-  type FormEvent,
   type ReactNode,
 } from "react";
 import type { Session } from "@supabase/supabase-js";
@@ -23,57 +22,41 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const AuthForm = ({ onClose }: { onClose: () => void }) => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleGoogleSignIn = async () => {
     if (!supabase) return;
     setIsSubmitting(true);
     setError(null);
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    const { error: signInError } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        // Supabase owns the provider callback; this is only the final URL where the
+        // hosted flow returns the browser after the session is created.
+        redirectTo: window.location.origin,
+      },
     });
-    if (signInError) setError(signInError.message);
-    setIsSubmitting(false);
+    if (signInError) {
+      setError(signInError.message);
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <div className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
-      <form className="auth-card" onSubmit={handleSubmit}>
+      <div className="auth-card">
         <button className="auth-card__close" type="button" onClick={onClose} aria-label="Close sign in">
           ×
         </button>
         <h1 id="auth-title">Sign in to Collections</h1>
         <p>Your Collectr inventory is private and requires a Supabase session.</p>
-        <label>
-          Email
-          <input
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            required
-          />
-        </label>
-        <label>
-          Password
-          <input
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            required
-          />
-        </label>
         {error && <div className="auth-card__error" role="alert">{error}</div>}
-        <button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Signing in..." : "Sign in"}
+        <button type="button" onClick={handleGoogleSignIn} disabled={isSubmitting}>
+          {isSubmitting ? "Connecting..." : "Continue with Google"}
         </button>
-      </form>
+        <small>Google is the only supported sign-in method.</small>
+      </div>
     </div>
   );
 };
@@ -87,11 +70,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!supabase) return;
     let active = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (active) {
-        setSession(data.session);
-        setIsAuthLoading(false);
-      }
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!active) return;
+      if (error) console.warn("[auth] Unable to restore the Supabase session", error);
+      setSession(data.session);
+      setIsAuthLoading(false);
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, next) => {
       clearInventoryCache();
@@ -115,13 +98,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       },
       requestSignIn: () => setIsSignInOpen(true),
       signOut: async () => {
-        if (supabase) {
-          clearInventoryCache({
-            userId: session?.user.id,
-            includePersistent: true,
-          });
-          await supabase.auth.signOut();
-        }
+        if (!supabase) return;
+        clearInventoryCache({
+          userId: session?.user.id,
+          includePersistent: true,
+        });
+        await supabase.auth.signOut();
       },
     }),
     [session, isAuthLoading, inventoryRevision]

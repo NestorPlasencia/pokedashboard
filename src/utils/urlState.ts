@@ -40,10 +40,13 @@ export const initialSortConfig = (params: FilterParams = parseUrlParams()): Sort
 
 export const initialCollectionFilter = (params: FilterParams = parseUrlParams()): CollectionFilterOptions => {
   const limit = Number(params.limit ?? '1');
+  const selectedCollections = params.collections ?? [];
   return {
-    enabled: params.filterByCollections === 'true',
+    // Selecting a collection is the filter trigger. The old flag is kept in URLs for
+    // backwards compatibility, but cannot enable an empty filter.
+    enabled: selectedCollections.length > 0,
     mode: oneOf(params.viewCollectionOption, ['none', 'hideOwned', 'hideNotOwned', 'shadowOwned', 'shadowNotOwned'] as const, 'none'),
-    selectedCollections: params.collections ?? [],
+    selectedCollections,
     limit: Number.isFinite(limit) && limit >= 1 ? limit : 1,
     conditionsFilter: params.conditions?.length ? params.conditions : ['All'],
   };

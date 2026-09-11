@@ -27,36 +27,40 @@ const isInstalled = (): boolean => {
 let lastSaved: string | null = null;
 
 /**
- * Records the current query string. Called from `updateUrlParams`, the one place that
- * writes the URL, so nothing can change the state without this seeing it.
+ * Records the current page and query string. Called from `updateUrlParams`, the one place
+ * that writes the query, and on every page change, so nothing can move without this seeing it.
  */
 export const rememberUrl = (): void => {
   if (typeof window === 'undefined') return;
-  const search = window.location.search;
-  if (search === lastSaved) return;
-  lastSaved = search;
+  const url = `${window.location.pathname}${window.location.search}`;
+  if (url === lastSaved) return;
+  lastSaved = url;
   try {
-    window.localStorage.setItem(KEY, search);
+    window.localStorage.setItem(KEY, url);
   } catch {
     // Storage full or blocked: the app still works, it just forgets where it was.
   }
 };
 
 /**
- * Restores the remembered query string, if this is an installed launch that arrived with
- * none of its own. Must run before the app reads the URL, and uses `replaceState` so the
- * restore does not become a history entry the back button lands on.
+ * Restores the remembered page and query string, if this is an installed launch that
+ * arrived at the start URL with nothing of its own. Must run before the app reads the URL,
+ * and uses `replaceState` so the restore does not become a history entry the back button
+ * lands on.
  */
 export const restoreLaunchUrl = (): void => {
   if (typeof window === 'undefined') return;
-  // A launch carrying parameters is a deliberate one - a shared link, a shortcut to a
-  // particular view - and must win over whatever was saved.
-  if (window.location.search || !isInstalled()) return;
+  // A launch carrying parameters or a page of its own is a deliberate one - a shared link,
+  // a shortcut to a particular view - and must win over whatever was saved.
+  if (window.location.search || window.location.pathname !== '/' || !isInstalled()) return;
   try {
     const saved = window.localStorage.getItem(KEY);
-    if (!saved || saved === '?') return;
-    lastSaved = saved;
-    window.history.replaceState(null, '', `${window.location.pathname}${saved}`);
+    if (!saved) return;
+    // Older builds saved the query string alone, and it always belonged to the catalog.
+    const url = saved.startsWith('?') ? `/${saved}` : saved;
+    if (url === '/' || url === '/?') return;
+    lastSaved = url;
+    window.history.replaceState(null, '', url);
   } catch {
     // Nothing to restore; the app opens on the catalog.
   }

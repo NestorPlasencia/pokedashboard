@@ -4,14 +4,17 @@ import { useWishlists } from "../../context/WishlistsContext";
 import React, { useMemo } from "react";
 import { useCardContext } from "../../context/CardContext";
 import type { Card } from "../../types/dashboard";
-import { getCardPriceBreakdown, getCollectionTotalQuantity } from "../../utils/utils";
+import { useOptionsContext } from "../../context/OptionsContext";
+import { getCardPriceBreakdown } from "../../utils/utils";
 import { buildPriceExplorerUrl } from "../../utils/priceExplorer";
+import { ownedCountersForCard } from "../../utils/collectionQuantity";
 
 const formatCurrency = (value: number) => value.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
 const getTimingTone = (score: number | null) => score === null ? "unknown" : score >= 70 ? "good" : score >= 40 ? "fair" : "bad";
 
 const TrendCardViewComponent: React.FC<{ card: Card }> = ({ card }) => {
-  const { collectionFilter, sets, trendByProductId, viewOptions, trendLoading } = useCardContext();
+  const { collectionFilter, sets, trendByProductId, viewOptions, trendLoading, viewMode } = useCardContext();
+  const { collections } = useOptionsContext();
   const wishlists = useWishlists();
   const showWishlistButton = wishlists.canToggle();
   // The control only replaces "Missing" inside the wishlist view; the catalog keeps it.
@@ -20,10 +23,11 @@ const TrendCardViewComponent: React.FC<{ card: Card }> = ({ card }) => {
   const variantName = card.variant || "Normal";
   const trendStartDate = trend?.points.reduce<string | null>((earliest, point) => !earliest || point.date < earliest ? point.date : earliest, null) ?? null;
 
-  const ownedCounters = useMemo(() => collectionFilter.selectedCollections.map(collection => {
-    const match = card.collections?.find(item => item.name === collection);
-    return { collection, quantity: match ? getCollectionTotalQuantity(match) : 0 };
-  }).filter(item => item.quantity > 0), [card.collections, collectionFilter.selectedCollections]);
+  const hasOwnershipScope = viewMode.kind === "collection" || collectionFilter.selectedCollections.length > 0;
+  const ownedCounters = useMemo(
+    () => ownedCountersForCard(card, viewMode, collections, collectionFilter.selectedCollections, collectionFilter.conditionsFilter),
+    [card, viewMode, collections, collectionFilter.selectedCollections, collectionFilter.conditionsFilter]
+  );
 
   const ownedSum = ownedCounters.reduce((sum, item) => sum + item.quantity, 0);
   const missingToLimit = Math.max(0, collectionFilter.limit - ownedSum);
@@ -50,7 +54,7 @@ const TrendCardViewComponent: React.FC<{ card: Card }> = ({ card }) => {
           {priceBreakdown.length > 0 && <div className="card-price-tooltip"><div className="card-price-tooltip-title">{variantName}</div>{priceBreakdown.map((item, index) => <div key={index} className="tooltip-price-line"><span className="tooltip-condition-label">{item.condition}:</span><span className="tooltip-price-value">{item.price}</span></div>)}</div>}
         </div>}
         {ownedCounters.length > 0 && <span className="trend-card-view__inventory"><span className="trend-card-view__inventory-label">Owned</span>{ownedCounters.map(({ collection, quantity }) => <span className={`trend-card-view__owned${quantity >= 3 ? " trend-card-view__owned--high" : ""}`} key={collection} title={`${collection}: ${quantity} owned`}>{quantity}</span>)}</span>}
-        {!wishlistTakesMissingSlot && missingToLimit > 0 && collectionFilter.enabled && <span className="trend-card-view__missing">Missing {missingToLimit}</span>}
+        {!wishlistTakesMissingSlot && hasOwnershipScope && missingToLimit > 0 && <span className="trend-card-view__missing">Missing {missingToLimit}</span>}
         {showWishlistButton && <WishlistCardButton card={card} />}
         {priceExplorerUrl && <a className="trend-card-view__prices" href={priceExplorerUrl} target="_blank" rel="noopener noreferrer"><TrendingUp size={11} aria-hidden="true" /> Prices</a>}
       </aside>

@@ -5,8 +5,10 @@ import { useWishlists } from "../../context/WishlistsContext";
 import React, { useMemo } from "react";
 import { Card } from "../../types/dashboard";
 import { useCardContext } from "../../context/CardContext";
-import { getCardPriceBreakdown, getCollectionTotalQuantity } from "../../utils/utils";
+import { useOptionsContext } from "../../context/OptionsContext";
+import { getCardPriceBreakdown } from "../../utils/utils";
 import { buildPriceExplorerUrl } from "../../utils/priceExplorer";
+import { ownedCountersForCard } from "../../utils/collectionQuantity";
 
 const formatCurrency = (value: number) => {
   return value.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
@@ -16,7 +18,8 @@ const CardViewComponent: React.FC<{
   card: Card;
 }> = ({ card }) => {
 
-  const { collectionFilter, sets, trendByProductId, viewOptions, trendLoading } = useCardContext();
+  const { collectionFilter, sets, trendByProductId, viewOptions, trendLoading, viewMode } = useCardContext();
+  const { collections } = useOptionsContext();
   const wishlists = useWishlists();
   const showWishlistButton = wishlists.canToggle();
   // The control only takes over the "Missing" slot inside the wishlist view.
@@ -27,24 +30,17 @@ const CardViewComponent: React.FC<{
 
   const variantName = card.variant || 'Normal';
 
-  // Memoize owned sum calculation
-  const ownedSum = useMemo(() => {
-    return (card.collections || [])
-      .filter(c => collectionFilter.selectedCollections.includes(c.name))
-      .reduce((sum, c) => sum + getCollectionTotalQuantity(c), 0);
-  }, [card.collections, collectionFilter.selectedCollections]);
+  const hasOwnershipScope = viewMode.kind === "collection" || collectionFilter.selectedCollections.length > 0;
 
-  const ownedCounters = useMemo(() => {
-    return collectionFilter.selectedCollections
-      .map((collection) => {
-        const match = card.collections?.find((item) => item.name === collection);
-        return {
-          collection,
-          quantity: match ? getCollectionTotalQuantity(match) : 0
-        };
-      })
-      .filter((item) => item.quantity > 0);
-  }, [card.collections, collectionFilter.selectedCollections]);
+  const ownedCounters = useMemo(
+    () => ownedCountersForCard(card, viewMode, collections, collectionFilter.selectedCollections, collectionFilter.conditionsFilter),
+    [card, viewMode, collections, collectionFilter.selectedCollections, collectionFilter.conditionsFilter]
+  );
+
+  const ownedSum = useMemo(
+    () => ownedCounters.reduce((sum, item) => sum + item.quantity, 0),
+    [ownedCounters]
+  );
 
   // Memoize missing to limit
   const missingToLimit = useMemo(() => {
@@ -90,7 +86,7 @@ const CardViewComponent: React.FC<{
         <span className="card-trend-card-info__number">#{card.number}</span>
         {nearMintPrice !== null && <div className="card-price-container card-price-container--relative card-trend-card-info__price">{card.productId ? <a href={`https://www.tcgplayer.com/product/${card.productId}?Language=English&Condition=Near+Mint`} target="_blank" rel="noopener noreferrer" onClick={(event) => event.stopPropagation()}>{formatCurrency(nearMintPrice)}</a> : <strong>{formatCurrency(nearMintPrice)}</strong>}{priceBreakdown.length > 0 && <div className="card-price-tooltip"><div className="card-price-tooltip-title">{variantName}</div>{priceBreakdown.map((item, idx) => <div key={idx} className="tooltip-price-line"><span className="tooltip-condition-label">{item.condition}:</span><span className="tooltip-price-value">{item.price}</span></div>)}</div>}</div>}
         {ownedCounters.length > 0 && <span className="card-trend-card-info__inventory" aria-label="Owned quantities by selected collection"><span className="card-trend-card-info__inventory-label">Owned</span>{ownedCounters.map(({ collection, quantity }) => <span className={`card-trend-card-info__collection ${quantity >= 3 ? 'card-trend-card-info__collection--high' : ''}`} key={collection} title={`${collection}: ${quantity} owned`}>{quantity}</span>)}</span>}
-        {!wishlistTakesMissingSlot && missingToLimit > 0 && collectionFilter.enabled && <span className="card-trend-card-info__missing">Missing {missingToLimit}</span>}
+        {!wishlistTakesMissingSlot && hasOwnershipScope && missingToLimit > 0 && <span className="card-trend-card-info__missing">Missing {missingToLimit}</span>}
         {priceExplorerUrl && <a className="card-trend-card-info__prices-link" href={priceExplorerUrl} target="_blank" rel="noopener noreferrer" title={`Explore price history for ${card.name}`} onClick={(event) => event.stopPropagation()}><TrendingUp size={11} aria-hidden="true" /> Prices</a>}
       </div>}
       <div className="card-tags">
@@ -197,7 +193,7 @@ const CardViewComponent: React.FC<{
       </div>}
       {showWishlistButton && <WishlistCardButton card={card} />}
       <OwnedCardButton card={card} />
-      {!wishlistTakesMissingSlot && missingToLimit > 0 && collectionFilter.enabled && (
+      {!wishlistTakesMissingSlot && hasOwnershipScope && missingToLimit > 0 && (
         <div
           className="missing-box"
           title={`${missingToLimit} ${missingToLimit === 1 ? 'copy' : 'copies'} missing to reach the target`}

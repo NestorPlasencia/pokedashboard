@@ -1,56 +1,65 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { Card } from '../types/dashboard';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import type { Card } from "../types/dashboard";
+import {
+  deleteWishlistNode,
+  restoreWishlistNode,
+  reorderSubcollections,
+  resolveRestoredSelection,
+  type DeletedNode,
+  cardKey,
+  mergeSavedCards,
+  readWishlists,
+  storageKey,
+  type SavedCard,
+  type Wishlist,
+} from "../services/wishlists";
+import {
+  addRemoteCard,
+  createRemoteCollection,
+  deleteRemoteCollection,
+  fetchRemoteWishlists,
+  readLocalBackup,
+  removeRemoteCard,
+} from "../services/wishlistsRemote";
+import { isSupabaseConfigured } from "../services/supabase";
+import { useAuth } from "./AuthContext";
+import { useCardContext } from "./CardContext";
+import { CATALOG_VIEW } from "../utils/viewMode";
+import { parseUrlParams, updateUrlParams } from "../utils/urlParams";
 
-import { deleteWishlistNode, restoreWishlistNode, reorderSubcollections, resolveRestoredSelection, type DeletedNode, cardKey, mergeSavedCards, readWishlists, storageKey, type SavedCard, type Wishlist } from '../services/wishlists';
-import { clearLocalBackup, fetchRemoteWishlists, readLocalBackup, saveRemoteWishlists } from '../services/wishlistsRemote';
-import { isSupabaseConfigured } from '../services/supabase';
-import { useAuth } from './AuthContext';
-import { useCardContext } from './CardContext';
-import { CATALOG_VIEW } from '../utils/viewMode';
-import { parseUrlParams, updateUrlParams } from '../utils/urlParams';
-const reference = (card: Card): SavedCard => ({ id: card.id, era: card.setSeries });
+const reference = (card: Card): SavedCard => ({
+  id: card.id,
+  era: card.setSeries,
+  productId: card.productId,
+  printing: card.printing || card.variant || null,
+});
 
 function useWishlistsState() {
   const { session, isAuthLoading } = useAuth();
   const { viewMode, setViewMode } = useCardContext();
-  const userId = isSupabaseConfigured ? session?.user.id ?? '' : '';
+  const userId = isSupabaseConfigured ? session?.user.id ?? "" : "";
   const [wishlists, setWishlists] = useState<Wishlist[]>([]);
-  const [error, setError] = useState('');
-  // Set when the initial read failed, so writes never clobber data we could not parse.
+  const [error, setError] = useState("");
   const [blocked, setBlocked] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [wishlistId, setWishlistId] = useState('');
-  const [subcollectionId, setSubcollectionId] = useState('');
+  const [wishlistId, setWishlistId] = useState("");
+  const [subcollectionId, setSubcollectionId] = useState("");
   const [deleted, setDeleted] = useState<DeletedNode | null>(null);
-  // Browsing a wishlist is one of the app's view modes, so the flag lives with the other
-  // two rather than beside the selection.
-  const viewing = viewMode.kind === 'wishlist';
-  // The subcollection card edits are written to, or '' when editing is off. Deliberately
-  // separate from the selection above: if arming followed the selection, clicking another
-  // subcollection to look at it would silently move where the next click writes.
-  const [armedSubId, setArmedSubIdState] = useState(() => parseUrlParams().addWishlist ?? '');
+  const viewing = viewMode.kind === "wishlist";
+  const [armedSubId, setArmedSubIdState] = useState(() => parseUrlParams().addWishlist ?? "");
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
-  // A wishlist restored from the URL is only honoured on the first load; switching
-  // accounts later starts from a clean selection.
-  const pending = useRef(viewMode.kind === 'wishlist' ? { wishlistId: viewMode.wishlistId, subcollectionId: viewMode.subcollectionId } : null);
+  const pending = useRef(viewMode.kind === "wishlist" ? { wishlistId: viewMode.wishlistId, subcollectionId: viewMode.subcollectionId } : null);
   const firstLoad = useRef(true);
 
   useEffect(() => {
-    // Until Supabase says who is signed in, `userId` is still empty and the wishlists to
-    // check a restored link against are not the user's - they are whatever localStorage
-    // happens to hold. Resolving here would find nothing and throw the link away, so the
-    // load waits; `loading` is already true, so the sidebar keeps saying so.
     if (isAuthLoading) return;
-
     let cancelled = false;
     setLoading(true);
     const restore = pending.current;
     pending.current = null;
-    // Only an account change clears the selection. On the first load there is nothing to
-    // clear, and blanking the mode here would throw away a collection restored from the URL.
     if (!firstLoad.current) {
-      setWishlistId('');
-      setSubcollectionId('');
+      setWishlistId("");
+      setSubcollectionId("");
       setViewMode(CATALOG_VIEW);
     }
     firstLoad.current = false;
@@ -61,8 +70,6 @@ function useWishlistsState() {
       const resolved = resolveRestoredSelection(data, restore);
       setWishlistId(resolved.wishlistId);
       setSubcollectionId(resolved.subcollectionId);
-      // Always written back, so the URL describes what actually opened rather than what
-      // was asked for - including dropping to the catalog when the wishlist is gone.
       setViewMode(resolved.mode);
     };
 
@@ -70,23 +77,39 @@ function useWishlistsState() {
       if (!userId) {
         try {
           const data = readWishlists(localStorage);
-          if (!cancelled) { setWishlists(data); setBlocked(false); setError(''); reconcile(data); }
+          if (!cancelled) {
+            setWishlists(data);
+            setBlocked(false);
+            setError("");
+            reconcile(data);
+          }
         } catch {
-          if (!cancelled) { setWishlists([]); setBlocked(true); setError('Could not read your saved wishlists. The original data was left untouched.'); reconcile([]); }
+          if (!cancelled) {
+            setWishlists([]);
+            setBlocked(true);
+            setError("Could not read your saved wishlists. The original data was left untouched.");
+            reconcile([]);
+          }
         }
         return;
       }
       try {
-        const remote = await fetchRemoteWishlists(userId);
-        // First sign-in with data still in this browser: move it up, then stop using localStorage.
-        const backup = remote.length ? null : readLocalBackup();
-        if (backup) {
-          await saveRemoteWishlists(userId, backup);
-          clearLocalBackup();
+        const data = await fetchRemoteWishlists(userId);
+        // A legacy local backup is never deleted automatically: old rows do not always
+        // contain a product_id, which the new core schema requires.
+        if (!cancelled) {
+          setWishlists(data);
+          setBlocked(false);
+          setError(readLocalBackup() ? "A legacy local wishlist backup is still available on this device." : "");
+          reconcile(data);
         }
-        if (!cancelled) { const data = backup ?? remote; setWishlists(data); setBlocked(false); setError(''); reconcile(data); }
       } catch {
-        if (!cancelled) { setWishlists([]); setBlocked(true); setError('Could not load your wishlists from Supabase. Nothing will be saved until you reload.'); reconcile([]); }
+        if (!cancelled) {
+          setWishlists([]);
+          setBlocked(true);
+          setError("Could not load your wishlists from Supabase. Nothing will be saved until you reload.");
+          reconcile([]);
+        }
       }
     };
 
@@ -100,125 +123,170 @@ function useWishlistsState() {
     updateUrlParams({ addWishlist: subId || undefined });
   }, []);
 
-  const wishlist = wishlists.find(w => w.id === wishlistId);
-  const subcollection = wishlist?.subcollections.find(s => s.id === subcollectionId);
-  // Resolved from the loaded data, so an id left in the URL for a subcollection that is
-  // gone simply disarms instead of pointing at nothing.
-  const armedWishlist = armedSubId ? wishlists.find(w => w.subcollections.some(s => s.id === armedSubId)) : undefined;
-  const armedSubcollection = armedWishlist?.subcollections.find(s => s.id === armedSubId);
-  const entries = useMemo(() => subcollection?.cards ?? wishlist?.subcollections.flatMap(s => s.cards) ?? [], [wishlist, subcollection]);
+  const wishlist = wishlists.find((w) => w.id === wishlistId);
+  const subcollection = wishlist?.subcollections.find((s) => s.id === subcollectionId);
+  const armedWishlist = armedSubId ? wishlists.find((w) => w.subcollections.some((s) => s.id === armedSubId)) : undefined;
+  const armedSubcollection = armedWishlist?.subcollections.find((s) => s.id === armedSubId);
+  const entries = useMemo(() => subcollection?.cards ?? wishlist?.subcollections.flatMap((s) => s.cards) ?? [], [wishlist, subcollection]);
   const keys = useMemo(() => new Set(entries.map(cardKey)), [entries]);
-  const seriesSelection = useMemo(() => ({ included: [...new Set(entries.map(r => r.era))], excluded: [] }), [entries]);
+  const seriesSelection = useMemo(
+    () => ({ included: [...new Set(entries.map((entry) => entry.era).filter(Boolean))], excluded: [] }),
+    [entries]
+  );
 
-  // Optimistic: state updates right away and persistence errors surface in `error`.
-  // Remote writes are chained so a burst of edits lands in order.
-  const commit = (next: Wishlist[]) => {
+  const enqueueRemote = useCallback((operation: () => Promise<void>) => {
+    const pendingWrite = saveQueue.current.catch(() => undefined).then(operation);
+    saveQueue.current = pendingWrite.then(() => undefined, () => undefined);
+    pendingWrite.catch(() => setError("Could not save to Supabase. Check your connection and try again."));
+    return pendingWrite;
+  }, []);
+
+  const commitLocal = useCallback((next: Wishlist[]) => {
     if (blocked) return false;
     setWishlists(next);
-    setError('');
-    if (userId) {
-      saveQueue.current = saveQueue.current
-        .catch(() => undefined)
-        .then(() => saveRemoteWishlists(userId, next))
-        .then(
-          () => setError(''),
-          () => setError('Could not save to Supabase. Check your connection and try again.')
-        );
-    } else {
-      try { localStorage.setItem(storageKey, JSON.stringify(next)); }
-      catch { setError('Could not save. Check your browser storage space and permissions.'); return false; }
+    if (!userId) {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(next));
+      } catch {
+        setError("Could not save. Check your browser storage space and permissions.");
+        return false;
+      }
     }
     return true;
-  };
-  // Picks the wishlist the sidebar acts on, and optionally browses it. Selecting is not
-  // the same as viewing: you can target a subcollection while still in the catalog.
-  const select = (id: string, subId = '', open = false) => {
+  }, [blocked, userId]);
+
+  const select = (id: string, subId = "", open = false) => {
     setWishlistId(id);
     setSubcollectionId(subId);
-    setViewMode(open && id ? { kind: 'wishlist', wishlistId: id, subcollectionId: subId } : CATALOG_VIEW);
+    setViewMode(open && id ? { kind: "wishlist", wishlistId: id, subcollectionId: subId } : CATALOG_VIEW);
   };
+
   const setViewing = (open: boolean) => {
-    setViewMode(open && wishlistId ? { kind: 'wishlist', wishlistId, subcollectionId } : CATALOG_VIEW);
+    setViewMode(open && wishlistId ? { kind: "wishlist", wishlistId, subcollectionId } : CATALOG_VIEW);
   };
-  const create = (name: string, nested: boolean, parentId = wishlistId) => {
+
+  const create = async (name: string, nested: boolean, parentId = wishlistId) => {
     name = name.trim();
-    if (!name || (nested && !wishlists.some(w => w.id === parentId))) return false;
+    if (blocked || !name || (nested && !wishlists.some((w) => w.id === parentId))) return false;
+    if (wishlists.some((w) => w.name === name || w.subcollections.some((s) => s.name === name))) return false;
+
+    if (userId) {
+      try {
+        await enqueueRemote(() => createRemoteCollection(userId, name, nested ? parentId : null, "wishlist").then(() => undefined));
+        const refreshed = await fetchRemoteWishlists(userId);
+        setWishlists(refreshed);
+        const created = nested
+          ? refreshed.find((w) => w.id === parentId)?.subcollections.find((s) => s.name === name)
+          : refreshed.find((w) => w.name === name);
+        if (created) select(nested ? parentId : created.id, nested ? created.id : "");
+        return Boolean(created);
+      } catch {
+        return false;
+      }
+    }
+
     const id = crypto.randomUUID();
-    const next = nested ? wishlists.map(w => w.id === parentId ? { ...w, subcollections: [...w.subcollections, { id, name, cards: [] }] } : w) : [...wishlists, { id, name, subcollections: [] }];
-    if (!commit(next)) return false;
-    select(nested ? parentId : id, nested ? id : '');
+    const next = nested
+      ? wishlists.map((w) => w.id === parentId ? { ...w, subcollections: [...w.subcollections, { id, name, cards: [] }] } : w)
+      : [...wishlists, { id, name, subcollections: [] }];
+    if (!commitLocal(next)) return false;
+    select(nested ? parentId : id, nested ? id : "");
     return true;
   };
-  // Every write lands in the armed subcollection. With nothing armed there is no
-  // destination and nothing happens - which is the point of arming.
-  const add = (cards: Card[]) => {
-    if (!armedSubcollection || !armedWishlist) return 0;
-    const cardsToSave = mergeSavedCards(armedSubcollection.cards, cards.map(reference));
-    const saved = commit(wishlists.map(w => w.id === armedWishlist.id ? { ...w, subcollections: w.subcollections.map(s => s.id === armedSubId ? { ...s, cards: cardsToSave } : s) } : w));
-    return saved ? cardsToSave.length - armedSubcollection.cards.length : 0;
+
+  const add = async (cards: Card[]) => {
+    if (blocked || !armedSubcollection || !armedWishlist) return 0;
+    // The shared remote schema identifies wishlist cards by product_id. Local backups may
+    // still contain older id/era-only entries, so keep those usable offline but never report
+    // them as remotely saved.
+    const cardsToPersist = userId
+      ? cards.filter((card) => typeof card.productId === "number" && Number.isInteger(card.productId) && card.productId > 0)
+      : cards;
+    const incoming = cardsToPersist.map(reference);
+    const cardsToSave = mergeSavedCards(armedSubcollection.cards, incoming);
+    const existingKeys = new Set(armedSubcollection.cards.map(cardKey));
+    const newCards = cardsToSave.filter((card) => !existingKeys.has(cardKey(card)));
+    if (!newCards.length) return 0;
+    const next = wishlists.map((w) => w.id === armedWishlist.id
+      ? { ...w, subcollections: w.subcollections.map((s) => s.id === armedSubId ? { ...s, cards: cardsToSave } : s) }
+      : w);
+    if (!commitLocal(next)) return 0;
+    if (userId) {
+      void enqueueRemote(async () => {
+        for (const card of cardsToPersist.filter((candidate) => newCards.some((saved) => cardKey(saved) === cardKey(reference(candidate))))) {
+          await addRemoteCard(userId, armedSubcollection.id, card);
+        }
+      });
+    }
+    return newCards.length;
   };
+
   const remove = (card: Card) => {
-    if (!armedSubcollection || !armedWishlist) return;
+    if (blocked || !armedSubcollection || !armedWishlist) return;
     const key = cardKey(reference(card));
-    commit(wishlists.map(w => w.id === armedWishlist.id ? {
+    const next = wishlists.map((w) => w.id === armedWishlist.id ? {
       ...w,
-      subcollections: w.subcollections.map(s => s.id === armedSubId
-        ? { ...s, cards: s.cards.filter(r => cardKey(r) !== key) }
-        : s),
-    } : w));
+      subcollections: w.subcollections.map((s) => s.id === armedSubId ? { ...s, cards: s.cards.filter((saved) => cardKey(saved) !== key) } : s),
+    } : w);
+    if (!commitLocal(next) || !userId) return;
+    void enqueueRemote(() => removeRemoteCard(userId, armedSubcollection.id, card));
   };
+
   const deleteNode = (id: string, subId?: string) => {
     const result = deleteWishlistNode(wishlists, id, subId);
-    if (!result || !commit(result.wishlists)) return;
-    setDeleted(result.deleted);
-    if (wishlistId === id && (!subId || subcollectionId === subId)) select(subId ? id : '', '', false);
-    // A deleted destination must not stay armed.
-    if (armedSubId && (subId ? subId === armedSubId : wishlists.find(w => w.id === id)?.subcollections.some(s => s.id === armedSubId))) {
-      setArmedSubId('');
+    if (!result || !commitLocal(result.wishlists)) return;
+    setDeleted(userId ? null : result.deleted);
+    if (userId) void enqueueRemote(() => deleteRemoteCollection(userId, subId ?? id));
+    if (wishlistId === id && (!subId || subcollectionId === subId)) select(subId ? id : "", "", false);
+    if (armedSubId && (subId ? subId === armedSubId : wishlists.find((w) => w.id === id)?.subcollections.some((s) => s.id === armedSubId))) {
+      setArmedSubId("");
     }
   };
+
   const undoDelete = () => {
     if (!deleted) return;
-    if (commit(restoreWishlistNode(wishlists, deleted))) setDeleted(null);
+    if (commitLocal(restoreWishlistNode(wishlists, deleted))) setDeleted(null);
   };
-  const moveSubcollection = (id: string, subId: string, direction: 'up' | 'down') => {
-    commit(reorderSubcollections(wishlists, id, subId, direction));
+
+  const moveSubcollection = (id: string, subId: string, direction: "up" | "down") => {
+    if (userId) {
+      setError("The new Supabase schema orders subcollections by name.");
+      return;
+    }
+    commitLocal(reorderSubcollections(wishlists, id, subId, direction));
   };
-  /** Whether the armed subcollection already holds this card. */
-  const contains = (card: Card) => {
-    if (!armedSubcollection) return false;
-    const key = cardKey(reference(card));
-    return armedSubcollection.cards.some(r => cardKey(r) === key);
-  };
-  // Whether the add/remove control applies to this card, so views can give it the slot
-  // the "Missing" badge would otherwise occupy. Browsing a wishlist no longer implies
-  // editing it: a stray click cannot change what is saved unless editing was armed.
+
+  const contains = (card: Card) => Boolean(armedSubcollection?.cards.some((saved) => cardKey(saved) === cardKey(reference(card))));
   const canToggle = () => Boolean(armedSubcollection);
-  // Splits a card list into one titled section per subcollection, preserving the
-  // incoming sort order inside each. Shared by the on-screen view and the print output.
   const groupCards = (cards: Card[]): { label: string; cards: Card[] }[] => {
-    if (!viewing || !wishlist) return [{ label: '', cards }];
+    if (!viewing || !wishlist) return [{ label: "", cards }];
     const subs = subcollection ? [subcollection] : wishlist.subcollections;
     const used = new Set<string>();
-    const groups = subs.map(sub => {
+    const groups = subs.map((sub) => {
       const subKeys = new Set(sub.cards.map(cardKey));
-      const matched = cards.filter(card => subKeys.has(cardKey(reference(card))));
-      matched.forEach(card => used.add(cardKey(reference(card))));
+      const matched = cards.filter((card) => subKeys.has(cardKey(reference(card))));
+      matched.forEach((card) => used.add(cardKey(reference(card))));
       return { label: sub.name, cards: matched };
-    }).filter(group => group.cards.length > 0);
-    const rest = cards.filter(card => !used.has(cardKey(reference(card))));
-    return rest.length ? [...groups, { label: 'Without subcollection', cards: rest }] : groups;
+    }).filter((group) => group.cards.length > 0);
+    const rest = cards.filter((card) => !used.has(cardKey(reference(card))));
+    return rest.length ? [...groups, { label: "Without subcollection", cards: rest }] : groups;
   };
-  return { wishlists, wishlist, subcollection, viewing, setViewing, select, create, add, remove, contains, canToggle, groupCards, keys, seriesSelection, error, deleted, deleteNode, undoDelete, moveSubcollection, loading, synced: Boolean(userId), armedSubId, setArmedSubId, armedWishlist, armedSubcollection };
+
+  return {
+    wishlists, wishlist, subcollection, viewing, setViewing, select, create, add, remove, contains,
+    canToggle, groupCards, keys, seriesSelection, error, deleted, deleteNode, undoDelete, moveSubcollection,
+    loading, synced: Boolean(userId), armedSubId, setArmedSubId, armedWishlist, armedSubcollection,
+  };
 }
+
 const Context = createContext<ReturnType<typeof useWishlistsState> | null>(null);
 export function WishlistsProvider({ children }: { children: ReactNode }) {
-  const value = useWishlistsState();
-  return <Context.Provider value={value}>{children}</Context.Provider>;
+  return <Context.Provider value={useWishlistsState()}>{children}</Context.Provider>;
 }
+
 // eslint-disable-next-line react-refresh/only-export-components
 export function useWishlists() {
   const value = useContext(Context);
-  if (!value) throw new Error('WishlistsProvider is required');
+  if (!value) throw new Error("WishlistsProvider is required");
   return value;
 }

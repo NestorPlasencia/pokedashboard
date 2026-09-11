@@ -10,7 +10,9 @@ globalThis.window = {
   location: { search: '', pathname: '/' },
   history: {
     replaceState: (_state, _title, url) => {
-      globalThis.window.location.search = url.includes('?') ? url.slice(url.indexOf('?')) : '';
+      const at = url.indexOf('?');
+      globalThis.window.location.pathname = at === -1 ? url : url.slice(0, at);
+      globalThis.window.location.search = at === -1 ? '' : url.slice(at);
     },
   },
   localStorage: {
@@ -103,4 +105,45 @@ test('storage that refuses to write does not take the app down', () => {
   launch('?series=Base');
   assert.doesNotThrow(rememberUrl);
   window.localStorage.setItem = original;
+});
+
+test('an installed launch returns to the page it was left on', () => {
+  window.location.pathname = '/collections';
+  launch('?series=Base');
+  rememberUrl();
+
+  installed = true;
+  window.location.pathname = '/';
+  launch('');
+  restoreLaunchUrl();
+
+  assert.equal(window.location.pathname, '/collections');
+  assert.equal(window.location.search, '?series=Base');
+});
+
+test('a query string saved by an older build still restores the catalog', () => {
+  window.location.pathname = '/';
+  store['pokedashboard.last-url.v1'] = '?series=Base';
+
+  installed = true;
+  launch('');
+  restoreLaunchUrl();
+
+  assert.equal(window.location.pathname, '/');
+  assert.equal(window.location.search, '?series=Base');
+});
+
+test('a launch straight into a page wins over what was remembered', () => {
+  window.location.pathname = '/';
+  launch('?series=Base');
+  rememberUrl();
+
+  installed = true;
+  window.location.pathname = '/collections';
+  launch('');
+  restoreLaunchUrl();
+
+  assert.equal(window.location.pathname, '/collections');
+  assert.equal(window.location.search, '');
+  window.location.pathname = '/';
 });

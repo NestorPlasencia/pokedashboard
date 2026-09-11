@@ -8,15 +8,15 @@ import { OwnedCollectionsProvider } from "./context/OwnedCollectionsContext";
 
 const App: React.FC = () => (
   <AuthProvider>
-    <OwnedCollectionsProvider>
-      <CardProvider>
-        <OptionsProvider>
+    <OptionsProvider>
+      <OwnedCollectionsProvider>
+        <CardProvider>
           <WishlistsProvider>
             <Main />
           </WishlistsProvider>
-        </OptionsProvider>
-      </CardProvider>
-    </OwnedCollectionsProvider>
+        </CardProvider>
+      </OwnedCollectionsProvider>
+    </OptionsProvider>
   </AuthProvider>
 );
 

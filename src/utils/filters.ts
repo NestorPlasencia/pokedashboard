@@ -1,4 +1,5 @@
 import type { Card, ConditionKey, PokemonWithoutCard, PokemonFormWithoutCard, PokemonFormData, Set } from "../types/dashboard";
+import { countCopies } from "./copyCount";
 const NON_HIT_RARITIES = ["Common", "Uncommon", "Rare", "Rare Holo"];
 const NON_HOLO_RARITIES = ["Common", "Uncommon", "Rare"];
 const BULK_RARITIES = ["Common", "Uncommon"];
@@ -67,17 +68,7 @@ const getConditionKeysToUse = (conditionsFilter: string[] = ["All"]): ConditionK
   );
 };
 
-const sumConditionQuantity = (
-  quantity: Partial<Record<ConditionKey, number>> | undefined,
-  conditionsFilter: string[] = ["All"]
-): number => {
-  if (!quantity) {
-    return 0;
-  }
-
-  const conditions = getConditionKeysToUse(conditionsFilter);
-  return conditions.reduce((sum, condition) => sum + (quantity[condition] || 0), 0);
-};
+const sumConditionQuantity = countCopies;
 
 export const filterSeriesSets = (sets: Set[], series: string[]) => {
   return sets.filter((set) => series.includes(set.series));

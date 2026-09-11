@@ -1,5 +1,6 @@
 import { Card, Collection } from "../types/dashboard";
 import { POKEDEX_REGIONS, getRegionForPokedexNumber } from "../constants/constants";
+import { getCollectionCopyCount, getCollectionPriceTotal } from "./collectionValue";
 
 export const removeAllOccurrences = <T>(arr: T[], value: T): T[] => {
   let i = 0;
@@ -306,11 +307,12 @@ export const getCollectionTotalQuantity = (collection: Collection): number => {
 };
 
 // Funciones para el manejo de colecciones
-const getOwnedQuantitySum = (card: Card, collectionsToFilter: string[]) => {
-  const collections = card.collections || [];
-  return collections
-    .filter((c: Collection) => collectionsToFilter.includes(c.name))
-    .reduce((sum: number, c: Collection) => sum + getCollectionTotalQuantity(c), 0);
+const getOwnedQuantitySum = (
+  card: Card,
+  collectionsToFilter: string[],
+  conditionsFilter: string[] = ["All"]
+) => {
+  return getCollectionCopyCount(card, collectionsToFilter, conditionsFilter);
 };
 
 export const calculatePriceSummary = (
@@ -322,12 +324,14 @@ export const calculatePriceSummary = (
   variantsFilter: string[] = ["All"],
   conditionsFilter: string[] = ["All"]
 ) => {
+  void _variantsFilterForPrices;
   let priceTotal = 0;
   let priceCount = 0;
   let withoutPriceCount = 0;
   
   // Card counts
   let totalCards = cards.length;
+  let totalCopies = cards.length;
   
   // Collection data
   let ownedCards = 0;
@@ -370,6 +374,12 @@ export const calculatePriceSummary = (
 
   // Update totalCards count with filtered results
   totalCards = filteredCards.length;
+  totalCopies = isCollectionView
+    ? filteredCards.reduce(
+        (sum, card) => sum + getCollectionCopyCount(card, collectionsChecked, conditionsFilter),
+        0
+      )
+    : totalCards;
 
   filteredCards.forEach(card => {
     let hasAnyPrice = false;
@@ -377,7 +387,7 @@ export const calculatePriceSummary = (
     
     // Check if card is owned
     const ownedSum = isCollectionView
-      ? getOwnedQuantitySum(card, collectionsChecked)
+      ? getOwnedQuantitySum(card, collectionsChecked, conditionsFilter)
       : 0;
     const isOwned = isCollectionView ? ownedSum >= limit : false;
 
@@ -397,38 +407,37 @@ export const calculatePriceSummary = (
         selectedPrice = prices["Near Mint"];
         nearMintTotal += prices["Near Mint"];
         nearMintCount++;
-        priceTotal += prices["Near Mint"];
         hasAnyPrice = true;
       } else if (prices["Lightly Played"] !== null && prices["Lightly Played"] !== undefined) {
         selectedPrice = prices["Lightly Played"];
         lightlyPlayedTotal += prices["Lightly Played"];
         lightlyPlayedCount++;
-        priceTotal += prices["Lightly Played"];
         hasAnyPrice = true;
       } else if (prices["Moderately Played"] !== null && prices["Moderately Played"] !== undefined) {
         selectedPrice = prices["Moderately Played"];
         moderatelyPlayedTotal += prices["Moderately Played"];
         moderatelyPlayedCount++;
-        priceTotal += prices["Moderately Played"];
         hasAnyPrice = true;
       } else if (prices["Damaged"] !== null && prices["Damaged"] !== undefined) {
         selectedPrice = prices["Damaged"];
         damagedTotal += prices["Damaged"];
         damagedCount++;
-        priceTotal += prices["Damaged"];
         hasAnyPrice = true;
       } else if (prices["Heavily Played"] !== null && prices["Heavily Played"] !== undefined) {
         selectedPrice = prices["Heavily Played"];
         heavilyPlayedTotal += prices["Heavily Played"];
         heavilyPlayedCount++;
-        priceTotal += prices["Heavily Played"];
         hasAnyPrice = true;
       }
     }
 
     if (hasAnyPrice && selectedPrice !== null) {
+      const cardValue = isCollectionView
+        ? getCollectionPriceTotal(card, collectionsChecked, conditionsFilter)
+        : selectedPrice;
       priceCount++;
-      if (isOwned) ownedPrice += selectedPrice;
+      priceTotal += cardValue;
+      if (isOwned) ownedPrice += cardValue;
       totalToLimitPrice += selectedPrice * limit;
       if (isCollectionView) {
         ownedToLimitPrice += selectedPrice * Math.min(limit, ownedSum);
@@ -442,10 +451,11 @@ export const calculatePriceSummary = (
 
   return {
     // General totals
-    total: priceTotal,
-    count: priceCount,
-    withoutPriceCount: withoutPriceCount,
-    totalCards: totalCards,
+      total: priceTotal,
+      count: priceCount,
+      withoutPriceCount: withoutPriceCount,
+      totalCards: totalCards,
+      totalCopies,
     
     // Collection data
     isCollectionView,
@@ -514,9 +524,3 @@ export const filterCardsByPriceType = (cards: Card[], priceTypeFilter: string[])
 };
 
 // Convierte una lista de nombres de colecciones a objetos Collection
-export const convertToCollectionObjects = (collectionNames: string[]) => {
-  return collectionNames.map(name => ({
-    name,
-  }));
-};
-

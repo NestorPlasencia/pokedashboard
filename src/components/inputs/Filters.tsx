@@ -10,6 +10,7 @@ import { DEFAULT_RARITIES_ORDER, DEFAULT_ENERGY_TYPES_ORDER, POKEDEX_REGIONS, DE
 import { updateUrlParams, initializeFiltersFromUrl, type FilterParamName } from "../../utils/urlParams";
 import { filterSettingsToParams, initialFilterSettings } from "../../utils/urlState";
 import { loadHierarchy } from "../../services/cards";
+import { orderHierarchy } from "../../utils/hierarchy";
 
 /**
  * The URL parameter each filter reads and writes. One map serves both directions, so a
@@ -81,34 +82,80 @@ export const Filters = () => {
     setSortConfig,
     setViewOptions,
     seriesSelection,
-    setSeriesSelection
+    setSeriesSelection,
+    viewMode,
+    catalogSelectionRequest,
+    requestCatalogSelection,
+    setSelectedSets
   } = useCardContext();
 
   // Track if this is the first render to avoid overwriting URL params on initial load
   const isInitialRender = useRef(true);
   const hierarchyRef = useRef<HierarchySerie[]>([]);
 
-  // Load hierarchy: set series order and store full hierarchy for set ordering
+  // Load hierarchy: set series order and store full hierarchy for set ordering. In a
+  // collection view, keep only the series containing one of the collection's set names.
   useEffect(() => {
+    let cancelled = false;
     loadHierarchy().then((hierarchy) => {
-      hierarchyRef.current = hierarchy;
-      const sortedHierarchy = [...hierarchy].sort((a, b) => a.order - b.order);
-      const orderedSeriesNames = sortedHierarchy.map((s) => s.name);
+      if (cancelled) return;
+      const orderedHierarchy = orderHierarchy(hierarchy);
+      hierarchyRef.current = orderedHierarchy;
+      const orderedSeriesNames = orderedHierarchy.map((s) => s.name);
+      const collectionSetNames = new Set(
+        allCards.flatMap((card) => [card.setName, ...(card.setNames || [])]).filter(Boolean)
+      );
+      const availableSeriesNames = viewMode.kind === 'collection'
+        ? allCards.length > 0
+          ? orderedHierarchy
+              .filter((serie) => serie.sets.some((set) => collectionSetNames.has(set.name)))
+              .map((serie) => serie.name)
+          : []
+        : orderedSeriesNames;
+      const availableSeries = new Set(availableSeriesNames);
       // Build global ordered set names across all series
-      const allOrderedSetNames = sortedHierarchy.flatMap((s) =>
-        [...s.sets].sort((a, b) => a.order - b.order).map((set) => set.name)
-      );
-      setFilters((prev) =>
-        prev.map((f) => {
+      const allOrderedSetNames = orderedHierarchy.flatMap((s) => s.sets.map((set) => set.name));
+      setFilters((prev) => {
+        let changed = false;
+        const next = prev.map((f) => {
           if (f.property === 'setSeries') {
-            return { ...f, options: orderedSeriesNames, defaultOrder: orderedSeriesNames };
+            const shouldPruneSelection = viewMode.kind === 'collection' && allCards.length > 0;
+            const includedValues = shouldPruneSelection
+              ? f.includedValues.filter((value) => availableSeries.has(value))
+              : f.includedValues;
+            const excludedValues = shouldPruneSelection
+              ? f.excludedValues.filter((value) => availableSeries.has(value))
+              : f.excludedValues;
+            if (
+              !arraysEqual(f.options, availableSeriesNames) ||
+              !arraysEqual(f.defaultOrder || [], availableSeriesNames) ||
+              !arraysEqual(f.includedValues, includedValues) ||
+              !arraysEqual(f.excludedValues, excludedValues)
+            ) {
+              changed = true;
+              return {
+                ...f,
+                options: availableSeriesNames,
+                defaultOrder: availableSeriesNames,
+                includedValues,
+                excludedValues,
+              };
+            }
+            return f;
           }
-          if (f.property === 'setNames') return { ...f, defaultOrder: allOrderedSetNames };
+          if (f.property === 'setNames' && !arraysEqual(f.defaultOrder || [], allOrderedSetNames)) {
+            changed = true;
+            return { ...f, defaultOrder: allOrderedSetNames };
+          }
           return f;
-        })
-      );
+        });
+        return changed ? next : prev;
+      });
     });
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [allCards, viewMode.kind]);
 
   const [globalSelectionModes, setGlobalSelectionModes] = useState<Record<number, SelectionMode>>({});
   const [optionSearchByFilter, setOptionSearchByFilter] = useState<Record<number, string>>({});
@@ -139,12 +186,15 @@ export const Filters = () => {
       defaultOrder,
     });
 
+    // Each filter narrows the options of the ones after it, so this order is also the
+    // cascade.
     return [
       buildFilter(1, "Series:", "setSeries", 'series', false),
       buildFilter(2, "Set:", "setNames", 'set', true),
+      buildFilter(3, "Rarity:", "rarities", 'rarity', true, [], DEFAULT_RARITIES_ORDER),
       buildFilter(
-        3,
-        "Variant TopLevel:",
+        4,
+        "Variant:",
         "cardVariantTopLevel",
         'cardVariantTopLevel',
         false,
@@ -152,7 +202,7 @@ export const Filters = () => {
         DEFAULT_VARIANTS_ORDER
       ),
       buildFilter(
-        4,
+        5,
         "Variants:",
         "variant",
         'variants',
@@ -160,9 +210,11 @@ export const Filters = () => {
         [],
         DEFAULT_VARIANTS_ORDER
       ),
-      buildFilter(5, "Rarity:", "rarities", 'rarity', true, [], DEFAULT_RARITIES_ORDER),
+      buildFilter(6, "Type / Supertype:", "cardType", 'type', false),
+      buildFilter(7, "Subtypes:", "subtypes", 'subtypes', true),
+      buildFilter(8, "Energy:", "types", 'energy', true, [], DEFAULT_ENERGY_TYPES_ORDER),
       buildFilter(
-        6,
+        9,
         "Region:",
         "pokedexRegion",
         'pokedexRegion',
@@ -170,9 +222,6 @@ export const Filters = () => {
         POKEDEX_REGIONS.map((region) => region.name),
         DEFAULT_POKEDEX_REGIONS_ORDER
       ),
-      buildFilter(7, "Type:", "cardType", 'type', false),
-      buildFilter(8, "Energy:", "types", 'energy', true, [], DEFAULT_ENERGY_TYPES_ORDER),
-      buildFilter(9, "Subtypes:", "subtypes", 'subtypes', true),
       buildFilter(10, "Artist:", "artist", 'artist', false)
     ];
   });
@@ -215,20 +264,69 @@ export const Filters = () => {
     });
   }, [seriesSelection]);
 
+  // A selection change made outside the sidebar - the starting screen, the breadcrumb - is
+  // applied here, so it reaches the URL and the loader like any other. A field the request
+  // leaves out keeps its current selection.
+  useEffect(() => {
+    if (!catalogSelectionRequest) return;
+    const { series, sets } = catalogSelectionRequest;
+    setFilters((prev) =>
+      prev.map((f) => {
+        if (f.property === 'setSeries' && series) {
+          return { ...f, includedValues: series.included, excludedValues: series.excluded };
+        }
+        if (f.property === 'setNames' && sets) return { ...f, includedValues: sets, excludedValues: [] };
+        return f;
+      })
+    );
+    requestCatalogSelection(null);
+  }, [catalogSelectionRequest, requestCatalogSelection]);
+
+  // The catalog and a collection are different scopes. A series or set chosen to browse the
+  // catalog would otherwise carry into a collection and hide most of it with no sign of
+  // why, so each keeps its own series and set selection, swapped when the view changes.
+  // Every other filter is shared between the two.
+  const selectionScope = viewMode.kind === 'collection' ? 'collection' : 'catalog';
+  const currentScope = useRef<typeof selectionScope>(selectionScope);
+  const selectionsByScope = useRef<Partial<Record<typeof selectionScope, Pick<FilterOption, 'includedValues' | 'excludedValues'>[]>>>({});
+  useEffect(() => {
+    const previous = currentScope.current;
+    if (previous === selectionScope) return;
+    currentScope.current = selectionScope;
+    const scoped = ['setSeries', 'setNames'] as const;
+    selectionsByScope.current[previous] = scoped.map((property) => {
+      const filter = filters.find((f) => f.property === property);
+      return { includedValues: filter?.includedValues ?? [], excludedValues: filter?.excludedValues ?? [] };
+    });
+    const restored = selectionsByScope.current[selectionScope];
+    setFilters((prev) =>
+      prev.map((f) => {
+        const index = scoped.indexOf(f.property as (typeof scoped)[number]);
+        if (index === -1) return f;
+        return {
+          ...f,
+          includedValues: restored?.[index].includedValues ?? [],
+          excludedValues: restored?.[index].excludedValues ?? [],
+        };
+      })
+    );
+    // Only a change of scope swaps the selection; reading the latest filters is enough.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectionScope]);
+
+  // The breadcrumb names the chosen sets, and only this panel holds them.
+  const selectedSetValues = filters.find((f) => f.property === 'setNames')?.includedValues;
+  useEffect(() => {
+    setSelectedSets(selectedSetValues ?? []);
+  }, [selectedSetValues, setSelectedSets]);
+
   useEffect(() => {
     if (hierarchyRef.current.length === 0) return;
 
-    const sortedHierarchy = [...hierarchyRef.current].sort((a, b) => a.order - b.order);
-    const orderedSetNames =
-      !selectedSeriesValues || selectedSeriesValues.length === 0
-        ? sortedHierarchy.flatMap((s) =>
-            [...s.sets].sort((a, b) => a.order - b.order).map((set) => set.name)
-          )
-        : sortedHierarchy
-            .filter((s) => selectedSeriesValues.includes(s.name))
-            .flatMap((s) =>
-              [...s.sets].sort((a, b) => a.order - b.order).map((set) => set.name)
-            );
+    // hierarchyRef already holds the hierarchy newest first, sets included.
+    const orderedSetNames = hierarchyRef.current
+      .filter((s) => !selectedSeriesValues || selectedSeriesValues.length === 0 || selectedSeriesValues.includes(s.name))
+      .flatMap((s) => s.sets.map((set) => set.name));
 
     setFilters((prev) =>
       prev.map((f) =>
@@ -388,13 +486,18 @@ export const Filters = () => {
       // Set filtered cards - price filter will be applied by useCardFilters hook
       // Guard: don't show cards until a series is explicitly selected
       const seriesFilterState = filters.find(f => f.property === 'setSeries');
-      if (seriesFilterState && seriesFilterState.includedValues.length === 0 && seriesFilterState.excludedValues.length === 0) {
+      if (
+        viewMode.kind === 'catalog' &&
+        seriesFilterState &&
+        seriesFilterState.includedValues.length === 0 &&
+        seriesFilterState.excludedValues.length === 0
+      ) {
         setFilteredCards([]);
         return;
       }
       setFilteredCards(currentCards);
     }
-  }, [allCards, filters, setFilteredCards, updateFilterOptions, variantsFilter]);
+  }, [allCards, filters, setFilteredCards, updateFilterOptions, variantsFilter, viewMode.kind]);
 
   // Sincronizar URL cuando cambian TODOS los filtros
   useEffect(() => {
@@ -661,13 +764,16 @@ export const Filters = () => {
         const effectiveSearchQuery = isSearchVisible ? searchQuery : '';
         const selectedCount = filter.includedValues.length + filter.excludedValues.length;
 
-        const visibleOptions = sortByDefaultOrder(
-          Array.from(new Set([
+        const optionValues = filter.property === 'setSeries' && viewMode.kind === 'collection'
+          ? [...filter.options, ...filter.includedValues, ...filter.excludedValues]
+          : [
             ...filter.options,
             ...Object.keys(globalOptionCountsByFilter[filter.order] || {}),
             ...filter.includedValues,
             ...filter.excludedValues
-          ])),
+          ];
+        const visibleOptions = sortByDefaultOrder(
+          Array.from(new Set(optionValues)),
           filter.defaultOrder
         );
 

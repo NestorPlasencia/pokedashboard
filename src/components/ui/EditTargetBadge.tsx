@@ -5,7 +5,8 @@ import { useOwnedCollections } from '../../context/OwnedCollectionsContext';
 /**
  * States, wherever you are, that clicking a card will write something - and to where.
  *
- * Arming lives in two different sidebar panels, so without this the only evidence would be
+ * Arming lives in two different places - the Wishlists panel and the Collections page - so
+ * without this the only evidence would be
  * a control appearing on the cards, which is exactly the thing that gets missed. Each entry
  * doubles as its own off switch, so disarming never means hunting for the panel again.
  */

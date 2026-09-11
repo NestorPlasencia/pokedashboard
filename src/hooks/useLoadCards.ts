@@ -2,21 +2,22 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { loadHierarchy, loadSets, loadPokemonForms } from "../services/cards";
 import {
   applyInventoryToCards,
+  generateCardsForCollection,
   generateCardsForSeries,
 } from "../services/runtimeCards";
+import { enrichCollectionCards } from "../utils/collectionEnrichment";
+import { countCopies } from "../utils/copyCount";
 import { searchErrorsInCollections } from "../utils/helpers";
 import type { Card, Set, PokemonFormData, OptionsCollection } from "../types/dashboard";
 import type { SeriesSelection } from "../context/CardContext";
-import { convertToCollectionObjects } from "../utils/utils";
 import {
   describeInventoryError,
-  loadCollectionNames,
+  loadCollectionOptions,
   loadInventory,
+  type CollectionOption,
   type InventorySnapshot,
 } from "../services/inventory";
 import { useAuth } from "../context/AuthContext";
-import { mergeOwnedIntoInventory } from "../services/ownedCollections";
-import { useOwnedCollections } from "../context/OwnedCollectionsContext";
 
 export type InventoryStatus =
   | "idle"
@@ -25,6 +26,14 @@ export type InventoryStatus =
   | "refreshing"
   | "error";
 
+export type CollectionEnrichment = {
+  status: "idle" | "loading" | "ready" | "error";
+  matched: number;
+  total: number;
+};
+
+const EMPTY_SERIES_SELECTION: SeriesSelection = { included: [], excluded: [] };
+
 export function useLoadCards(
   setAllCards: (cards: Card[]) => void,
   setCollections: (collections: OptionsCollection[]) => void,
@@ -32,21 +41,38 @@ export function useLoadCards(
   setPokemonFormsData: (forms: PokemonFormData[]) => void,
   seriesSelection: SeriesSelection,
   inventoryRequired: boolean,
-  viewedCollection = ""
+  viewedCollection = "",
+  loadAllWhenNoSeries = false,
+  /** The viewed collection and its subcollections, whose cards the collection shows. */
+  viewedCollectionScope: string[] = []
 ) {
+  // Joined into a key so a scope rebuilt with the same names on every render does not
+  // restart the loaders that depend on it.
+  const scopeKey = viewedCollectionScope.join("\u0000");
+  const scopeNames = useMemo(
+    () => (scopeKey ? scopeKey.split("\u0000") : viewedCollection ? [viewedCollection] : []),
+    [scopeKey, viewedCollection]
+  );
   const [isMetadataLoading, setIsMetadataLoading] = useState(true);
   const [isCardsLoading, setIsCardsLoading] = useState(false);
   const [baseCards, setBaseCards] = useState<Card[]>([]);
-  const [setsMetadata, setSetsMetadata] = useState<Set[]>([]);
   const [inventory, setInventory] = useState<InventorySnapshot | null>(null);
-  // Collectr's own names, kept apart so one effect can own the list the sidebar shows.
-  const [collectrNames, setCollectrNames] = useState<string[]>([]);
+  // Collectr's own collections with their printings, kept apart so one effect can own the
+  // list the sidebar shows.
+  const [collectrCollections, setCollectrCollections] = useState<CollectionOption[]>([]);
+  // The inventory carries names only, so its list is kept apart from the one that knows
+  // each collection's printings.
+  const [inventoryNames, setInventoryNames] = useState<string[]>([]);
   const [inventoryStatus, setInventoryStatus] = useState<InventoryStatus>("idle");
   const [isInventoryEmpty, setIsInventoryEmpty] = useState(false);
   const [inventoryError, setInventoryError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [collectionEnrichment, setCollectionEnrichment] = useState<CollectionEnrichment>({
+    status: "idle",
+    matched: 0,
+    total: 0,
+  });
   const { session, inventoryRevision } = useAuth();
-  const owned = useOwnedCollections();
   const userId = session?.user.id;
   const handledInventoryRevision = useRef(inventoryRevision);
 
@@ -65,6 +91,27 @@ export function useLoadCards(
   };
 
   useEffect(() => {
+    // A collection renders from its own Supabase rows, so it never waits on the catalog's
+    // metadata. Set symbols and Pokémon forms still load behind it, for the cards that get
+    // matched to the catalog.
+    if (viewedCollection) {
+      setSets([]);
+      setPokemonFormsData([]);
+      setIsMetadataLoading(false);
+      let cancelled = false;
+      loadPokemonForms()
+        .then((formsResponse) => {
+          if (!cancelled) setPokemonFormsData(formsResponse);
+        })
+        .catch((metadataError) => {
+          console.warn("[collections] Unable to load Pokemon forms for grouping", metadataError);
+        });
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
     const fetchMetadata = async () => {
       try {
         const [setsResponse, formsResponse] = await Promise.all([
@@ -72,26 +119,28 @@ export function useLoadCards(
           loadPokemonForms(),
         ]);
         setSets(setsResponse);
-        setSetsMetadata(setsResponse);
         setPokemonFormsData(formsResponse);
       } catch {
-        setError("Unable to load data. Please try again later.");
+        // A collection is still usable without them; the catalog is not.
+        if (!viewedCollection) setError("Unable to load data. Please try again later.");
       } finally {
         setIsMetadataLoading(false);
       }
     };
 
     fetchMetadata();
-    // Metadata is intentionally loaded once.
+    // Metadata is intentionally loaded once per view mode.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [viewedCollection]);
 
   useEffect(() => {
     setInventory(null);
-    setCollectrNames([]);
+    setCollectrCollections([]);
+    setInventoryNames([]);
     setIsInventoryEmpty(false);
     setInventoryError(null);
     setInventoryStatus("idle");
+    setCollectionEnrichment({ status: "idle", matched: 0, total: 0 });
     handledInventoryRevision.current = 0;
   }, [userId, setCollections]);
 
@@ -100,10 +149,10 @@ export function useLoadCards(
     if (!userId || isCardsLoading || isMetadataLoading) return;
 
     const cancelDeferred = deferUntilIdle(() => {
-      loadCollectionNames()
-        .then((collectionNames) => {
+      loadCollectionOptions()
+        .then((collectionOptions) => {
           if (!cancelled) {
-            setCollectrNames(collectionNames);
+            setCollectrCollections(collectionOptions);
           }
         })
         .catch((collectionLoadError) => {
@@ -117,7 +166,10 @@ export function useLoadCards(
       cancelled = true;
       cancelDeferred();
     };
-  }, [userId, isCardsLoading, isMetadataLoading, setCollections]);
+    // `inventoryRevision` is in here on purpose: creating or deleting a collection from
+    // the sidebar bumps it, and the list has to come back with the new row rather than
+    // waiting for a reload.
+  }, [userId, isCardsLoading, isMetadataLoading, inventoryRevision, setCollections]);
 
   useEffect(() => {
     let cancelled = false;
@@ -140,7 +192,7 @@ export function useLoadCards(
           if (cancelled) return;
           handledInventoryRevision.current = inventoryRevision;
           setInventory(inventory);
-          setCollectrNames(inventory.collectionNames);
+          setInventoryNames(inventory.collectionNames);
           setIsInventoryEmpty(inventory.activeCopyCount === 0);
           setInventoryStatus("ready");
         })
@@ -169,72 +221,78 @@ export function useLoadCards(
     setCollections,
   ]);
 
-  // The sidebar lists both sources as one set of collections. Deduplicated because a
-  // hand-kept collection may share a name with a Collectr one, and the filter addresses
-  // collections by name.
+  // Collections of every origin come from the same query now, so the sidebar list is
+  // whatever that returned. Only the names the snapshot reports are added on top, for the
+  // window between an inventory refresh and the next read of the collection list.
   useEffect(() => {
-    setCollections(convertToCollectionObjects([...new Set([...collectrNames, ...owned.names])]));
-  }, [collectrNames, owned.names, setCollections]);
+    const byName = new Map<string, OptionsCollection>();
+    for (const collection of collectrCollections) {
+      if (!byName.has(collection.name)) byName.set(collection.name, collection);
+    }
+    for (const name of inventoryNames) {
+      if (byName.has(name)) continue;
+      byName.set(name, {
+        id: "",
+        name,
+        printings: [],
+        origin: "collectr",
+        kind: "owned",
+        parentId: null,
+        editable: false,
+        managedBy: "collectr",
+        isPublic: false,
+      });
+    }
+    setCollections([...byName.values()]);
+  }, [collectrCollections, inventoryNames, setCollections]);
 
-  // Hand-kept collections are folded in here, so everything downstream - the collection
-  // filter, the "View" mode, the owned counters, Missing, print - sees one inventory and
-  // needs no idea that some of it never came from Collectr.
+  // Cards per collection, counted the way collection view lists them: one per product and
+  // printing. Loaded whether or not the catalog needs the inventory, so the Collections
+  // page can show them without enabling a filter.
+  const collectionCardCounts = useMemo(() => {
+    if (!inventory) return null;
+    const counts = new Map<string, number>();
+    for (const entries of inventory.entriesByProductId.values()) {
+      for (const entry of entries) {
+        counts.set(entry.collectionName, (counts.get(entry.collectionName) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [inventory]);
+
+  const collectionCopyCounts = useMemo(() => {
+    if (!inventory) return null;
+    const counts = new Map<string, number>();
+    for (const entries of inventory.entriesByProductId.values()) {
+      for (const entry of entries) {
+        counts.set(
+          entry.collectionName,
+          (counts.get(entry.collectionName) ?? 0) + countCopies(entry.conditions)
+        );
+      }
+    }
+    return counts;
+  }, [inventory]);
+
   const effectiveInventory = useMemo(
-    () => mergeOwnedIntoInventory(inventoryRequired ? inventory : null, owned.collections),
-    [inventory, inventoryRequired, owned.collections]
+    () => (inventoryRequired ? inventory : null),
+    [inventory, inventoryRequired]
   );
 
   useEffect(() => {
-    const hasCollectrInventory = inventoryRequired && inventory;
-    const hasOwnedCards = owned.collections.some((collection) => collection.cards.length > 0);
-    if (!hasCollectrInventory && !hasOwnedCards) {
+    if (!effectiveInventory) {
       setAllCards(baseCards);
       return;
     }
     const enrichedCards = applyInventoryToCards(baseCards, effectiveInventory);
     searchErrorsInCollections(enrichedCards);
     setAllCards(enrichedCards);
-  }, [baseCards, inventory, inventoryRequired, effectiveInventory, owned.collections, setAllCards]);
+  }, [baseCards, effectiveInventory, setAllCards]);
 
-  const seriesForCollection = useMemo(() => {
-    if (!viewedCollection) return null;
-    const inventory = effectiveInventory;
-    // Collectr names the set ("Evolving Skies"); the hierarchy carries the same names,
-    // so matching on a normalized name resolves the series without a shared id.
-    const normalize = (name: string) => name.trim().toLowerCase();
-    const seriesBySetName = new Map<string, string>();
-    for (const set of setsMetadata) {
-      if (set.name) seriesBySetName.set(normalize(set.name), set.series);
-    }
-    const included = new Set<string>();
-    const unresolved = new Set<string>();
-    const collectionNames = new Set<string>();
-    let matched = 0;
-    let withoutGroup = 0;
-    for (const entries of inventory.entriesByProductId.values()) {
-      for (const entry of entries) {
-        collectionNames.add(entry.collectionName);
-        if (entry.collectionName !== viewedCollection) continue;
-        matched++;
-        if (!entry.catalogGroup) { withoutGroup++; continue; }
-        const series = seriesBySetName.get(normalize(entry.catalogGroup));
-        if (series) included.add(series);
-        else unresolved.add(entry.catalogGroup);
-      }
-    }
-    console.info("[collections] Series resolution", {
-      viewedCollection,
-      entriesInCollection: matched,
-      entriesWithoutCatalogGroup: withoutGroup,
-      knownSets: seriesBySetName.size,
-      resolvedSeries: [...included],
-      unmatchedSetNames: [...unresolved],
-      availableCollections: [...collectionNames],
-    });
-    return { included: [...included], excluded: [] } as SeriesSelection;
-  }, [viewedCollection, effectiveInventory, setsMetadata]);
-
-  const effectiveSeriesSelection = seriesForCollection ?? seriesSelection;
+  // Series selection controls catalog loading only. Collection cards are already
+  // scoped by the active collection, so changing a Series filter must not reload
+  // and reset the collection cards.
+  const effectiveSeriesSelection = viewedCollection ? EMPTY_SERIES_SELECTION : seriesSelection;
 
   useEffect(() => {
     let cancelled = false;
@@ -243,7 +301,106 @@ export function useLoadCards(
       setError(null);
       setIsCardsLoading(true);
       setBaseCards([]);
+      setCollectionEnrichment({ status: "idle", matched: 0, total: 0 });
       try {
+        if (viewedCollection) {
+          if (!effectiveInventory) return;
+          const collectionResult = generateCardsForCollection(
+            effectiveInventory,
+            scopeNames
+          );
+          const collectionCards = collectionResult.items;
+          if (!cancelled) {
+            setBaseCards(collectionCards);
+            setCollectionEnrichment({
+              status: "loading",
+              matched: 0,
+              total: collectionCards.length,
+            });
+            // Supabase already has enough information to render the collection. Catalog
+            // enrichment continues in the background and must not keep this first render
+            // behind the global loading state.
+            setIsCardsLoading(false);
+          }
+          console.info("[collections] Built collection from Supabase", {
+            viewedCollection,
+            cards: collectionCards.length,
+          });
+
+          if (collectionCards.length === 0) {
+            if (!cancelled) setCollectionEnrichment({ status: "ready", matched: 0, total: 0 });
+            return;
+          }
+
+          try {
+            // The inventory has product ids and set names, while the external catalog is
+            // grouped by series. Load only the series that can contain these set names;
+            // fall back to the full hierarchy when the mirror has no usable set name.
+            const hierarchy = await loadHierarchy();
+            const setNames = new Set(
+              collectionCards.map((card) => card.setName).filter((name) => name && name !== "Unknown set")
+            );
+            const matchingSeries = hierarchy.filter((series) =>
+              series.sets.some((set) => setNames.has(set.name))
+            );
+            const seriesToLoad = matchingSeries.length > 0 ? matchingSeries : hierarchy;
+            const catalogByProduct = new Map<number, Card[]>();
+            let loadedSeries = 0;
+            let failedSeries = 0;
+            const updateEnrichment = () => {
+              const enriched = enrichCollectionCards(collectionCards, catalogByProduct, viewedCollection);
+              const matched = enriched.filter((card, index) => card !== collectionCards[index]).length;
+              if (cancelled) return;
+              setBaseCards(enriched);
+              setCollectionEnrichment({
+                status: loadedSeries + failedSeries === seriesToLoad.length ? "ready" : "loading",
+                matched,
+                total: collectionCards.length,
+              });
+            };
+
+            if (seriesToLoad.length === 0) {
+              updateEnrichment();
+              return;
+            }
+
+            // Requests run in parallel, but each completed series is applied immediately so
+            // collection cards progressively gain their real image, metadata and prices.
+            await Promise.allSettled(seriesToLoad.map(async (series) => {
+              try {
+                const response = await generateCardsForSeries(series.id);
+                for (const card of response.items) {
+                  if (!card.productId) continue;
+                  const candidates = catalogByProduct.get(card.productId) ?? [];
+                  candidates.push(card);
+                  catalogByProduct.set(card.productId, candidates);
+                }
+                loadedSeries += 1;
+              } catch (seriesError) {
+                failedSeries += 1;
+                console.warn("[collections] Unable to enrich one collection series", {
+                  seriesId: series.id,
+                  error: seriesError,
+                });
+              }
+              updateEnrichment();
+            }));
+            if (!cancelled && failedSeries > 0) {
+              const enriched = enrichCollectionCards(collectionCards, catalogByProduct, viewedCollection);
+              const matched = enriched.filter((card, index) => card !== collectionCards[index]).length;
+              setBaseCards(enriched);
+              setCollectionEnrichment({ status: "error", matched, total: collectionCards.length });
+            }
+          } catch (enrichmentError) {
+            console.error("[collections] Unable to enrich collection cards", enrichmentError);
+            if (!cancelled) {
+              // The Supabase fields are still useful as a degraded collection view.
+              setCollectionEnrichment({ status: "error", matched: 0, total: collectionCards.length });
+            }
+          }
+          return;
+        }
+
         console.info("[cards] Loading selected series", { effectiveSeriesSelection });
         const hierarchy = await loadHierarchy();
         const selectedNames = effectiveSeriesSelection.included.length > 0
@@ -254,6 +411,11 @@ export function useLoadCards(
                 .filter((name) => !effectiveSeriesSelection.excluded.includes(name))
             : [];
 
+        if (selectedNames.length === 0 && loadAllWhenNoSeries) {
+          // Core wishlist rows are keyed by product_id and do not carry the dashboard's
+          // series name. Load the hierarchy and let the wishlist product keys narrow it.
+          selectedNames.push(...hierarchy.map((series) => series.name));
+        }
         if (selectedNames.length === 0) {
           if (!cancelled) setBaseCards([]);
           return;
@@ -294,14 +456,22 @@ export function useLoadCards(
     return () => {
       cancelled = true;
     };
-  }, [effectiveSeriesSelection]);
+  }, [effectiveInventory, effectiveSeriesSelection, loadAllWhenNoSeries, viewedCollection, scopeNames]);
+
+  // A collection has nothing to show until its inventory arrives; without this the list
+  // would briefly claim that no cards match.
+  const isCollectionPending =
+    Boolean(viewedCollection) && Boolean(userId) && !effectiveInventory && inventoryStatus !== "error";
 
   return {
-    isLoading: isMetadataLoading || isCardsLoading,
+    isLoading: isMetadataLoading || isCardsLoading || isCollectionPending,
     isInventoryEmpty,
     inventoryStatus,
     inventoryUpdatedAt: inventory?.fetchedAt ?? null,
     inventoryError,
+    collectionCardCounts,
+    collectionCopyCounts,
+    collectionEnrichment,
     error,
   };
 }

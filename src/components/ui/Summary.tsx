@@ -1,9 +1,11 @@
 import { useMemo, type ClipboardEvent, type CSSProperties } from "react";
 import { useCardContext } from "../../context/CardContext";
-import type { Card, ConditionKey } from "../../types/dashboard";
+import type { Card } from "../../types/dashboard";
 import { calculatePriceSummary } from "../../utils/utils";
 import { shouldIncludePokemonForm } from "../../utils/filters";
 import { POKEDEX_REGIONS } from "../../constants/constants";
+import { useOptionsContext } from "../../context/OptionsContext";
+import { activeFilterCollectionNames, quantityCollectionNames } from "../../utils/collectionQuantity";
 
 interface RegionPokemonStats {
   regionName: string;
@@ -31,14 +33,6 @@ interface SetProgressRow {
   thresholds: SetProgressThreshold[];
 }
 
-const CONDITION_KEYS: ConditionKey[] = [
-  "Near Mint",
-  "Lightly Played",
-  "Moderately Played",
-  "Damaged",
-  "Heavily Played"
-];
-
 export const Summary = () => {
   const { 
     filteredCards, 
@@ -48,36 +42,71 @@ export const Summary = () => {
     pokemonGrouping, 
     collectionFilter,
     pokemonFormsData,
-    sets
+    sets,
+    viewMode
   } = useCardContext();
-  
+  const { collections } = useOptionsContext();
+
+  const summaryCollectionNames = useMemo(
+    () => viewMode.kind === "collection"
+      ? quantityCollectionNames(viewMode, collections, [])
+      : activeFilterCollectionNames(collectionFilter.selectedCollections),
+    [viewMode, collections, collectionFilter.selectedCollections]
+  );
+  const hasCollectionScope = summaryCollectionNames.length > 0;
+  // Viewing a collection scopes the card list, but ownership and missing-card metrics
+  // appear only after the user marks one or more collections in the filter.
+  const ownershipCollectionNames = useMemo(
+    () => activeFilterCollectionNames(collectionFilter.selectedCollections),
+    [collectionFilter.selectedCollections]
+  );
+  const showsOwnership = ownershipCollectionNames.length > 0;
+
   // Memoize price summary calculation
   const summary = useMemo(() => {
     return calculatePriceSummary(
       filteredCards, 
       variantsFilter,
-      collectionFilter.enabled,
-      collectionFilter.selectedCollections,
+      hasCollectionScope,
+      summaryCollectionNames,
       collectionFilter.limit,
       variantsFilter,
-      conditionsFilter
+      hasCollectionScope ? collectionFilter.conditionsFilter : conditionsFilter
     );
   }, [
     filteredCards,
     variantsFilter,
     conditionsFilter,
-    collectionFilter.enabled,
-    collectionFilter.selectedCollections,
-    collectionFilter.limit
+    collectionFilter.conditionsFilter,
+    collectionFilter.limit,
+    summaryCollectionNames,
+    hasCollectionScope,
+  ]);
+
+  const ownershipSummary = useMemo(() => calculatePriceSummary(
+    filteredCards,
+    variantsFilter,
+    showsOwnership,
+    ownershipCollectionNames,
+    collectionFilter.limit,
+    variantsFilter,
+    ["All"]
+  ), [
+    filteredCards,
+    variantsFilter,
+    showsOwnership,
+    ownershipCollectionNames,
+    collectionFilter.limit,
   ]);
 
   const setProgress = useMemo(() => {
     const limit = Math.max(1, collectionFilter.limit || 1);
-    const thresholds = Array.from({ length: limit }, (_, index) => index + 1);
-    const selectedCollections = collectionFilter.selectedCollections;
-    const selectedConditions = collectionFilter.conditionsFilter.includes("All")
-      ? CONDITION_KEYS
-      : CONDITION_KEYS.filter((condition) => collectionFilter.conditionsFilter.includes(condition));
+    const selectedCollections = ownershipCollectionNames;
+    // Ownership is measured against the collections chosen in the filter. With the filter
+    // off or nothing chosen every card counts as unowned, so the columns would only ever
+    // read 0% - the table keeps its set totals and leaves them out.
+    const tracksOwnership = selectedCollections.length > 0;
+    const thresholds = tracksOwnership ? Array.from({ length: limit }, (_, index) => index + 1) : [];
     const setLogoByName = new Map(
       sets.map((set) => [set.name, set.images?.symbol || set.symbolImage || ""])
     );
@@ -89,10 +118,9 @@ export const Summary = () => {
         .filter((collection) => selectedCollections.includes(collection.name))
         .reduce((collectionSum, collection) => {
           const quantity = collection.quantity || {};
-          const conditionSum = selectedConditions.reduce(
-            (sum, condition) => sum + (quantity[condition] || 0),
-            0
-          );
+          // Progress belongs to the ownership selection, not the collection view condition.
+          // Every active copy, including one with an unknown condition, counts here.
+          const conditionSum = Object.values(quantity).reduce((sum, value) => sum + (value || 0), 0);
           return collectionSum + conditionSum;
         }, 0);
     };
@@ -149,9 +177,8 @@ export const Summary = () => {
   }, [
     filteredCards,
     collectionFilter.limit,
-    collectionFilter.selectedCollections,
-    collectionFilter.conditionsFilter,
-    sets
+    sets,
+    ownershipCollectionNames
   ]);
 
   // Memoize Pokemon + Pokemon Forms statistics per region
@@ -160,7 +187,7 @@ export const Summary = () => {
       return null;
     }
 
-    const cardsForStats = collectionFilter.enabled ? collectionFilteredCards : filteredCards;
+    const cardsForStats = showsOwnership ? collectionFilteredCards : filteredCards;
 
     // Determine which forms to include based on current filter settings
     let filteredForms = pokemonFormsData;
@@ -182,9 +209,9 @@ export const Summary = () => {
           card.pokemonForms.forEach(name => {
             formNamesWithCards.add(name);
             // Check if owned
-            if (collectionFilter.selectedCollections.length > 0) {
+            if (ownershipCollectionNames.length > 0) {
               const owned = (card.collections || [])
-                .filter(c => collectionFilter.selectedCollections.includes(c.name))
+                .filter(c => ownershipCollectionNames.includes(c.name))
                 .reduce((sum, c) => {
                   const qty = c.quantity || {};
                   return sum + Object.values(qty).reduce((s, v) => s + (v || 0), 0);
@@ -207,9 +234,9 @@ export const Summary = () => {
         if (!card.shadow) {
           card.nationalPokedexNumbers.forEach(num => {
             pokemonNumbersWithCards.add(num);
-            if (collectionFilter.selectedCollections.length > 0) {
+            if (ownershipCollectionNames.length > 0) {
               const owned = (card.collections || [])
-                .filter(c => collectionFilter.selectedCollections.includes(c.name))
+                .filter(c => ownershipCollectionNames.includes(c.name))
                 .reduce((sum, c) => {
                   const qty = c.quantity || {};
                   return sum + Object.values(qty).reduce((s, v) => s + (v || 0), 0);
@@ -292,8 +319,8 @@ export const Summary = () => {
     pokemonGrouping.hideVariants,
     filteredCards,
     collectionFilteredCards,
-    collectionFilter.enabled,
-    collectionFilter.selectedCollections,
+    showsOwnership,
+    ownershipCollectionNames,
     pokemonFormsData
   ]);
 
@@ -349,14 +376,14 @@ export const Summary = () => {
         <tbody>
           <tr>
             <td>📋 Cards in search</td>
-            <td><strong>{summary.totalCards}</strong></td>
+            <td><strong>{summary.isCollectionView ? summary.totalCopies : summary.totalCards}</strong></td>
             <td><strong>{formatPrice(summary.total)}</strong></td>
           </tr>
-          {collectionFilter.limit > 1 && (
+          {showsOwnership && collectionFilter.limit > 1 && (
             <tr className="secondary-row">
               <td>📋 Cards in search ({collectionFilter.limit})</td>
-              <td><strong>{summary.totalCardsToLimit}</strong></td>
-              <td><strong>{formatPrice(summary.totalToLimitPrice)}</strong></td>
+              <td><strong>{ownershipSummary.totalCardsToLimit}</strong></td>
+              <td><strong>{formatPrice(ownershipSummary.totalToLimitPrice)}</strong></td>
             </tr>
           )}
           {summary.withoutPriceCount > 0 && (
@@ -375,7 +402,7 @@ export const Summary = () => {
       </table>
 
       {/* Collection Information */}
-      {summary.isCollectionView && (
+      {showsOwnership && (
         <table className="summary-table">
           <thead>
             <tr>
@@ -387,25 +414,25 @@ export const Summary = () => {
           <tbody>
             <tr>
               <td>✅ Cards owned</td>
-              <td><strong>{summary.ownedCards}</strong></td>
-              <td><strong>{formatPrice(summary.ownedPrice)}</strong></td>
+              <td><strong>{ownershipSummary.ownedCards}</strong></td>
+              <td><strong>{formatPrice(ownershipSummary.ownedPrice)}</strong></td>
             </tr>
             {collectionFilter.limit > 1 && (
               <tr className="secondary-row">
                 <td>✅ Cards owned ({collectionFilter.limit})</td>
-                <td><strong>{summary.ownedToLimit}</strong></td>
-                <td><strong>{formatPrice(summary.ownedToLimitPriceTotal)}</strong></td>
+                <td><strong>{ownershipSummary.ownedToLimit}</strong></td>
+                <td><strong>{formatPrice(ownershipSummary.ownedToLimitPriceTotal)}</strong></td>
               </tr>
             )}
             <tr>
               <td>❌ Missing cards</td>
-              <td><strong>{summary.missingCards}</strong></td>
-              <td><strong>{formatPrice(summary.missingPrice)}</strong></td>
+              <td><strong>{ownershipSummary.missingCards}</strong></td>
+              <td><strong>{formatPrice(ownershipSummary.missingPrice)}</strong></td>
             </tr>
             <tr className="secondary-row">
               <td>❌ Missing cards ({collectionFilter.limit})</td>
-              <td><strong>{summary.missingToLimit}</strong></td>
-              <td><strong>{formatPrice(summary.missingToLimitPriceTotal)}</strong></td>
+              <td><strong>{ownershipSummary.missingToLimit}</strong></td>
+              <td><strong>{formatPrice(ownershipSummary.missingToLimitPriceTotal)}</strong></td>
             </tr>
             
 
@@ -423,9 +450,16 @@ export const Summary = () => {
                 <tr>
                   <th data-copy-value="Set">Set</th>
                   <th data-copy-value="Total">Total</th>
-                  {setProgress.thresholds.map((threshold) => (
-                    <th key={threshold} data-copy-value={String(threshold)}>{threshold}</th>
-                  ))}
+                  {/* "Owned" alone when one copy counts; with a higher quantity required,
+                      one column per number of copies. */}
+                  {setProgress.thresholds.map((threshold) => {
+                    const label = setProgress.thresholds.length === 1 ? "Owned" : `Owned ×${threshold}`;
+                    return (
+                      <th key={threshold} data-copy-value={label} title={`Cards with at least ${threshold} ${threshold === 1 ? "copy" : "copies"} in the selected collections`}>
+                        {label}
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>

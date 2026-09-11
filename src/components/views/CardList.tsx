@@ -5,6 +5,7 @@ import { TrendCardView } from "./TrendCardView";
 import { useCardContext } from "../../context/CardContext";
 import { Card, PokemonFormData, PokemonFormWithoutCard } from "../../types/dashboard";
 import { CardGroup } from "./CardGroup";
+import { SeriesStarter } from "./SeriesStarter";
 import { groupCardsByForm, sliceFormGroups, shouldIncludePokemonForm } from "../../utils/filters";
 
 const CardListComponent: React.FC = () => {
@@ -14,8 +15,6 @@ const CardListComponent: React.FC = () => {
     collectionFilter,
     pokemonFormsData,
     seriesSelection,
-    setSeriesSelection,
-    sets,
     viewOptions,
     viewMode
   } = useCardContext();
@@ -27,12 +26,10 @@ const CardListComponent: React.FC = () => {
   const wishlists = useWishlists();
   // Grouping by Pokémon form only applies to the catalog; the other two modes render the
   // exact set of cards they scope to.
-  const isFormsGrouping = pokemonGrouping.enabled && viewMode.kind === 'catalog';
-
-  const availableSeries = useMemo(
-    () => Array.from(new Set(sets.map((set) => set.series).filter(Boolean))),
-    [sets]
-  );
+  // Collection views already scope renderCards to the active collection, so grouping
+  // these cards cannot leak groups from the full catalog.
+  const isFormsGrouping =
+    pokemonGrouping.enabled && (viewMode.kind === 'catalog' || viewMode.kind === 'collection');
 
   // Memoize filtered actual cards (without placeholders)
   const actualCards = useMemo(() => {
@@ -153,7 +150,10 @@ const CardListComponent: React.FC = () => {
   }, [isFormsGrouping, formsToShow, displayedFormGroups, pokemonGrouping.groupSortBy]);
 
   const isEmpty = renderCards.length === 0;
-  const isAwaitingSeries = seriesSelection.included.length === 0 && seriesSelection.excluded.length === 0;
+  const isAwaitingSeries =
+    viewMode.kind === 'catalog' &&
+    seriesSelection.included.length === 0 &&
+    seriesSelection.excluded.length === 0;
 
   // Only a wishlist splits into titled sections; a collection renders as one flat list.
   const sections = useMemo(() => {
@@ -165,29 +165,13 @@ const CardListComponent: React.FC = () => {
   return (
     <div className={`card-list${viewOptions.displayMode.includes('trend') ? ' card-list--trend' : ''}`}>
       {isEmpty && (
-        <div className="card-list-empty">
-          {isAwaitingSeries ? (
-            <>
-              <p className="series-starter__title">Select a series to start exploring cards.</p>
-              <div className="series-starter">
-                <div className="series-starter__options" aria-label="Select a Pokémon card series">
-                  {availableSeries.map((series) => (
-                    <button
-                      key={series}
-                      type="button"
-                      onClick={() => setSeriesSelection({ included: [series], excluded: [] })}
-                    >
-                      {series}
-                    </button>
-                  ))}
-                </div>
-                <p className="series-starter__hint">
-                  Want to select more than one series? Open the Filters panel to build a multi-series selection.
-                </p>
-              </div>
-            </>
-          ) : 'No cards match your current filters.'}
-        </div>
+        isAwaitingSeries ? (
+          <div className="card-list-empty card-list-empty--starter">
+            <SeriesStarter />
+          </div>
+        ) : (
+          <div className="card-list-empty">No cards match your current filters.</div>
+        )
       )}
       {isFormsGrouping &&
         formNamesToRender.map(formName => {

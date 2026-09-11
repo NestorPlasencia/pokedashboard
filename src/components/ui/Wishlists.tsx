@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, ChevronDown, ChevronRight, Eye, MoreHorizontal, Pencil, PencilOff, Plus, Trash2, X } from 'lucide-react';
 import { CollapsibleSection } from './CollapsibleSection';
+import { CatalogBreadcrumb } from './CatalogBreadcrumb';
 import { useWishlists } from '../../context/WishlistsContext';
 import { useCardContext } from '../../context/CardContext';
 import { CATALOG_VIEW, assertNeverViewMode } from '../../utils/viewMode';
 import type { Card, CollectionFilterOptions } from '../../types/dashboard';
+import { cardKey } from '../../services/wishlists';
 
 export function Wishlists({ busy }: { busy: boolean }) {
   const wishlists = useWishlists();
@@ -32,9 +34,9 @@ export function Wishlists({ busy }: { busy: boolean }) {
     setMenu(null);
     setNotice('');
   };
-  const creationForm = (parentId: string | null) => draft?.parentId === parentId && <form className="wishlist-tree-create" onSubmit={event => {
+  const creationForm = (parentId: string | null) => draft?.parentId === parentId && <form className="wishlist-tree-create" onSubmit={async event => {
     event.preventDefault();
-    if (wishlists.create(draft.name, parentId !== null, parentId ?? undefined)) {
+    if (await wishlists.create(draft.name, parentId !== null, parentId ?? undefined)) {
       setDraft(null);
       setNotice(parentId ? 'Subcollection created. You can start adding cards.' : 'Wishlist created. Add a subcollection next.');
     }
@@ -56,7 +58,7 @@ export function Wishlists({ busy }: { busy: boolean }) {
           {wishlists.wishlists.map(collection => {
             const active = wishlists.wishlist?.id === collection.id;
             const open = !collapsed.has(collection.id) && (expanded.has(collection.id) || active);
-            const count = new Set(collection.subcollections.flatMap(sub => sub.cards.map(card => JSON.stringify([card.era, card.id])))).size;
+            const count = new Set(collection.subcollections.flatMap(sub => sub.cards.map(cardKey))).size;
             return <li key={collection.id}>
               <div className={`wishlist-tree-row ${active && !wishlists.subcollection ? 'is-selected' : ''}`}>
                 <button className="wishlist-tree-toggle" type="button" aria-label={`${open ? 'Collapse' : 'Expand'} ${collection.name}`} aria-expanded={open} onClick={() => {
@@ -107,7 +109,7 @@ export function Wishlists({ busy }: { busy: boolean }) {
         {draft?.parentId === null ? creationForm(null) : <button className="wishlist-tree-new" onClick={() => startCreate(null)}><Plus size={12} aria-hidden="true" /> Wishlist</button>}
         {wishlists.wishlist && <div className="wishlist-tree-context">
           {wishlists.viewing ? <button onClick={() => wishlists.setViewing(false)}><ArrowLeft size={13} aria-hidden="true" /> Back to catalog</button> : <>
-            {wishlists.armedSubcollection && !busy && !trendLoading && additions.length > 0 && <button className="wishlist-tree-add" onClick={() => { const added = wishlists.add(cards); if (added) setNotice(`${added} cards added to ${wishlists.armedSubcollection!.name}.`); }}><Plus size={12} aria-hidden="true" /> Add everything shown ({additions.length})</button>}
+            {wishlists.armedSubcollection && !busy && !trendLoading && additions.length > 0 && <button className="wishlist-tree-add" onClick={async () => { const added = await wishlists.add(cards); if (added) setNotice(`${added} cards added to ${wishlists.armedSubcollection!.name}.`); }}><Plus size={12} aria-hidden="true" /> Add everything shown ({additions.length})</button>}
             {wishlists.armedSubcollection && <small>{busy || trendLoading ? 'Loading results…' : !cards.length ? 'Search for cards to add them here.' : !additions.length ? 'Every card shown is already saved.' : `Adding to: ${wishlists.armedSubcollection.name}`}</small>}
             {wishlists.keys.size > 0 && <button className="wishlist-tree-new" onClick={() => wishlists.setViewing(true)}>View saved cards <ArrowRight size={13} aria-hidden="true" /></button>}
           </>}
@@ -157,7 +159,8 @@ export function ViewModeBadge() {
   const backToCatalog = () => setViewMode(CATALOG_VIEW);
   switch (viewMode.kind) {
     case 'catalog':
-      return <span className="view-mode-badge" title="Browsing the full card catalog">Catalog</span>;
+      // In the catalog the badge becomes the path to what is shown, so it doubles as the way back.
+      return <CatalogBreadcrumb />;
     case 'collection':
       return <button
         type="button"
@@ -175,7 +178,7 @@ export function ViewModeBadge() {
       if (!wishlists.wishlist) {
         return <span className="view-mode-badge" title="Opening the saved wishlist">Wishlist</span>;
       }
-      const loaded = allCards.filter(c => wishlists.keys.has(JSON.stringify([c.setSeries, c.id]))).length;
+      const loaded = allCards.filter(c => wishlists.keys.has(cardKey({ id: c.id, era: c.setSeries, productId: c.productId, printing: c.printing || c.variant || null }))).length;
       const missing = wishlists.keys.size - loaded;
       const name = wishlists.wishlist.name + (wishlists.subcollection ? ` / ${wishlists.subcollection.name}` : '');
       return <button
@@ -194,4 +197,3 @@ export function ViewModeBadge() {
       return assertNeverViewMode(viewMode);
   }
 }
-

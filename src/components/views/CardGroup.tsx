@@ -179,7 +179,7 @@ const CardGroupComponent: React.FC<CardGroupProps> = ({ cards, pokedexNumber, gr
             {!isEmpty && (cards.length > 0) && <CardComponent card={(firstNonShadowedCard || sortedCards[0]) as Card} key="group-preview" />}
             <div className="length">
               {isEmpty ? '0' : cards.filter(c => !('isPlaceholder' in c)).length}
-              {!isEmpty && collectionFilter.enabled && (() => {
+              {!isEmpty && collectionFilter.selectedCollections.length > 0 && (() => {
                 const realCards = cards.filter(c => !('isPlaceholder' in c)) as Card[];
                 const nonShadowCount = realCards.filter(c => !c.shadow).length;
                 return nonShadowCount !== realCards.length ? (
