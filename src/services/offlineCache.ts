@@ -158,6 +158,37 @@ export const loadCached = async <T>(
   }
 };
 
+/**
+ * The same storage `loadCached` uses, for a value whose freshness its caller owns.
+ *
+ * The inventory snapshot is that case: it has its own age rule, its own in-memory copy and
+ * an in-place patch, so it reads and writes here directly instead of going through
+ * `loadCached`. It lives in the Cache API rather than localStorage because a whole
+ * account's copies run to megabytes, and localStorage's ~5MB ceiling refused the write
+ * silently - leaving nothing on disk to open the app with offline.
+ */
+export const readStoredValue = async <T>(
+  key: string
+): Promise<{ value: T; storedAt: number } | null> => {
+  const cache = await openDataCache();
+  return cache ? readEntry<T>(cache, key) : null;
+};
+
+export const writeStoredValue = async (key: string, value: unknown): Promise<void> => {
+  const cache = await openDataCache();
+  if (cache) await writeEntry(cache, key, value);
+};
+
+export const deleteStoredValue = async (key: string): Promise<void> => {
+  const cache = await openDataCache();
+  if (!cache) return;
+  try {
+    await cache.delete(cacheUrl(key));
+  } catch (error) {
+    console.warn('[cache] Unable to remove an entry', { key, error });
+  }
+};
+
 // ---------------------------------------------------------------------------
 // Reporting and clearing
 // ---------------------------------------------------------------------------

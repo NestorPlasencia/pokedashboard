@@ -1,4 +1,5 @@
 import type { ConditionKey, QuantityKey } from "../types/dashboard";
+import { deleteStoredValue, readStoredValue, writeStoredValue } from "./offlineCache";
 import { supabase } from "./supabase";
 
 /** Whether the collection is maintained by Collectr or by this application. */
@@ -170,8 +171,21 @@ const emptyInventory = (): InventorySnapshot => ({
   fetchedAt: null,
 });
 
-const inventoryStorageKey = (userId: string) =>
-  `${inventoryStoragePrefix}${userId}`;
+const inventoryStorageKey = (userId: string) => `inventory:${userId}`;
+
+/**
+ * Where the snapshot used to live. A whole account's copies never fit in localStorage, so
+ * the write failed and left nothing behind; the key is removed on sight so the dead - and
+ * possibly multi-megabyte - leftovers are not carried around forever.
+ */
+const dropLegacyStoredInventory = (userId: string) => {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(`${inventoryStoragePrefix}${userId}`);
+  } catch {
+    // Storage blocked; there is nothing to clean up that matters.
+  }
+};
 
 /**
  * How long a stored snapshot is trusted without asking the server again - Collectr syncs
@@ -186,37 +200,36 @@ const storedInventoryMaxAge = 12 * 60 * 60 * 1000;
 const isFresh = (snapshot: InventorySnapshot): boolean =>
   snapshot.fetchedAt !== null && Date.now() - snapshot.fetchedAt <= storedInventoryMaxAge;
 
-const readStoredInventory = (userId: string): InventorySnapshot | null => {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(inventoryStorageKey(userId));
-    if (!raw) return null;
-    const stored = JSON.parse(raw) as Partial<StoredInventorySnapshot>;
-    if (
-      stored.version !== 7 ||
-      stored.userId !== userId ||
-      !Array.isArray(stored.collectionNames) ||
-      !Array.isArray(stored.entriesByProductId) ||
-      typeof stored.activeCopyCount !== "number" ||
-      typeof stored.fetchedAt !== "number"
-    ) {
-      window.localStorage.removeItem(inventoryStorageKey(userId));
-      return null;
-    }
-    return {
-      collectionNames: stored.collectionNames,
-      entriesByProductId: new Map(stored.entriesByProductId),
-      activeCopyCount: stored.activeCopyCount,
-      fetchedAt: stored.fetchedAt,
-    };
-  } catch (error) {
-    console.warn("[collections] Unable to read the stored inventory cache", error);
+const readStoredInventory = async (userId: string): Promise<InventorySnapshot | null> => {
+  const entry = await readStoredValue<Partial<StoredInventorySnapshot>>(
+    inventoryStorageKey(userId)
+  );
+  if (!entry) return null;
+  const stored = entry.value;
+  if (
+    stored?.version !== 7 ||
+    stored.userId !== userId ||
+    !Array.isArray(stored.collectionNames) ||
+    !Array.isArray(stored.entriesByProductId) ||
+    typeof stored.activeCopyCount !== "number" ||
+    typeof stored.fetchedAt !== "number"
+  ) {
+    await deleteStoredValue(inventoryStorageKey(userId));
     return null;
   }
+  return {
+    collectionNames: stored.collectionNames,
+    entriesByProductId: new Map(stored.entriesByProductId),
+    activeCopyCount: stored.activeCopyCount,
+    fetchedAt: stored.fetchedAt,
+  };
 };
 
-const writeStoredInventory = (userId: string, snapshot: InventorySnapshot) => {
-  if (typeof window === "undefined" || snapshot.fetchedAt === null) return;
+const writeStoredInventory = async (
+  userId: string,
+  snapshot: InventorySnapshot
+): Promise<void> => {
+  if (snapshot.fetchedAt === null) return;
   const stored: StoredInventorySnapshot = {
     version: 7,
     userId,
@@ -225,14 +238,8 @@ const writeStoredInventory = (userId: string, snapshot: InventorySnapshot) => {
     activeCopyCount: snapshot.activeCopyCount,
     fetchedAt: snapshot.fetchedAt,
   };
-  try {
-    window.localStorage.setItem(
-      inventoryStorageKey(userId),
-      JSON.stringify(stored)
-    );
-  } catch (error) {
-    console.warn("[collections] Unable to persist the stored inventory cache", error);
-  }
+  await writeStoredValue(inventoryStorageKey(userId), stored);
+  dropLegacyStoredInventory(userId);
 };
 
 const requireClient = () => {
@@ -519,7 +526,7 @@ export const loadInventory = async (
 
   if (!options.forceRefresh) {
     if (inventoryCache?.userId === userId) return inventoryCache.snapshot;
-    const stored = readStoredInventory(userId);
+    const stored = await readStoredInventory(userId);
     // Only a copy still within its age is served without asking; an older one is kept for
     // the fallback below rather than returned as if it were current.
     if (stored && isFresh(stored)) {
@@ -531,15 +538,15 @@ export const loadInventory = async (
   if (inventoryPromise?.userId === userId) return inventoryPromise.promise;
 
   const promise = createSnapshot()
-    .then((snapshot) => {
+    .then(async (snapshot) => {
       inventoryCache = { userId, snapshot };
-      writeStoredInventory(userId, snapshot);
+      await writeStoredInventory(userId, snapshot);
       return snapshot;
     })
-    .catch((error) => {
+    .catch(async (error) => {
       // The same rule the JSON caches follow: when the network cannot answer, a saved
       // copy - however old - beats an empty screen.
-      const stored = readStoredInventory(userId);
+      const stored = await readStoredInventory(userId);
       if (!stored) throw error;
       console.warn("[collections] Network failed; serving the saved inventory", {
         storedAt: stored.fetchedAt ? new Date(stored.fetchedAt).toISOString() : null,
@@ -560,10 +567,12 @@ export const clearInventoryCache = (
   const cachedUserId = inventoryCache?.userId;
   inventoryPromise = null;
   inventoryCache = null;
-  if (options.includePersistent && typeof window !== "undefined") {
-    const userId = options.userId ?? cachedUserId;
-    if (userId) window.localStorage.removeItem(inventoryStorageKey(userId));
-  }
+  if (!options.includePersistent) return;
+  const userId = options.userId ?? cachedUserId;
+  if (!userId) return;
+  dropLegacyStoredInventory(userId);
+  // Signing out must not wait on storage, and both callers ignore the result.
+  void deleteStoredValue(inventoryStorageKey(userId)).catch(() => undefined);
 };
 
 export type InventoryCopyPatch = {
@@ -637,7 +646,9 @@ export const patchInventoryCopy = (
     activeCopyCount: snapshot.activeCopyCount + activeCopyDelta,
   };
   inventoryCache = { userId, snapshot: next };
-  writeStoredInventory(userId, next);
+  // The caller needs the patched snapshot now, and storage is only its durable copy, so
+  // the write runs on its own rather than making this asynchronous.
+  void writeStoredInventory(userId, next).catch(() => undefined);
   return next;
 };
 
