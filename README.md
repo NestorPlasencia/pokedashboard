@@ -177,11 +177,26 @@ and gives the prices function enough time for a cold-cache refresh. Configure
 environment where Collections should be available. The public application can
 still run without them; the Poke DB URL remains optional.
 
+Vite inlines `import.meta.env` at build time, so **changing an environment
+variable only takes effect after a redeploy** - the published bundle otherwise
+keeps the value it was built with. A wrong `VITE_SUPABASE_URL` shows up as
+`ERR_NAME_NOT_RESOLVED` on every auth request, including email and password,
+since the browser never resolves the host.
+
+Signing in also needs the deployed origin on Supabase's side, under
+Authentication - URL Configuration: both sign-in and the password-reset link
+send `window.location.origin` as their `redirectTo`, and Supabase refuses any
+origin it has not been given. Add the preview wildcard too if sign-in should
+work on preview deployments.
+
+The SPA fallback is what serves `/c/<id>`, the read-only page for a collection
+shared with `is_public`. It is the one route that renders without a session.
+
 ## Data Sources
 
 - **Card Data**: Poke DB API, requested by series
 - **TCG Player Pricing**: `/api/prices` with 24-hour Vercel CDN and browser caches
-- **Collection Data**: Supabase `card_copies`, `collectr_cards`, `collectr_collections`, and `collection_printings` behind Google Supabase Auth and RLS
+- **Collection Data**: Supabase `card_copies`, `cards`, `collections`, `collection_tags`, and `collection_printings` behind Supabase Auth and RLS
 - **Fix Data**: Manual corrections and patches in `public/data/fix/`
 
 ## Data Flow
