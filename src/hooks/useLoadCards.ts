@@ -191,7 +191,7 @@ export function useLoadCards(
     );
     setInventoryError(null);
     const cancelDeferred = deferUntilIdle(() => {
-      loadInventory({ forceRefresh })
+      loadInventory({ forceRefresh, userId })
         .then((inventory) => {
           if (cancelled) return;
           handledInventoryRevision.current = inventoryRevision;

@@ -120,6 +120,11 @@ type StoredInventorySnapshot = {
 
 type LoadInventoryOptions = {
   forceRefresh?: boolean;
+  /**
+   * Who to load for. Supplying it skips the round-trip `getUser()` would make, which is
+   * the one thing standing between a stored snapshot and a reader with no connection.
+   */
+  userId?: string;
 };
 
 type ClearInventoryCacheOptions = {
@@ -493,11 +498,18 @@ export const loadInventory = async (
   options: LoadInventoryOptions = {}
 ): Promise<InventorySnapshot> => {
   const client = requireClient();
-  const { data: userData, error: userError } = await client.auth.getUser();
-  if (userError && !isSignedOutError(userError)) {
-    throwInventoryError("session", userError);
+  // `getUser()` validates the token against the server, so it cannot answer without a
+  // network - and it ran before the stored snapshot was ever consulted, which left a
+  // perfectly good saved copy unreachable offline. The caller already holds the session
+  // it restored from local storage, so it passes the id in; asking is only the fallback.
+  let userId = options.userId;
+  if (!userId) {
+    const { data: userData, error: userError } = await client.auth.getUser();
+    if (userError && !isSignedOutError(userError)) {
+      throwInventoryError("session", userError);
+    }
+    userId = userData.user?.id;
   }
-  const userId = userData.user?.id;
   if (!userId) return emptyInventory();
 
   if (!options.forceRefresh) {
