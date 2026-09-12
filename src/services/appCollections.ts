@@ -123,6 +123,116 @@ export async function renameCollection(
   if (!data?.length) throw new Error("Not allowed or collection not found");
 }
 
+/**
+ * Nests a collection under `parentId` (or lifts it to the top level when null). Unlike
+ * rename and delete, `parent_id` stays editable on a Collectr-managed collection too, so
+ * this is not restricted to app-owned rows - a trigger rejects self-parenting and cycles.
+ */
+export async function moveCollection(
+  ownerId: string,
+  collectionId: string,
+  parentId: string | null
+): Promise<void> {
+  const { data, error } = await client()
+    .from("collections")
+    .update({ parent_id: parentId })
+    .eq("owner_id", ownerId)
+    .eq("id", collectionId)
+    .select("id");
+  if (error) fail(error);
+  if (!data?.length) throw new Error("Not allowed or collection not found");
+}
+
+/** The tags the shared schema recognises. `watch` is stored but unused by this app. */
+export type CollectionTag = "own" | "wish" | "watch";
+
+/**
+ * Adds or removes one tag. Tags classify a row without touching anything an integration
+ * owns, so they stay editable on a Collectr collection as well as your own.
+ *
+ * Removing a tag that was never there is not an error - the row simply is not present.
+ */
+export async function setCollectionTag(
+  ownerId: string,
+  collectionId: string,
+  tag: CollectionTag,
+  enabled: boolean
+): Promise<void> {
+  if (enabled) {
+    const { error } = await client()
+      .from("collection_tags")
+      .upsert(
+        { owner_id: ownerId, collection_id: collectionId, tag },
+        { onConflict: "owner_id,collection_id,tag", ignoreDuplicates: true }
+      );
+    if (error) fail(error);
+    return;
+  }
+  const { error } = await client()
+    .from("collection_tags")
+    .delete()
+    .eq("owner_id", ownerId)
+    .eq("collection_id", collectionId)
+    .eq("tag", tag);
+  if (error) fail(error);
+}
+
+/**
+ * Publishes a collection, or takes it private again. Allowed on a Collectr-managed row
+ * too: `is_public` and `parent_id` are the two columns the database leaves to the client
+ * there, so this is deliberately not restricted to `managed_by is null`.
+ */
+export async function setCollectionVisibility(
+  ownerId: string,
+  collectionId: string,
+  isPublic: boolean
+): Promise<void> {
+  const { data, error } = await client()
+    .from("collections")
+    .update({ is_public: isPublic })
+    .eq("owner_id", ownerId)
+    .eq("id", collectionId)
+    .select("id");
+  if (error) fail(error);
+  if (!data?.length) throw new Error("Not allowed or collection not found");
+}
+
+/**
+ * Brings the printings that classify a collection in line with `next`.
+ *
+ * Written as a diff rather than a delete-and-reinsert: the two statements are not one
+ * transaction, and wiping the rows first would leave the collection classified by nothing
+ * if the insert then failed. Additions go in before removals for the same reason.
+ *
+ * The extension owns these rows for a Collectr collection - RLS rejects those writes
+ * silently, so the caller keeps this to application-owned ones.
+ */
+export async function setCollectionPrintings(
+  ownerId: string,
+  collectionId: string,
+  current: string[],
+  next: string[]
+): Promise<void> {
+  const added = next.filter((printing) => !current.includes(printing));
+  const removed = current.filter((printing) => !next.includes(printing));
+
+  if (added.length > 0) {
+    const { error } = await client()
+      .from("collection_printings")
+      .insert(added.map((printing) => ({ owner_id: ownerId, collection_id: collectionId, printing })));
+    if (error) fail(error);
+  }
+  if (removed.length > 0) {
+    const { error } = await client()
+      .from("collection_printings")
+      .delete()
+      .eq("owner_id", ownerId)
+      .eq("collection_id", collectionId)
+      .in("printing", removed);
+    if (error) fail(error);
+  }
+}
+
 const descendantsOf = async (ownerId: string, collectionId: string): Promise<string[]> => {
   const { data, error } = await client()
     .from("collections")

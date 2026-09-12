@@ -4,8 +4,9 @@ import { useMemo } from "react";
 import { useWishlists } from "../../context/WishlistsContext";
 import { ViewModeBadge } from "../ui/Wishlists";
 import { EditTargetBadge } from "../ui/EditTargetBadge";
+import { SortMenu } from "../ui/SortMenu";
 import React, { useDeferredValue, useEffect, useState, useRef } from "react";
-import { useCardContext } from "../../context/CardContext";
+import { useCardContext, type ActiveFilterChip } from "../../context/CardContext";
 import { useOptionsContext } from "../../context/OptionsContext";
 import { collectionScopeNames } from "../../utils/collectionTree";
 import { parseUrlParams, updateUrlParams } from "../../utils/urlParams";
@@ -26,23 +27,37 @@ export const Search: React.FC<SearchProps> = ({ collectionEnrichment }) => {
   const [query, setQuery] = useState<string>(() => parseUrlParams().search ?? "");
   const wishlists = useWishlists();
   const { collections } = useOptionsContext();
-  const { groupedCards, sortedCards, allCards, visibleCards, setVisibleCards, sortConfig, variantsFilter, priceRange, conditionsFilter, collectionFilter, pokemonGrouping, pokemonFormsData, viewMode } = useCardContext();
+  const {
+    groupedCards, sortedCards, allCards, visibleCards, setVisibleCards, sortConfig, variantsFilter,
+    priceRange, setPriceRange, conditionsFilter, collectionFilter, setCollectionFilter,
+    pokemonGrouping, pokemonFormsData, viewMode, activeFilterChips,
+  } = useCardContext();
+  // A marked collection stands for its subcollections too, the same way a viewed one
+  // does. Expanded here rather than when the box is ticked, so the stored selection - and
+  // the URL built from it - stays exactly what was chosen.
+  const scopedCollections = useMemo(
+    () => [...new Set(
+      collectionFilter.selectedCollections.flatMap((name) => collectionScopeNames(collections, name))
+    )],
+    [collections, collectionFilter.selectedCollections]
+  );
   const sourceCards = useMemo(() => {
     switch (viewMode.kind) {
       case 'catalog':
         return groupedCards;
       case 'collection': {
-        // First scope to the collection being viewed (including its subcollections), then
-        // apply any marked collection as a second ownership filter. Thus Hide not owned is
-        // an intersection, not a replacement of the view: viewed collection ∩ selection.
-        const names = new Set(collectionScopeNames(collections, viewMode.name));
+        // First scope to the collections being viewed (their union, each including its own
+        // subcollections), then apply any marked collection as a second ownership filter.
+        // Thus Hide not owned is an intersection, not a replacement of the view: viewed
+        // collections ∩ selection.
+        const names = new Set(viewMode.names.flatMap((name) => collectionScopeNames(collections, name)));
         const scopedCards = sortedCards.filter(card => card.collections?.some(entry =>
           names.has(entry.name) && countCopies(entry.quantity, collectionFilter.conditionsFilter) > 0
         ));
         const ownershipFiltered = applyCollectionFilter(
           scopedCards,
-          collectionFilter.selectedCollections.length > 0 ? collectionFilter.mode : 'none',
-          collectionFilter.selectedCollections,
+          scopedCollections.length > 0 ? collectionFilter.mode : 'none',
+          scopedCollections,
           collectionFilter.limit,
           ['All']
         );
@@ -54,7 +69,7 @@ export const Search: React.FC<SearchProps> = ({ collectionEnrichment }) => {
           groupingRegions: pokemonGrouping.groupingRegions,
           allowVariants: pokemonGrouping.allowVariants,
           hideVariants: pokemonGrouping.hideVariants,
-          selectedCollections: collectionFilter.selectedCollections,
+          selectedCollections: scopedCollections,
           collectionMode: collectionFilter.mode,
           fallbackToDefault: pokemonGrouping.fallbackToDefault,
         });
@@ -73,8 +88,8 @@ export const Search: React.FC<SearchProps> = ({ collectionEnrichment }) => {
         const sorted = applySorting(priceFiltered, sortConfig.field, sortConfig.direction, variantsFilter);
         return applyCollectionFilter(
           sorted,
-          collectionFilter.selectedCollections.length > 0 ? collectionFilter.mode : 'none',
-          collectionFilter.selectedCollections,
+          scopedCollections.length > 0 ? collectionFilter.mode : 'none',
+          scopedCollections,
           collectionFilter.limit,
           ['All']
         );
@@ -87,7 +102,7 @@ export const Search: React.FC<SearchProps> = ({ collectionEnrichment }) => {
     wishlists.keys, allCards, groupedCards,
     priceRange.min, priceRange.max, conditionsFilter,
     sortConfig.field, sortConfig.direction, variantsFilter,
-    collectionFilter.mode, collectionFilter.selectedCollections,
+    collectionFilter.mode, scopedCollections,
     collectionFilter.limit, collectionFilter.conditionsFilter,
     pokemonGrouping, pokemonFormsData,
   ]);
@@ -190,51 +205,103 @@ export const Search: React.FC<SearchProps> = ({ collectionEnrichment }) => {
     );
   }, [sourceCards, searchIndex, deferredQuery, setVisibleCards]);
 
+  // Price range and the collections filter apply everywhere, wishlist included, so they
+  // get their own chips independent of the ones Filters.tsx publishes for its own panel.
+  const priceChips: ActiveFilterChip[] = useMemo(() => {
+    if (priceRange.min === null && priceRange.max === null) return [];
+    const label = priceRange.min !== null && priceRange.max !== null
+      ? `Price: $${priceRange.min} – $${priceRange.max}`
+      : priceRange.min !== null
+        ? `Price: from $${priceRange.min}`
+        : `Price: up to $${priceRange.max}`;
+    return [{ id: 'price-range', label, onRemove: () => setPriceRange({ min: null, max: null }) }];
+  }, [priceRange, setPriceRange]);
+
+  const collectionChips: ActiveFilterChip[] = useMemo(
+    () => collectionFilter.selectedCollections.map((name) => ({
+      id: `collection-${name}`,
+      label: `Collection: ${name}`,
+      onRemove: () => setCollectionFilter((prev) => {
+        const selectedCollections = prev.selectedCollections.filter((entry) => entry !== name);
+        return { ...prev, enabled: selectedCollections.length > 0, selectedCollections };
+      }),
+    })),
+    [collectionFilter.selectedCollections, setCollectionFilter]
+  );
+
+  // Rarity, Type, Variant… only narrow the catalog and collection views - a wishlist skips
+  // them entirely (Search starts from every saved card instead), so they stay out of its row.
+  const allActiveChips = useMemo(
+    () => [...(viewMode.kind !== 'wishlist' ? activeFilterChips : []), ...collectionChips, ...priceChips],
+    [viewMode.kind, activeFilterChips, collectionChips, priceChips]
+  );
+  const showActiveFilterChips = allActiveChips.length > 0;
+
   return (
-    <div className="search-bar" ref={barRef}>
-      {/* One grid cell, not two. The search bar is a three-column grid whose middle
-          column is taken out of the flow on mobile, so a fourth child pushes an item onto
-          a second row and overflows the viewport. */}
-      <div className="search-bar__modes">
-        <ViewModeBadge />
-        {collectionEnrichment?.status === 'loading' && (
-          <span
-            className="collection-progress"
-            role="status"
-            title={`Matching catalog data: ${collectionEnrichment.matched} of ${collectionEnrichment.total} cards`}
-          >
-            <span className="collection-progress__spinner" aria-hidden="true" />
-            {collectionEnrichment.matched}/{collectionEnrichment.total}
+    <>
+      <div className="search-bar" ref={barRef}>
+        {/* One grid cell, not two. The search bar is a three-column grid whose middle
+            column is taken out of the flow on mobile, so a fourth child pushes an item onto
+            a second row and overflows the viewport. */}
+        <div className="search-bar__modes">
+          <ViewModeBadge />
+          {collectionEnrichment?.status === 'loading' && (
+            <span
+              className="collection-progress"
+              role="status"
+              title={`Matching catalog data: ${collectionEnrichment.matched} of ${collectionEnrichment.total} cards`}
+            >
+              <span className="collection-progress__spinner" aria-hidden="true" />
+              {collectionEnrichment.matched}/{collectionEnrichment.total}
+            </span>
+          )}
+          <EditTargetBadge />
+        </div>
+        <div className="search-field">
+          <SearchIcon className="search-field__icon" size={16} aria-hidden="true" />
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={handleChange}
+            onFocus={() => listPanel()?.scrollTo({ top: 0 })}
+            placeholder="Search"
+            aria-label="Search by card name"
+          />
+          {query && (
+            <button
+              type="button"
+              className="search-clear-button"
+              onClick={handleClear}
+              aria-label="Clear search"
+              title="Clear search"
+            >
+              <X size={16} aria-hidden="true" />
+            </button>
+          )}
+        </div>
+        <div className="search-bar__end">
+          <SortMenu />
+          <span className="search-item-count" aria-live="polite" aria-label={`${itemCount} cards shown`}>
+            {itemCount.toLocaleString()}
           </span>
-        )}
-        <EditTargetBadge />
+        </div>
       </div>
-      <div className="search-field">
-        <SearchIcon className="search-field__icon" size={16} aria-hidden="true" />
-        <input
-          ref={inputRef}
-          type="text"
-          value={query}
-          onChange={handleChange}
-          onFocus={() => listPanel()?.scrollTo({ top: 0 })}
-          placeholder="Search"
-          aria-label="Search by card name"
-        />
-        {query && (
-          <button
-            type="button"
-            className="search-clear-button"
-            onClick={handleClear}
-            aria-label="Clear search"
-            title="Clear search"
-          >
-            <X size={16} aria-hidden="true" />
-          </button>
-        )}
-      </div>
-      <span className="search-item-count" aria-live="polite" aria-label={`${itemCount} cards shown`}>
-        {itemCount.toLocaleString()}
-      </span>
-    </div>
+      {showActiveFilterChips && (
+        <div className="active-filters-row" role="group" aria-label="Active filters">
+          {allActiveChips.map((chip) => (
+            <button
+              key={chip.id}
+              type="button"
+              className="active-filters-row__chip"
+              onClick={chip.onRemove}
+              aria-label={`Remove filter ${chip.label}`}
+            >
+              {chip.label} <X size={11} aria-hidden="true" />
+            </button>
+          ))}
+        </div>
+      )}
+    </>
   );
 };

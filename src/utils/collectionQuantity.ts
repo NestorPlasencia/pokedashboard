@@ -14,7 +14,7 @@ export const quantityCollectionNames = (
   collections: OptionsCollection[],
   selectedCollections: string[]
 ) => viewMode.kind === "collection"
-  ? collectionScopeNames(collections, viewMode.name)
+  ? Array.from(new Set(viewMode.names.flatMap((name) => collectionScopeNames(collections, name))))
   : selectedCollections;
 
 /** Selecting one or more collections is the ownership-filter trigger. */
@@ -34,9 +34,10 @@ export const quantityForCollections = (card: Card, names: string[], conditionsFi
 export type OwnedCounter = { collection: string; quantity: number };
 
 /**
- * The owned badges on a card. A collection view shows one total for the viewed collection
- * and its subcollections, counted like the table does; elsewhere each collection selected
- * in the filter gets its own badge.
+ * The owned badges on a card. A collection view shows one total per collection being
+ * browsed (each including its own subcollections, counted like the table does), so
+ * browsing several at once still says which one each copy belongs to; elsewhere each
+ * collection selected in the filter gets its own badge.
  */
 export const ownedCountersForCard = (
   card: Card,
@@ -46,12 +47,12 @@ export const ownedCountersForCard = (
   conditionsFilter: string[]
 ): OwnedCounter[] => {
   if (viewMode.kind === "collection") {
-    const quantity = quantityForCollections(
-      card,
-      quantityCollectionNames(viewMode, collections, []),
-      conditionsFilter
-    );
-    return quantity > 0 ? [{ collection: viewMode.name, quantity }] : [];
+    return viewMode.names
+      .map((name) => ({
+        collection: name,
+        quantity: quantityForCollections(card, collectionScopeNames(collections, name), conditionsFilter),
+      }))
+      .filter((item) => item.quantity > 0);
   }
   return activeFilterCollectionNames(selectedCollections)
     .map((collection) => {

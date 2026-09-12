@@ -5,9 +5,15 @@ import {
   addCard,
   createCollection,
   deleteCollection,
+  moveCollection,
   removeCard,
   renameCollection,
+  setCollectionPrintings,
+  setCollectionTag,
+  setCollectionVisibility,
+  type CollectionTag,
 } from '../services/appCollections';
+import { patchInventoryCopy } from '../services/inventory';
 import { isSupabaseConfigured } from '../services/supabase';
 import { useAuth } from './AuthContext';
 import { useOptionsContext } from './OptionsContext';
@@ -27,7 +33,7 @@ import { parseUrlParams, updateUrlParams } from '../utils/urlParams';
  */
 
 function useOwnedCollectionsState() {
-  const { session, isAuthLoading, refreshInventory } = useAuth();
+  const { session, isAuthLoading, refreshInventory, notifyInventoryPatched } = useAuth();
   const { collections } = useOptionsContext();
   const userId = isSupabaseConfigured ? session?.user.id ?? '' : '';
   // The collection card edits are written to, or '' when adding is off. Restored from the
@@ -58,10 +64,12 @@ function useOwnedCollectionsState() {
   /**
    * Runs a write, keeping a burst of edits in order.
    *
-   * The inventory is not updated here: the caller reloads it, which is also what makes a
-   * failed write visible as the card quietly staying where it was.
+   * By default the inventory is not updated here: the snapshot is reloaded in full, which
+   * is also what makes a failed write visible as the card quietly staying where it was.
+   * `onSuccess` lets a caller that already knows exactly what changed - a single card copy
+   * - patch the cached snapshot instead, skipping that reload entirely.
    */
-  const enqueue = useCallback((write: () => Promise<void>) => {
+  const enqueue = useCallback((write: () => Promise<void>, onSuccess: () => void = refreshInventory) => {
     setError('');
     writeQueue.current = writeQueue.current
       .catch(() => undefined)
@@ -69,9 +77,7 @@ function useOwnedCollectionsState() {
       .then(
         () => {
           setError('');
-          // The rows are the source of truth, so the snapshot - and with it every card's
-          // collection membership - is reloaded rather than patched in place.
-          refreshInventory();
+          onSuccess();
         },
         (writeError) => {
           if (writeError instanceof AppCollectionsUnavailableError) {
@@ -138,16 +144,97 @@ function useOwnedCollectionsState() {
     return renamed;
   };
 
+  /**
+   * Nests any collection - including one synced from Collectr - under `parentId`, or
+   * lifts it to the top level when `parentId` is null. `parent_id` stays editable on a
+   * managed collection even though its name and copies are not, so this is not limited
+   * to `editable`.
+   */
+  const move = async (id: string, parentId: string | null) => {
+    if (!userId) return false;
+    let moved = false;
+    await enqueue(async () => {
+      await moveCollection(userId, id, parentId);
+      moved = true;
+    });
+    return moved;
+  };
+
+  /**
+   * These three reshape the collection itself rather than its contents, so they all take
+   * the full-refresh path: `kind` is derived from the `wish` tag and inherited down the
+   * tree, printings classify the whole row, and visibility changes what a shared link
+   * resolves to. None of that is a single copy the snapshot could be patched for.
+   */
+  const setTag = async (id: string, tag: CollectionTag, enabled: boolean) => {
+    if (!userId) return false;
+    let saved = false;
+    await enqueue(async () => {
+      await setCollectionTag(userId, id, tag, enabled);
+      saved = true;
+    });
+    return saved;
+  };
+
+  const setVisibility = async (id: string, isPublic: boolean) => {
+    if (!userId) return false;
+    let saved = false;
+    await enqueue(async () => {
+      await setCollectionVisibility(userId, id, isPublic);
+      saved = true;
+    });
+    return saved;
+  };
+
+  const setPrintings = async (id: string, current: string[], next: string[]) => {
+    if (!userId) return false;
+    let saved = false;
+    await enqueue(async () => {
+      await setCollectionPrintings(userId, id, current, next);
+      saved = true;
+    });
+    return saved;
+  };
+
+  /**
+   * Patches the cached snapshot for this one card instead of reloading everything, so
+   * adding or removing a single copy does not re-download the whole inventory just to
+   * reflect itself. Falls back to a full `refreshInventory()` when nothing is cached yet
+   * to patch - e.g. the very first write of a session.
+   */
+  const applyCopyPatch = (card: Card, collection: { id: string; name: string }, action: 'add' | 'remove') => {
+    if (!userId || !card.productId) return refreshInventory();
+    const patched = patchInventoryCopy(userId, {
+      productId: card.productId,
+      collectionId: collection.id,
+      collectionName: collection.name,
+      printing: card.printing || card.variant || null,
+      card: { name: card.name, setName: card.setName, number: card.number, rarity: card.rarity, image: card.image },
+    }, action);
+    if (patched) notifyInventoryPatched();
+    else refreshInventory();
+  };
+
   const add = async (card: Card) => {
     if (!userId || !selected) return false;
-    await enqueue(() => addCard(userId, selected.id, card));
-    return true;
+    const target = selected;
+    let added = false;
+    await enqueue(
+      async () => { await addCard(userId, target.id, card); added = true; },
+      () => applyCopyPatch(card, target, 'add')
+    );
+    return added;
   };
 
   const removeCardFromSelected = async (card: Card) => {
     if (!userId || !selected) return false;
-    await enqueue(() => removeCard(userId, selected.id, card));
-    return true;
+    const target = selected;
+    let removed = false;
+    await enqueue(
+      async () => { await removeCard(userId, target.id, card); removed = true; },
+      () => applyCopyPatch(card, target, 'remove')
+    );
+    return removed;
   };
 
   /** Whether the armed collection holds this card, straight off the enriched card. */
@@ -161,7 +248,8 @@ function useOwnedCollectionsState() {
   return useMemo(
     () => ({
       collections: editable, selected, selectedId, setSelectedId,
-      create, rename, remove, add, removeCard: removeCardFromSelected, has, canTrack,
+      create, rename, remove, move, setTag, setVisibility, setPrintings,
+      add, removeCard: removeCardFromSelected, has, canTrack,
       error, loading: isAuthLoading, remoteUnavailable,
       synced: Boolean(userId) && !remoteUnavailable,
       names: editable.map((collection) => collection.name),

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FilterOption, Card } from "../../types/dashboard";
 import type { HierarchySerie } from "../../types/source-card";
-import { useCardContext } from "../../context/CardContext";
+import { useCardContext, type ActiveFilterChip } from "../../context/CardContext";
 import { filterCardsByProperty, filterCardsByPokedexCompletion, excludeCardsByProperty } from "../../utils/filters";
 import { arraysEqual, getUniqueValuesFromProperty, countAllValuesFromProperty } from "../../utils/utils";
 import { CollapsibleSection } from "../ui/CollapsibleSection";
@@ -86,7 +86,8 @@ export const Filters = () => {
     viewMode,
     catalogSelectionRequest,
     requestCatalogSelection,
-    setSelectedSets
+    setSelectedSets,
+    setActiveFilterChips
   } = useCardContext();
 
   // Track if this is the first render to avoid overwriting URL params on initial load
@@ -194,7 +195,7 @@ export const Filters = () => {
       buildFilter(3, "Rarity:", "rarities", 'rarity', true, [], DEFAULT_RARITIES_ORDER),
       buildFilter(
         4,
-        "Variant:",
+        "Variant Group:",
         "cardVariantTopLevel",
         'cardVariantTopLevel',
         false,
@@ -203,7 +204,7 @@ export const Filters = () => {
       ),
       buildFilter(
         5,
-        "Variants:",
+        "Variant:",
         "variant",
         'variants',
         false,
@@ -747,6 +748,31 @@ export const Filters = () => {
       priceMax: undefined
     });
   };
+
+  // Every value active outside series/set, published for the chip row under the
+  // breadcrumb - the one place a filter can be seen and removed without opening this panel.
+  useEffect(() => {
+    const chips: ActiveFilterChip[] = [];
+    filters.forEach((filter) => {
+      if (filter.property === 'setSeries' || filter.property === 'setNames') return;
+      const label = normalizeLabel(filter.label);
+      filter.includedValues.forEach((value) => {
+        chips.push({
+          id: `${filter.order}-in-${value}`,
+          label: `${label}: ${value}`,
+          onRemove: () => handleOptionStateChange(filter.order, value, 'neutral'),
+        });
+      });
+      filter.excludedValues.forEach((value) => {
+        chips.push({
+          id: `${filter.order}-ex-${value}`,
+          label: `${label}: not ${value}`,
+          onRemove: () => handleOptionStateChange(filter.order, value, 'neutral'),
+        });
+      });
+    });
+    setActiveFilterChips(chips);
+  }, [filters, setActiveFilterChips]);
 
   return (
     <div className="section-sidebar">

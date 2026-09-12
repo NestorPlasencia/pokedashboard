@@ -72,7 +72,7 @@ export function useLoadCards(
     matched: 0,
     total: 0,
   });
-  const { session, inventoryRevision } = useAuth();
+  const { session, inventoryRevision, inventoryPatchTick } = useAuth();
   const userId = session?.user.id;
   const handledInventoryRevision = useRef(inventoryRevision);
 
@@ -173,8 +173,12 @@ export function useLoadCards(
 
   useEffect(() => {
     let cancelled = false;
-    if (!userId || isCardsLoading || isMetadataLoading) {
-      if (!userId) {
+    // Loading the snapshot costs a full account-wide download - every active copy, plus a
+    // catalog row for every product ever owned, in chunks - and none of it depends on the
+    // series or rarity on screen. So the fetch is gated on the same flag as its use,
+    // rather than running on every load only for `effectiveInventory` to discard it.
+    if (!userId || !inventoryRequired || isCardsLoading || isMetadataLoading) {
+      if (!userId || !inventoryRequired) {
         setInventoryStatus("idle");
         setInventoryError(null);
       }
@@ -212,9 +216,14 @@ export function useLoadCards(
       cancelled = true;
       cancelDeferred();
     };
+    // `inventoryPatchTick` deliberately does not affect `forceRefresh`: a patch already
+    // updated the cached snapshot in place, so re-running this effect only needs to read
+    // it back out via `loadInventory({ forceRefresh: false })`, which resolves from the
+    // cache with no network call.
   }, [
     userId,
     inventoryRevision,
+    inventoryPatchTick,
     inventoryRequired,
     isCardsLoading,
     isMetadataLoading,
@@ -241,14 +250,15 @@ export function useLoadCards(
         editable: false,
         managedBy: "collectr",
         isPublic: false,
+        tags: [],
       });
     }
     setCollections([...byName.values()]);
   }, [collectrCollections, inventoryNames, setCollections]);
 
   // Cards per collection, counted the way collection view lists them: one per product and
-  // printing. Loaded whether or not the catalog needs the inventory, so the Collections
-  // page can show them without enabling a filter.
+  // printing. Null until the snapshot loads, which the Collections page being open is
+  // itself enough to require - see `inventoryRequired` in Main.
   const collectionCardCounts = useMemo(() => {
     if (!inventory) return null;
     const counts = new Map<string, number>();
@@ -274,10 +284,10 @@ export function useLoadCards(
     return counts;
   }, [inventory]);
 
-  const effectiveInventory = useMemo(
-    () => (inventoryRequired ? inventory : null),
-    [inventory, inventoryRequired]
-  );
+  // Only fetched when a view needs it, so whatever is loaded is what this view asked for.
+  // A second gate here would throw away a download already paid for - which is what left
+  // every card stamped with no collections, and the owned button stuck on "Add".
+  const effectiveInventory = inventory;
 
   useEffect(() => {
     if (!effectiveInventory) {
@@ -293,6 +303,14 @@ export function useLoadCards(
   // scoped by the active collection, so changing a Series filter must not reload
   // and reset the collection cards.
   const effectiveSeriesSelection = viewedCollection ? EMPTY_SERIES_SELECTION : seriesSelection;
+
+  // Only the collection branch below reads `effectiveInventory` (to rebuild its cards from
+  // the fresh snapshot). The catalog branch stamps ownership through the separate effect
+  // above instead, so it must not restart on every inventory bump - recording a card would
+  // otherwise blow away `baseCards` and regenerate the whole catalog from the external API
+  // on every single add or remove, which is both slow and why the button looked like it did
+  // nothing: the card briefly disappeared into a full reload instead of just re-stamping.
+  const collectionInventoryTrigger = viewedCollection ? effectiveInventory : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -456,7 +474,10 @@ export function useLoadCards(
     return () => {
       cancelled = true;
     };
-  }, [effectiveInventory, effectiveSeriesSelection, loadAllWhenNoSeries, viewedCollection, scopeNames]);
+    // `effectiveInventory` is intentionally left out: `collectionInventoryTrigger` already
+    // stands in for it, but only carries a value in collection mode - see its definition.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collectionInventoryTrigger, effectiveSeriesSelection, loadAllWhenNoSeries, viewedCollection, scopeNames]);
 
   // A collection has nothing to show until its inventory arrives; without this the list
   // would briefly claim that no cards match.

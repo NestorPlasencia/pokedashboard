@@ -86,7 +86,8 @@ textarea {
   overflow: hidden;
 }
 
-.mobile-panel-nav {
+.mobile-panel-nav,
+.desktop-dock {
   display: none;
 }
 
@@ -1923,6 +1924,107 @@ th[scope="row"] {
   color: var(--danger);
 }
 
+.auth-card__notice {
+  color: var(--text-muted);
+}
+
+.auth-card__divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.auth-card__divider::before,
+.auth-card__divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.auth-card__form {
+  display: grid;
+  gap: 14px;
+}
+
+.auth-card__mode-toggle {
+  margin: -4px 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: var(--font-size-sm);
+  font-weight: 650;
+  text-align: center;
+  cursor: pointer;
+}
+
+.auth-card__mode-toggle:hover {
+  text-decoration: underline;
+}
+
+.auth-card__forgot {
+  justify-self: end;
+  margin: -4px 0 0;
+  font-size: var(--font-size-xs);
+  text-align: right;
+}
+
+.account-password-form {
+  display: grid;
+  gap: 12px;
+}
+
+.account-password-form p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.account-password-form__form {
+  display: grid;
+  gap: 10px;
+}
+
+.account-password-form__form label {
+  display: grid;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+  font-weight: 650;
+}
+
+.account-password-form__form input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--text);
+  box-sizing: border-box;
+}
+
+.account-password-form__submit {
+  justify-self: start;
+  margin: 0;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.account-password-form__submit:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .sidebar-content--disabled {
   pointer-events: none;
 }
@@ -1956,14 +2058,6 @@ th[scope="row"] {
 .filters-reset-btn {
   display: block;
   margin: 0 auto 10px;
-}
-
-.orders-option-label {
-  display: block;
-}
-
-.orders-reset-btn {
-  margin-top: 8px;
 }
 
 .view-options-row {
@@ -2712,11 +2806,151 @@ td {
   color: var(--text);
 }
 
+.search-bar__end {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .search-item-count {
   color: var(--text-muted);
   font-size: var(--font-size-sm);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* One icon in the search row opens the sort order instead of a whole sidebar panel. */
+.sort-menu {
+  position: relative;
+}
+
+.sort-menu__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 9px;
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.sort-menu__trigger:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.sort-menu__trigger.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.sort-menu__trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sort-menu__panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 260;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: max-content;
+  min-width: 180px;
+  max-width: 240px;
+  padding: 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-md);
+}
+
+.sort-menu__option {
+  margin: 0;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sort-menu__option:hover {
+  background: var(--surface-muted);
+}
+
+.sort-menu__option.is-selected {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.sort-menu__reset {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sort-menu__reset:hover {
+  color: var(--text);
+}
+
+/* Every filter narrowing the list besides series/set, named as removable chips right
+   under the breadcrumb - so what is filtering never has to be guessed at from a
+   collapsed panel in the sidebar. */
+.active-filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--canvas-bg);
+}
+
+.active-filters-row__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 4px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.active-filters-row__chip:hover {
+  filter: brightness(0.94);
+}
+
+.active-filters-row__chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .search-bar input::placeholder,
@@ -2867,7 +3101,6 @@ input:focus-visible {
 
 .filters-reset-btn,
 .filters-collapse-all,
-.orders-reset-btn,
 .collections-reset-btn {
   border-color: var(--border-strong) !important;
   background: var(--surface-muted) !important;
@@ -3433,6 +3666,65 @@ button.mass-entry-btn.sidebar-action-btn:disabled {
   background: var(--surface-muted);
 }
 
+.series-starter__collections-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.series-starter__collections-list .series-starter__collections-list {
+  margin-top: 6px;
+}
+
+.series-starter__collection {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 9px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-align: left;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+
+.series-starter__collection:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.series-starter__collection:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.series-starter__collection svg:first-child {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+
+.series-starter__collection:hover svg:first-child {
+  color: var(--accent);
+}
+
+.series-starter__collection span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (max-width: 760px) {
   .card-list-empty--starter {
     margin-top: 8px;
@@ -3515,6 +3807,10 @@ button.mass-entry-btn.sidebar-action-btn:disabled {
     padding-inline: 12px;
   }
 
+  .active-filters-row {
+    padding: 8px 12px;
+  }
+
   /* Room for the fixed bottom bar plus the floating search sitting above it. */
   .card-list {
     padding-inline: 14px;
@@ -3530,7 +3826,7 @@ button.mass-entry-btn.sidebar-action-btn:disabled {
     bottom: 0;
     transform: none;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 4px;
     width: 100%;
     padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
@@ -3575,6 +3871,61 @@ button.mass-entry-btn.sidebar-action-btn:disabled {
   }
 }
 
+/* Desktop's own dock: the same three destinations mobile has, floating as a small pill
+   rather than a full-width bar since the columns beside it already show most of the app. */
+@media (min-width: 761px) {
+  .desktop-dock {
+    display: flex;
+    position: fixed;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%);
+    z-index: 260;
+    gap: 2px;
+    padding: 5px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-raised) 94%, transparent);
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(16px);
+  }
+
+  .desktop-dock button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 8px 14px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .desktop-dock button:hover {
+    background: var(--surface-muted);
+  }
+
+  .desktop-dock button.is-active {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  .desktop-dock button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  /* Room at the bottom of the card view so the last row of cards never sits under the dock. */
+  .card-view {
+    padding-bottom: 64px;
+  }
+}
+
 /* Final mobile constraints: override desktop image minimums and keep trend cards compact. */
 @media (max-width: 760px) {
   :root {
@@ -3594,7 +3945,7 @@ button.mass-entry-btn.sidebar-action-btn:disabled {
     backdrop-filter: none;
   }
 
-  .search-item-count {
+  .search-bar__end {
     justify-self: end;
   }
 
@@ -3884,6 +4235,9 @@ button.mass-entry-btn.sidebar-action-btn:disabled {
 /* A collection row pairs its checkbox with a way to open it on its own. */
 .collections-row { display: flex; align-items: center; gap: 6px; }
 .collections-row .collections-checkbox-label { flex: 1; min-width: 0; }
+/* Subcollections are indented by depth, with a guide line so a long list still reads as a
+   tree once the parent has scrolled out of view. */
+.collections-row--nested { border-left: 1px solid var(--border); }
 /* The collection's printing, as a quiet tag beside its name. */
 .collection-printing-tag { flex: 0 0 auto; padding: 1px 7px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-muted); color: var(--text-muted); font-size: var(--font-size-xs); white-space: nowrap; }
 .section-sidebar .collections-view-btn { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; margin: 0; padding: 4px 7px; border: 0; background: transparent; color: var(--accent); font-size: 11px; white-space: nowrap; cursor: pointer; }
@@ -4076,47 +4430,6 @@ button.view-mode-badge--collection:hover { filter: brightness(1.12); }
   display: none !important;
 }
 
-.app-nav {
-  display: flex;
-  gap: 4px;
-  margin-bottom: var(--spacing-md);
-  padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface-muted);
-}
-
-.app-nav__link {
-  display: inline-flex;
-  flex: 1;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-width: 0;
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.app-nav__link:hover {
-  color: var(--text);
-}
-
-.app-nav__link.is-active {
-  background: var(--surface);
-  color: var(--accent);
-  box-shadow: var(--shadow-sm);
-}
-
-.app-nav__link:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
 .collections-manage-link {
   display: inline-flex;
   align-items: center;
@@ -4150,11 +4463,6 @@ button.view-mode-badge--collection:hover { filter: brightness(1.12); }
   background: color-mix(in srgb, var(--surface) 94%, transparent);
   box-shadow: var(--shadow-sm);
   backdrop-filter: blur(12px);
-}
-
-.collections-page__header .app-nav {
-  width: min(100%, 320px);
-  margin: 0;
 }
 
 .collections-page__header {
@@ -4477,7 +4785,8 @@ button.view-mode-badge--collection:hover { filter: brightness(1.12); }
   border-bottom: 1px solid var(--border);
 }
 
-.collections-page__form input {
+.collections-page__form input,
+.collections-page__form select {
   flex: 1 1 180px;
   min-width: 0;
   padding: 7px 10px;
@@ -4487,6 +4796,199 @@ button.view-mode-badge--collection:hover { filter: brightness(1.12); }
   color: var(--text);
 }
 
+/* Tags classify a collection without touching anything an integration owns, so they stay
+   available on Collectr's rows too - unlike rename, which does not. */
+.collections-page__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.collections-page__tag[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.collections-page__tag:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.collections-page__public-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--success-soft);
+  color: var(--success);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+}
+
+.collections-page__printings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 16px 12px 44px;
+}
+
+.collections-page__printings label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .collections-page__printings {
+    padding-left: 16px;
+  }
+}
+
+/* The shared view. It renders outside every provider, so it carries its own page frame
+   rather than borrowing the catalog's. */
+.public-collection {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+  color: var(--text);
+}
+
+.public-collection__header h1 {
+  margin: 0 0 6px;
+}
+
+.public-collection__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 20px;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.public-collection__notice {
+  margin: 16px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+.public-collection__notice--error {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.public-collection__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 56px 16px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.public-collection__subcollections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.public-collection__subcollections a {
+  padding: 5px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--accent);
+  font-size: var(--font-size-sm);
+  text-decoration: none;
+}
+
+/* The art is the point of a shared collection, so the card leads and its details sit
+   underneath. The columns are sized in card widths rather than a fixed count, so the
+   grid reflows from one column on a phone to as many as the window allows. */
+.public-collection__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.public-collection__card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.public-collection__card img,
+.public-collection__card-placeholder {
+  width: 100%;
+  /* A trading card is 2.5in x 3.5in. Reserving that ratio up front also keeps the grid
+     from reflowing as the lazily loaded art arrives. */
+  aspect-ratio: 5 / 7;
+  border-radius: var(--radius-md);
+  object-fit: contain;
+  background: var(--surface-muted);
+}
+
+.public-collection__card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.public-collection__card-info strong {
+  color: var(--text);
+  font-size: var(--font-size-sm);
+  line-height: 1.3;
+}
+
+/* Over the art rather than beside it, now that the art fills the column. */
+.public-collection__quantity {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-width: 26px;
+  padding: 3px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 999px;
+  background: rgba(13, 20, 36, 0.86);
+  color: #fff;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+}
+
 .collections-page__empty {
   margin: 0;
   padding: 16px;
@@ -4494,20 +4996,15 @@ button.view-mode-badge--collection:hover { filter: brightness(1.12); }
   font-size: var(--font-size-sm);
 }
 
+/* Both breakpoints now switch pages from their own bottom bar, so this header holds only
+   the account block - and goes entirely when there is nothing signed in to show. */
+.collections-page__header:not(:has(.collections-page__account)) {
+  display: none;
+}
+
 @media (max-width: 760px) {
   .collections-page__header {
     padding: calc(8px + env(safe-area-inset-top)) 12px 8px;
-  }
-
-  /* On a phone the bottom bar already switches pages, so the top switcher would only
-     repeat it - in the Filters panel and here. With it gone, a header holding nothing
-     else (signed out, no account to show) goes too rather than leaving an empty strip. */
-  .app-nav {
-    display: none;
-  }
-
-  .collections-page__header:not(:has(.collections-page__account)) {
-    display: none;
   }
 
   /* Room for the fixed bottom bar, which stays on every page. */
@@ -4677,6 +5174,36 @@ button.view-mode-badge--collection:hover { filter: brightness(1.12); }
   filter: brightness(1.15);
 }
 
+/* A write that Supabase rejected (RLS, expired session, offline…) used to leave this
+   button looking like it had done nothing. This makes the failure visible right where the
+   click happened instead of only on the Collections page. */
+.card .owned-card-button--failed {
+  background: linear-gradient(135deg, #7a1f2b, #a62d3a);
+  animation: owned-card-button-shake 0.3s ease;
+}
+
+.owned-card-button__error {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #7a1f2b;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: normal;
+  max-width: 160px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+  z-index: 12;
+}
+
+@keyframes owned-card-button-shake {
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
 /* In the table the row already carries the context, so it sits inline. */
 .card-list-table .owned-card-button {
   display: inline-flex;
@@ -4783,7 +5310,10 @@ button.view-mode-badge--collection:hover { filter: brightness(1.12); }
   min-width: 0;
 }
 
-.catalog-breadcrumb li:first-child {
+/* The root step never shrinks away - neither does a collection chip, and there can be
+   more than one of those when several collections are viewed together. */
+.catalog-breadcrumb li:first-child,
+.catalog-breadcrumb li:has(.catalog-breadcrumb__step--collection) {
   flex: 0 0 auto;
 }
 
@@ -4810,12 +5340,29 @@ button.view-mode-badge--collection:hover { filter: brightness(1.12); }
 }
 
 button.catalog-breadcrumb__step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   cursor: pointer;
 }
 
 button.catalog-breadcrumb__step:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+/* The root step for a collection doubles as the old standalone badge did: solid, and
+   with its own way out rather than the plain "go up a level" the other steps offer. */
+button.catalog-breadcrumb__step--collection {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+button.catalog-breadcrumb__step--collection:hover {
+  border-color: var(--accent-hover);
+  color: #fff;
+  filter: brightness(1.12);
 }
 
 .catalog-breadcrumb__step.is-current {

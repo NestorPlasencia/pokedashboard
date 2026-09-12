@@ -147,3 +147,23 @@ test('a launch straight into a page wins over what was remembered', () => {
   assert.equal(window.location.search, '');
   window.location.pathname = '/';
 });
+
+test('a shared collection link is not remembered as where this user was working', () => {
+  window.location.pathname = '/collections';
+  launch('?series=Base');
+  rememberUrl();
+
+  // The manifest's scope is `/`, so an installed app captures `/c/<id>` links too.
+  // Remembering one would relaunch this user into someone else's collection.
+  window.location.pathname = '/c/a0000000-0000-0000-0000-000000000001';
+  launch('');
+  rememberUrl();
+
+  installed = true;
+  window.location.pathname = '/';
+  restoreLaunchUrl();
+
+  assert.equal(window.location.pathname, '/collections');
+  assert.equal(window.location.search, '?series=Base');
+  window.location.pathname = '/';
+});

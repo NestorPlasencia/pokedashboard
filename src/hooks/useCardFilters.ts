@@ -1,9 +1,11 @@
 import { useEffect, useMemo } from 'react';
 import { useCardContext } from '../context/CardContext';
-import { 
-  applyPriceFilter, 
-  applySorting, 
-  applyCollectionFilter, 
+import { useOptionsContext } from '../context/OptionsContext';
+import { collectionScopeNames } from '../utils/collectionTree';
+import {
+  applyPriceFilter,
+  applySorting,
+  applyCollectionFilter,
   applyFormsFilter
 } from '../utils/filters';
 
@@ -31,6 +33,22 @@ export const useCardFilters = () => {
     sortConfig,
     viewMode
   } = useCardContext();
+  const { collections } = useOptionsContext();
+
+  /**
+   * Picking a collection means picking what it holds, subcollections included - the rule
+   * the view mode and this panel's own condition counts already follow.
+   *
+   * The expansion happens here rather than when a box is ticked: the stored selection
+   * stays exactly what the user chose, so the URL keeps their choice and a collection
+   * nested later is picked up without rewriting the filter.
+   */
+  const scopedCollections = useMemo(
+    () => [...new Set(
+      collectionFilter.selectedCollections.flatMap((name) => collectionScopeNames(collections, name))
+    )],
+    [collections, collectionFilter.selectedCollections]
+  );
 
   // NOTE: Level 1 (basic filters) is handled by Filters.tsx component
   // This hook starts from Level 2 (price filter)
@@ -63,8 +81,10 @@ export const useCardFilters = () => {
     if (sortedCards.length === 0) return [];
     return applyCollectionFilter(
       sortedCards,
-      collectionFilter.selectedCollections.length > 0 ? collectionFilter.mode : 'none',
-      collectionFilter.selectedCollections,
+      // Guarded on the scope rather than the raw selection: the scope is what the filter
+      // actually reads, and the two are empty together.
+      scopedCollections.length > 0 ? collectionFilter.mode : 'none',
+      scopedCollections,
       collectionFilter.limit,
       // Condition belongs to a collection view, never to a hidden ownership filter.
       viewMode.kind === 'collection' ? collectionFilter.conditionsFilter : ['All']
@@ -72,7 +92,7 @@ export const useCardFilters = () => {
   }, [
     sortedCards,
     collectionFilter.mode,
-    collectionFilter.selectedCollections,
+    scopedCollections,
     collectionFilter.limit,
     collectionFilter.conditionsFilter,
     viewMode.kind
@@ -90,7 +110,7 @@ export const useCardFilters = () => {
         groupingRegions: pokemonGrouping.groupingRegions,
         allowVariants: pokemonGrouping.allowVariants,
         hideVariants: pokemonGrouping.hideVariants,
-        selectedCollections: collectionFilter.selectedCollections,
+        selectedCollections: scopedCollections,
         collectionMode: collectionFilter.mode,
         fallbackToDefault: pokemonGrouping.fallbackToDefault
       }
@@ -104,7 +124,7 @@ export const useCardFilters = () => {
     pokemonGrouping.hideVariants,
     pokemonGrouping.fallbackToDefault,
     pokemonFormsData,
-    collectionFilter.selectedCollections,
+    scopedCollections,
     collectionFilter.mode
   ]);
 

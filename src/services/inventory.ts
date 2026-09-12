@@ -168,10 +168,17 @@ const emptyInventory = (): InventorySnapshot => ({
 const inventoryStorageKey = (userId: string) =>
   `${inventoryStoragePrefix}${userId}`;
 
+/**
+ * The snapshot is shared across tabs and survives restarts, so unlike the old per-tab
+ * cache it can be arbitrarily old - and Collectr syncs this account from outside the app.
+ * Past this age it is refetched rather than trusted.
+ */
+const storedInventoryMaxAge = 12 * 60 * 60 * 1000;
+
 const readStoredInventory = (userId: string): InventorySnapshot | null => {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.sessionStorage.getItem(inventoryStorageKey(userId));
+    const raw = window.localStorage.getItem(inventoryStorageKey(userId));
     if (!raw) return null;
     const stored = JSON.parse(raw) as Partial<StoredInventorySnapshot>;
     if (
@@ -180,9 +187,10 @@ const readStoredInventory = (userId: string): InventorySnapshot | null => {
       !Array.isArray(stored.collectionNames) ||
       !Array.isArray(stored.entriesByProductId) ||
       typeof stored.activeCopyCount !== "number" ||
-      typeof stored.fetchedAt !== "number"
+      typeof stored.fetchedAt !== "number" ||
+      Date.now() - stored.fetchedAt > storedInventoryMaxAge
     ) {
-      window.sessionStorage.removeItem(inventoryStorageKey(userId));
+      window.localStorage.removeItem(inventoryStorageKey(userId));
       return null;
     }
     return {
@@ -192,7 +200,7 @@ const readStoredInventory = (userId: string): InventorySnapshot | null => {
       fetchedAt: stored.fetchedAt,
     };
   } catch (error) {
-    console.warn("[collections] Unable to read the session inventory cache", error);
+    console.warn("[collections] Unable to read the stored inventory cache", error);
     return null;
   }
 };
@@ -208,12 +216,12 @@ const writeStoredInventory = (userId: string, snapshot: InventorySnapshot) => {
     fetchedAt: snapshot.fetchedAt,
   };
   try {
-    window.sessionStorage.setItem(
+    window.localStorage.setItem(
       inventoryStorageKey(userId),
       JSON.stringify(stored)
     );
   } catch (error) {
-    console.warn("[collections] Unable to persist the session inventory cache", error);
+    console.warn("[collections] Unable to persist the stored inventory cache", error);
   }
 };
 
@@ -319,6 +327,11 @@ export type CollectionOption = {
   editable: boolean;
   managedBy: string | null;
   isPublic: boolean;
+  /**
+   * The raw `own`/`wish`/`watch` rows. `kind` is derived from them, but only answers
+   * "wishlist or not" - editing a tag needs to know which ones are actually set.
+   */
+  tags: string[];
 };
 
 const sortCollectionsByPrinting = (
@@ -381,6 +394,7 @@ export const loadCollectionOptions = async (): Promise<CollectionOption[]> => {
       editable: managedBy === null,
       managedBy,
       isPublic: collection.is_public,
+      tags: [...(tagsByCollection.get(collection.id) ?? [])],
     };
   });
 };
@@ -518,8 +532,83 @@ export const clearInventoryCache = (
   inventoryCache = null;
   if (options.includePersistent && typeof window !== "undefined") {
     const userId = options.userId ?? cachedUserId;
-    if (userId) window.sessionStorage.removeItem(inventoryStorageKey(userId));
+    if (userId) window.localStorage.removeItem(inventoryStorageKey(userId));
   }
+};
+
+export type InventoryCopyPatch = {
+  productId: number;
+  collectionId: string;
+  collectionName: string;
+  printing: string | null;
+  card: { name: string; setName?: string | null; number?: string | null; rarity?: string | null; image?: string | null };
+};
+
+/**
+ * Applies one card_copies write we already know succeeded, without refetching the whole
+ * snapshot - the write that prompted it is exactly the kind of single-row change a full
+ * `createSnapshot()` re-derives from scratch anyway. `add` only ever runs while the card
+ * isn't held, so it always creates exactly one row; `remove` only runs while it is held,
+ * and the backend deletes every active row for that exact collection/printing (no
+ * condition filter - see `removeCard` in appCollections.ts), so an entry is added or
+ * dropped outright here too, never incremented/decremented in place.
+ *
+ * Returns null when nothing is cached yet for this user, so the caller can fall back to a
+ * real `refreshInventory()` instead of patching a snapshot that does not exist.
+ */
+export const patchInventoryCopy = (
+  userId: string,
+  patch: InventoryCopyPatch,
+  action: "add" | "remove"
+): InventorySnapshot | null => {
+  if (inventoryCache?.userId !== userId) return null;
+  const snapshot = inventoryCache.snapshot;
+  const entriesByProductId = new Map(snapshot.entriesByProductId);
+  const existing = entriesByProductId.get(patch.productId) ?? [];
+  const index = existing.findIndex(
+    (entry) => entry.collectionId === patch.collectionId && (entry.printing ?? "") === (patch.printing ?? "")
+  );
+
+  let nextEntries: InventoryEntry[];
+  let activeCopyDelta: number;
+
+  if (action === "add") {
+    if (index >= 0) return snapshot;
+    nextEntries = [
+      ...existing,
+      {
+        collectionName: patch.collectionName,
+        collectionId: patch.collectionId,
+        origin: "app",
+        productName: patch.card.name,
+        printing: patch.printing,
+        conditions: { Unknown: 1 },
+        catalogGroup: patch.card.setName ?? null,
+        catalogNumber: patch.card.number ?? null,
+        catalogRarity: patch.card.rarity ?? null,
+        catalogImageUrl: patch.card.image ?? null,
+      },
+    ];
+    activeCopyDelta = 1;
+  } else {
+    if (index < 0) return snapshot;
+    const removedCount = Object.values(existing[index].conditions)
+      .reduce<number>((sum, count) => sum + (count ?? 0), 0);
+    nextEntries = existing.filter((_, entryIndex) => entryIndex !== index);
+    activeCopyDelta = -removedCount;
+  }
+
+  if (nextEntries.length > 0) entriesByProductId.set(patch.productId, nextEntries);
+  else entriesByProductId.delete(patch.productId);
+
+  const next: InventorySnapshot = {
+    ...snapshot,
+    entriesByProductId,
+    activeCopyCount: snapshot.activeCopyCount + activeCopyDelta,
+  };
+  inventoryCache = { userId, snapshot: next };
+  writeStoredInventory(userId, next);
+  return next;
 };
 
 export const describeInventoryError = (error: unknown): string => {

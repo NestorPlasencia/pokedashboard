@@ -7,7 +7,9 @@ import { parseUrlParams, type FilterParams } from './urlParams.ts';
 export type ViewMode =
   | { kind: 'catalog' }
   | { kind: 'wishlist'; wishlistId: string; subcollectionId: string }
-  | { kind: 'collection'; name: string };
+  // More than one collection can be browsed together; their cards are the union of all
+  // of them. `names` is never empty - an empty selection falls back to the catalog.
+  | { kind: 'collection'; names: string[] };
 
 export const CATALOG_VIEW: ViewMode = { kind: 'catalog' };
 
@@ -28,10 +30,27 @@ export const parseViewModeFromUrl = (): ViewMode => {
         ? { kind: 'wishlist', wishlistId: params.viewWishlist, subcollectionId: params.viewSubcollection ?? '' }
         : CATALOG_VIEW;
     case 'collection':
-      return params.viewedCollection ? { kind: 'collection', name: params.viewedCollection } : CATALOG_VIEW;
+      return params.viewedCollection && params.viewedCollection.length > 0
+        ? { kind: 'collection', names: params.viewedCollection }
+        : CATALOG_VIEW;
     default:
       return CATALOG_VIEW;
   }
+};
+
+/**
+ * Add or remove one collection from what is being browsed. Several can be viewed at
+ * once - their cards are the union - so this only ever touches the one name given.
+ * Toggling one on from the catalog or a wishlist starts a fresh single-collection view;
+ * toggling off the last one returns to the catalog, since an empty selection isn't one.
+ */
+export const toggleViewedCollection = (mode: ViewMode, name: string): ViewMode => {
+  const names = mode.kind === 'collection' ? mode.names : [];
+  if (names.includes(name)) {
+    const remaining = names.filter((entry) => entry !== name);
+    return remaining.length > 0 ? { kind: 'collection', names: remaining } : CATALOG_VIEW;
+  }
+  return { kind: 'collection', names: [...names, name] };
 };
 
 /**
@@ -50,7 +69,7 @@ export const viewModeToParams = (mode: ViewMode): Partial<FilterParams> => {
         viewedCollection: undefined,
       };
     case 'collection':
-      return { viewMode: 'collection', viewWishlist: undefined, viewSubcollection: undefined, viewedCollection: mode.name };
+      return { viewMode: 'collection', viewWishlist: undefined, viewSubcollection: undefined, viewedCollection: mode.names };
     default:
       return assertNeverViewMode(mode);
   }

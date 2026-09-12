@@ -1,48 +1,31 @@
-import React, { ReactNode, useEffect, useState } from 'react';
+import React, { ReactNode } from 'react';
 
 interface SidebarProps {
     children: ReactNode;
     position?: 'left' | 'right';
+    /** Owned by the caller so the bottom dock and this sidebar's own arrow drive the same state. */
+    collapsed: boolean;
+    onToggle: () => void;
 }
 
-const SidebarComponent: React.FC<SidebarProps> = ({ children, position = 'left' }) => {
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
-        () => position === 'right' || (
-            typeof window !== 'undefined' && window.matchMedia('(max-width: 760px)').matches
-        )
-    );
-
-    useEffect(() => {
-        const mobileQuery = window.matchMedia('(max-width: 760px)');
-        const updateForViewport = (event: MediaQueryListEvent) => {
-            setIsSidebarCollapsed(event.matches || position === 'right');
-        };
-
-        mobileQuery.addEventListener('change', updateForViewport);
-        return () => mobileQuery.removeEventListener('change', updateForViewport);
-    }, [position]);
-
-    const toggleSidebar = () => {
-        setIsSidebarCollapsed((collapsed) => !collapsed);
-    };
-
+const SidebarComponent: React.FC<SidebarProps> = ({ children, position = 'left', collapsed, onToggle }) => {
     const isLeft = position === 'left';
-    const collapseIcon = isSidebarCollapsed 
-        ? (isLeft ? '>' : '<') 
+    const collapseIcon = collapsed
+        ? (isLeft ? '>' : '<')
         : (isLeft ? '<' : '>');
 
     return (
         <div className={`sidebar-box ${position}`}>
-            <div className={`sidebar ${position}${isSidebarCollapsed ? ' collapsed' : ''}`}>
-                <div className={`sidebar-content ${isSidebarCollapsed ? 'sidebar-content--disabled' : ''}`}>
+            <div className={`sidebar ${position}${collapsed ? ' collapsed' : ''}`}>
+                <div className={`sidebar-content ${collapsed ? 'sidebar-content--disabled' : ''}`}>
                     {children}
                 </div>
             </div>
             <button
                 className={`collapse ${position}`}
-                onClick={toggleSidebar}
-                aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                onClick={onToggle}
+                aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                 type="button"
             >
                 {collapseIcon}

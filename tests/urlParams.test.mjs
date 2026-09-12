@@ -32,7 +32,8 @@ test('a view mode survives a write and read of the URL', () => {
     { kind: 'catalog' },
     { kind: 'wishlist', wishlistId: 'w-1', subcollectionId: 's-2' },
     { kind: 'wishlist', wishlistId: 'w-1', subcollectionId: '' },
-    { kind: 'collection', name: 'Binder One' },
+    { kind: 'collection', names: ['Binder One'] },
+    { kind: 'collection', names: ['Binder One', 'Deck Box'] },
   ]) {
     setUrl('');
     updateUrlParams(viewModeToParams(mode));
@@ -42,9 +43,9 @@ test('a view mode survives a write and read of the URL', () => {
 
 test('switching view mode leaves nothing of the previous one behind', () => {
   updateUrlParams(viewModeToParams({ kind: 'wishlist', wishlistId: 'w-1', subcollectionId: 's-2' }));
-  updateUrlParams(viewModeToParams({ kind: 'collection', name: 'Binder One' }));
-  assert.equal(window.location.search, '?viewMode=collection&viewedCollection=Binder_One');
-  assert.deepEqual(parseViewModeFromUrl(), { kind: 'collection', name: 'Binder One' });
+  updateUrlParams(viewModeToParams({ kind: 'collection', names: ['Binder One'] }));
+  assert.equal(window.location.search, '?viewedCollection=Binder_One&viewMode=collection');
+  assert.deepEqual(parseViewModeFromUrl(), { kind: 'collection', names: ['Binder One'] });
 
   updateUrlParams(viewModeToParams({ kind: 'catalog' }));
   assert.equal(window.location.search, '', 'the catalog is the default and writes nothing');
@@ -52,9 +53,9 @@ test('switching view mode leaves nothing of the previous one behind', () => {
 
 test('the collections filter and the viewed collection stay independent', () => {
   updateUrlParams({ collections: ['Binder One', 'Deck Box'] });
-  updateUrlParams(viewModeToParams({ kind: 'collection', name: 'Deck Box' }));
+  updateUrlParams(viewModeToParams({ kind: 'collection', names: ['Deck Box'] }));
   assert.deepEqual(parseUrlParams().collections, ['Binder One', 'Deck Box']);
-  assert.deepEqual(parseViewModeFromUrl(), { kind: 'collection', name: 'Deck Box' });
+  assert.deepEqual(parseViewModeFromUrl(), { kind: 'collection', names: ['Deck Box'] });
 });
 
 test('defaults never appear in the URL', () => {

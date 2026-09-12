@@ -1,5 +1,5 @@
 import { DEPENDS, LIMITS } from "../constants/constants";
-import { Card, CardCollection } from "../types/dashboard";
+import { Card } from "../types/dashboard";
 import { getCollectionTotalQuantity } from "./utils";
 
 export const IO_IMAGES_BASE_URL =
@@ -53,17 +53,6 @@ export const searchErrorsInCollections = (cardsWithCollection: Card[]) => {
           // }
         }
       }
-    }
-  });
-};
-
-export const checkQuantityInCollection = (
-  cards: CardCollection[],
-  limit: number
-) => {
-  cards.forEach((c) => {
-    if (c.quantity > limit) {
-      console.log(c.catalog_group, c.quantity);
     }
   });
 };

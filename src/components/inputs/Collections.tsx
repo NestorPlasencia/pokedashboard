@@ -6,12 +6,16 @@ import { CollapsibleSection } from "../ui/CollapsibleSection";
 import { updateUrlParams } from "../../utils/urlParams";
 import type { CollectionFilterOptions, ConditionKey } from "../../types/dashboard";
 import { useAuth } from "../../context/AuthContext";
-import { CATALOG_VIEW } from "../../utils/viewMode";
+import { toggleViewedCollection } from "../../utils/viewMode";
 import { navigate } from "../../utils/route";
-import { collectionScopeNames } from "../../utils/collectionTree";
+import { childrenByParent, collectionScopeNames } from "../../utils/collectionTree";
+import { groupByTag } from "../../utils/collectionTags";
 import { countCopies } from "../../utils/copyCount";
 
 const CONDITION_KEYS: ConditionKey[] = ["Near Mint", "Lightly Played", "Moderately Played", "Damaged", "Heavily Played"];
+// A stable reference outside a collection view, so it never looks like a changed
+// dependency to the hooks that read it.
+const NO_VIEWED_COLLECTIONS: string[] = [];
 
 const MODE_LABELS: Record<CollectionFilterOptions["mode"], string> = {
   none: "",
@@ -28,19 +32,29 @@ export const Collections = () => {
   const [conditionMode, setConditionMode] = useState<'include' | 'exclude'>('include');
   const [conditionSearchVisible, setConditionSearchVisible] = useState(false);
   const [conditionSearch, setConditionSearch] = useState('');
-  // Switching to a collection cannot leave a wishlist open: the mode replaces it.
-  const viewedCollection = viewMode.kind === 'collection' ? viewMode.name : '';
+  // Switching to a collection cannot leave a wishlist open: the mode replaces it. Several
+  // can be viewed together, so this is every one currently active rather than just one.
+  const viewedCollections = viewMode.kind === 'collection' ? viewMode.names : NO_VIEWED_COLLECTIONS;
   const isViewingCollection = viewMode.kind === 'collection';
+
+  const childrenOf = useMemo(() => childrenByParent(collections), [collections]);
+  // A collection whose parent is not in the list - a name the snapshot reported before the
+  // row itself arrived - would otherwise be drawn nowhere, so it surfaces at the root
+  // rather than disappearing from the filter entirely.
+  const rootCollections = useMemo(() => {
+    const ids = new Set(collections.map((collection) => collection.id).filter(Boolean));
+    return collections.filter((collection) => !collection.parentId || !ids.has(collection.parentId));
+  }, [collections]);
 
   // Match Region's visible/total convention, but quantities here are physical copies.
   // The visible side follows every card filter except Condition itself; the total is the
-  // complete viewed collection, including every nested subcollection.
+  // union of every viewed collection, each including its own nested subcollections.
   const conditionCounts = useMemo(() => {
     const empty = () => Object.fromEntries(
       CONDITION_KEYS.map(condition => [condition, 0])
     ) as Record<ConditionKey, number>;
     if (!isViewingCollection) return { visible: empty(), total: empty() };
-    const scope = new Set(collectionScopeNames(collections, viewedCollection));
+    const scope = new Set(viewedCollections.flatMap((name) => collectionScopeNames(collections, name)));
     const count = (cards: typeof allCards) => {
       const totals = empty();
       cards.forEach(card => card.collections?.forEach(entry => {
@@ -52,7 +66,7 @@ export const Collections = () => {
       return totals;
     };
     return { visible: count(sortedCards), total: count(allCards) };
-  }, [allCards, collections, isViewingCollection, sortedCards, viewedCollection]);
+  }, [allCards, collections, isViewingCollection, sortedCards, viewedCollections]);
 
   // Signing in lives on the Collections page, so a control that needs a session sends you
   // there instead of opening the sign-in dialog over the catalog.
@@ -154,6 +168,48 @@ export const Collections = () => {
     }
   }
 
+  // Drawn as the tree it is: a subcollection belongs to its parent, and ticking the
+  // parent covers it, so a flat list misrepresented both.
+  const renderCollectionRow = (collection: typeof collections[number], depth: number) => {
+    const children = collection.id ? childrenOf.get(collection.id) ?? [] : [];
+    const isViewed = viewedCollections.includes(collection.name);
+    return (
+      <div key={collection.id || collection.name}>
+        <div
+          className={`collections-row${depth > 0 ? ' collections-row--nested' : ''}`}
+          style={depth > 0 ? { marginLeft: depth * 10, paddingLeft: 6 } : undefined}
+        >
+          <label className="collections-checkbox-label">
+            <input
+              type="checkbox"
+              value={collection.name}
+              checked={collectionFilter.selectedCollections.includes(collection.name)}
+              onChange={() => handleCollectionsChange(collection.name)}
+              aria-label={`Select collection ${collection.name}`}
+            />
+            <span>{collection.name}</span>
+          </label>
+          {/* The printings behind the collection, so its type is readable without
+              opening it - a hand-kept collection simply has none. */}
+          {collection.printings.map((printing) => (
+            <span key={printing} className="collection-printing-tag">{printing}</span>
+          ))}
+          <button
+            type="button"
+            className="collections-view-btn"
+            title={isViewed ? "Stop viewing this collection" : "Add this collection to the view"}
+            aria-label={`${isViewed ? "Stop viewing" : "View"} cards in ${collection.name}`}
+            onClick={() => setViewMode(toggleViewedCollection(viewMode, collection.name))}
+            aria-pressed={isViewed}
+          >
+            <Eye size={13} aria-hidden="true" /> View
+          </button>
+        </div>
+        {children.map((child) => renderCollectionRow(child, depth + 1))}
+      </div>
+    );
+  };
+
   // Nothing to filter by until there are collections. The component stays mounted either
   // way, so the effects above still switch the filter off on sign-out and keep the URL in
   // step - and a filter that is already on is never hidden.
@@ -174,37 +230,27 @@ export const Collections = () => {
           {collections.length === 0 && (
             <span>No collections available</span>
           )}
-          {collections.map((collection) => (
-            <div key={collection.name} className="collections-row">
-              <label className="collections-checkbox-label">
-                <input
-                  type="checkbox"
-                  value={collection.name}
-                  checked={collectionFilter.selectedCollections.includes(collection.name)}
-                  onChange={() => handleCollectionsChange(collection.name)}
-                  aria-label={`Select collection ${collection.name}`}
-                />
-                <span>{collection.name}</span>
-              </label>
-              {/* The printings behind the collection, so its type is readable without
-                  opening it - a hand-kept collection simply has none. */}
-              {collection.printings.map((printing) => (
-                <span key={printing} className="collection-printing-tag">{printing}</span>
-              ))}
-              <button
-                type="button"
-                className="collections-view-btn"
-                title="View collection"
-                aria-label={`View cards in ${collection.name}`}
-                onClick={() => setViewMode(
-                  viewedCollection === collection.name ? CATALOG_VIEW : { kind: 'collection', name: collection.name }
-                )}
-                aria-pressed={viewedCollection === collection.name}
+          {/* One folding section per tag, each holding whole trees: a subcollection is
+              drawn under its parent rather than sorted into a section of its own, so the
+              split by tag never breaks the nesting apart. An empty section is left out
+              instead of shown as a heading with nothing under it. */}
+          {groupByTag(rootCollections)
+            // The three schema tags are always drawn, empty or not: they are the
+            // separation this list is read by, and a heading that vanished when its last
+            // collection was untagged would make the panel reshuffle under you. Untagged
+            // is not one of them, so it appears only once something has fallen into it.
+            .filter((section) => section.tag !== null || section.items.length > 0)
+            .map((section) => (
+              <CollapsibleSection
+                key={section.label}
+                title={`${section.label} (${section.items.length})`}
+                persistKey={`collections-tag-${section.tag ?? 'untagged'}`}
               >
-                <Eye size={13} aria-hidden="true" /> View
-              </button>
-            </div>
-          ))}
+                {section.items.length > 0
+                  ? section.items.map((collection) => renderCollectionRow(collection, 0))
+                  : <small>No collections with this tag.</small>}
+              </CollapsibleSection>
+            ))}
 
           {/* One row of controls: the panel is wide, so stacking them only added height. */}
           {hasSelectedCollections && (

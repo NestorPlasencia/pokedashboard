@@ -10,16 +10,45 @@ import { rememberUrl } from '../services/launchUrl.ts';
  *
  * Deliberately free of React so the URL logic can be tested without a DOM.
  */
-export type Route = 'catalog' | 'collections';
+export type Route = 'catalog' | 'collections' | 'settings';
 
 const PATHS: Record<Route, string> = {
   catalog: '/',
   collections: '/collections',
+  settings: '/settings',
 };
 
+/**
+ * Where a shared collection lives: `/c/<id>`.
+ *
+ * Deliberately not part of `Route`. That union is the set of pages the app navigates
+ * between, carrying one shared query string; this is an address someone was handed, read
+ * once at startup and rendered outside the signed-in tree entirely. It needs no history
+ * entry and nothing navigates back to it, so giving it a `Route` would only force every
+ * exhaustive switch to handle a page that cannot be reached from inside.
+ */
+const PUBLIC_COLLECTION_PREFIX = '/c/';
+
+/** The shared collection this address points at, or null for every in-app page. */
+export const publicCollectionId = (
+  pathname: string = window.location.pathname
+): string | null => {
+  if (!pathname.startsWith(PUBLIC_COLLECTION_PREFIX)) return null;
+  const id = pathname.slice(PUBLIC_COLLECTION_PREFIX.length).replace(/\/+$/, '');
+  // Only a well-formed id: anything else is a mistyped link and falls through to the app.
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ? id : null;
+};
+
+export const pathForPublicCollection = (id: string): string =>
+  `${PUBLIC_COLLECTION_PREFIX}${id}`;
+
 /** Anything unknown opens the catalog, so a mistyped link still loads. */
-export const routeFromPath = (pathname: string): Route =>
-  (pathname.replace(/\/+$/, '') || '/') === PATHS.collections ? 'collections' : 'catalog';
+export const routeFromPath = (pathname: string): Route => {
+  const normalized = pathname.replace(/\/+$/, '') || '/';
+  if (normalized === PATHS.collections) return 'collections';
+  if (normalized === PATHS.settings) return 'settings';
+  return 'catalog';
+};
 
 export const pathForRoute = (route: Route): string => PATHS[route];
 

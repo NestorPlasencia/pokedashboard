@@ -1,15 +1,17 @@
 import { useMemo, useState } from "react";
-import { Check, Eye, Lock, Pencil, PencilOff, Plus, RefreshCw, TextCursorInput, Trash2, X } from "lucide-react";
+import { Check, Eye, FolderInput, Globe, Link2, Lock, Palette, Pencil, PencilOff, Plus, RefreshCw, TextCursorInput, Trash2, X } from "lucide-react";
+import { COLLECTION_PRINTING_ORDER } from "../../services/inventory";
+import type { CollectionTag } from "../../services/appCollections";
 import { useOptionsContext } from "../../context/OptionsContext";
 import { useCardContext } from "../../context/CardContext";
 import { useAuth } from "../../context/AuthContext";
 import { useOwnedCollections } from "../../context/OwnedCollectionsContext";
 import type { InventoryStatus } from "../../hooks/useLoadCards";
 import type { OptionsCollection } from "../../types/dashboard";
-import { CATALOG_VIEW } from "../../utils/viewMode";
-import { navigate } from "../../utils/route";
+import { CATALOG_VIEW, toggleViewedCollection } from "../../utils/viewMode";
+import { navigate, pathForPublicCollection } from "../../utils/route";
 import { childrenByParent, collectionSubtree } from "../../utils/collectionTree";
-import { AppNav } from "../ui/AppNav";
+import { byTag } from "../../utils/collectionTags";
 
 type CollectionsPageProps = {
   inventoryStatus: InventoryStatus;
@@ -28,6 +30,7 @@ type Group = {
   items: OptionsCollection[];
 };
 
+
 /**
  * Where collections are managed: created and nested, renamed, deleted, chosen as the
  * destination for the cards you add, and opened in the catalog.
@@ -44,6 +47,9 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
   const [draftName, setDraftName] = useState<string | null>(null);
   const [subDraft, setSubDraft] = useState<{ parentId: string; name: string } | null>(null);
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
+  const [movingId, setMovingId] = useState<string | null>(null);
+  const [printingsDraft, setPrintingsDraft] = useState<{ id: string; printings: string[] } | null>(null);
+  const [copiedId, setCopiedId] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState("");
   const [busyId, setBusyId] = useState("");
   const [notice, setNotice] = useState("");
@@ -58,14 +64,20 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
       title: "Your collections",
       description: "Created here for the cards you buy outside Collectr. Nest them to keep related cards together.",
       empty: "No collections yet. Create one to start recording the cards you buy.",
-      items: topLevel.filter((collection) => collection.editable && collection.kind === "owned"),
+      items: topLevel
+        .filter((collection) => collection.editable && collection.kind === "owned")
+        .sort(byTag),
     },
     {
       key: "collectr",
       title: "Synced from Collectr",
       description: "Read-only here: the Collectr extension rebuilds them on every sync.",
       empty: "Nothing synced from Collectr yet.",
-      items: topLevel.filter((collection) => !collection.editable && collection.kind === "owned"),
+      // Ordered by tag. `sort` is stable, so collections sharing a tag keep the order they
+      // arrived in - by printing, then name.
+      items: topLevel
+        .filter((collection) => !collection.editable && collection.kind === "owned")
+        .sort(byTag),
     },
     {
       key: "wishlist",
@@ -94,15 +106,21 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
     return `${cardLabel} · ${copyLabel}`;
   };
 
+  const viewedCollections = viewMode.kind === "collection" ? viewMode.names : [];
+
+  // Adds or removes this one collection from whatever is being browsed - several can be
+  // viewed together - and always lands you on the catalog to see the result.
   const browse = (name: string) => {
-    setViewMode({ kind: "collection", name });
+    setViewMode(toggleViewedCollection(viewMode, name));
     navigate("catalog");
   };
 
   // Collections are addressed by name in the view mode and in the filter, so both follow a
   // rename and let go of deleted collections instead of pointing at nothing.
   const followRename = (from: string, to: string) => {
-    if (viewMode.kind === "collection" && viewMode.name === from) setViewMode({ kind: "collection", name: to });
+    if (viewMode.kind === "collection" && viewMode.names.includes(from)) {
+      setViewMode({ kind: "collection", names: viewMode.names.map((name) => (name === from ? to : name)) });
+    }
     if (collectionFilter.selectedCollections.includes(from)) {
       setCollectionFilter((prev) => ({
         ...prev,
@@ -112,7 +130,10 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
   };
 
   const forget = (names: string[]) => {
-    if (viewMode.kind === "collection" && names.includes(viewMode.name)) setViewMode(CATALOG_VIEW);
+    if (viewMode.kind === "collection" && viewMode.names.some((name) => names.includes(name))) {
+      const remaining = viewMode.names.filter((name) => !names.includes(name));
+      setViewMode(remaining.length > 0 ? { kind: "collection", names: remaining } : CATALOG_VIEW);
+    }
     if (collectionFilter.selectedCollections.some((name) => names.includes(name))) {
       setCollectionFilter((prev) => {
         const selectedCollections = prev.selectedCollections.filter((entry) => !names.includes(entry));
@@ -131,6 +152,72 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
     setConfirmingDelete("");
     setRenaming(null);
     setSubDraft(null);
+    setMovingId(null);
+    setPrintingsDraft(null);
+    setCopiedId("");
+  };
+
+  // Folders a collection can be nested under: any of your own collections, minus itself
+  // and its own subtree - the database would reject that cycle anyway, but filtering it
+  // out here keeps the dropdown honest. A Collectr collection's own subtree is empty
+  // since it can only ever be a leaf here, but the check is harmless either way.
+  const folderOptions = (collection: OptionsCollection) => {
+    const excluded = new Set(collectionSubtree(collections, collection.name).map((entry) => entry.id));
+    return collections.filter((entry) => entry.editable && entry.kind === "owned" && entry.id && !excluded.has(entry.id));
+  };
+
+  const handleMove = async (collection: OptionsCollection, parentId: string) => {
+    setBusyId(collection.id);
+    const moved = await owned.move(collection.id, parentId || null);
+    setBusyId("");
+    setMovingId(null);
+    if (!moved) return;
+    const parent = parentId ? collections.find((entry) => entry.id === parentId) : null;
+    setNotice(parent ? `${collection.name} moved into ${parent.name}.` : `${collection.name} moved to the top level.`);
+  };
+
+  const handleToggleTag = async (collection: OptionsCollection, tag: CollectionTag) => {
+    const enabled = !collection.tags.includes(tag);
+    setBusyId(collection.id);
+    const saved = await owned.setTag(collection.id, tag, enabled);
+    setBusyId("");
+    if (!saved) return;
+    setNotice(enabled
+      ? `${collection.name} tagged ${tag}.`
+      : `The ${tag} tag was removed from ${collection.name}.`);
+  };
+
+  const handleToggleVisibility = async (collection: OptionsCollection) => {
+    const isPublic = !collection.isPublic;
+    setBusyId(collection.id);
+    const saved = await owned.setVisibility(collection.id, isPublic);
+    setBusyId("");
+    if (!saved) return;
+    setNotice(isPublic
+      ? `${collection.name} is public. Anyone with the link can open it.`
+      : `${collection.name} is private again.`);
+  };
+
+  const copyShareLink = async (collection: OptionsCollection) => {
+    const link = `${window.location.origin}${pathForPublicCollection(collection.id)}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopiedId(collection.id);
+    } catch {
+      // Clipboard access can be refused outright - an insecure origin, a denied
+      // permission - so the link is shown instead of the copy silently doing nothing.
+      setNotice(link);
+    }
+  };
+
+  const handleSavePrintings = async (collection: OptionsCollection) => {
+    if (!printingsDraft) return;
+    setBusyId(collection.id);
+    const saved = await owned.setPrintings(collection.id, collection.printings, printingsDraft.printings);
+    setBusyId("");
+    if (!saved) return;
+    setPrintingsDraft(null);
+    setNotice(`Printings updated for ${collection.name}.`);
   };
 
   const handleCreate = async () => {
@@ -199,8 +286,18 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
     const isRenaming = renaming?.id === collection.id;
     const isConfirming = confirmingDelete === collection.id;
     const isAddingSub = subDraft?.parentId === collection.id;
+    const isMoving = movingId === collection.id;
     // Subcollections of your own collections are yours too; Collectr's stay read-only.
     const canManage = collection.editable && collection.kind === "owned" && Boolean(collection.id);
+    // `parent_id` stays editable on a Collectr collection even though its name and copies
+    // don't, so nesting is offered for both - just never into a Collectr folder itself.
+    const canMove = collection.kind === "owned" && Boolean(collection.id);
+    const isEditingPrintings = printingsDraft?.id === collection.id;
+    // Tags are editable everywhere, Collectr's rows included - except `wish`, because a
+    // wishlist is only ever read back as one when it is a top-level collection of your
+    // own (see fetchRemoteWishlists). Offering it elsewhere would write a tag that the
+    // Wishlists panel then refuses to show.
+    const canTagWish = collection.editable && collection.parentId === null;
     const children = collection.id ? childrenOf.get(collection.id) ?? [] : [];
 
     return (
@@ -244,6 +341,26 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
               {collection.printings.map((printing) => (
                 <span key={printing} className="collection-printing-tag">{printing}</span>
               ))}
+              {collection.id && (["own", "wish", "watch"] as const).map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  className="collections-page__tag"
+                  aria-pressed={collection.tags.includes(tag)}
+                  disabled={isBusy || owned.remoteUnavailable || (tag === "wish" && !canTagWish)}
+                  title={tag === "wish" && !canTagWish
+                    ? "A wishlist has to be one of your own top-level collections"
+                    : `${collection.tags.includes(tag) ? "Remove" : "Add"} the ${tag} tag`}
+                  onClick={() => handleToggleTag(collection, tag)}
+                >
+                  {tag}
+                </button>
+              ))}
+              {collection.isPublic && (
+                <span className="collections-page__public-tag">
+                  <Globe size={11} aria-hidden="true" /> Public
+                </span>
+              )}
               {isTarget && <span className="collections-page__armed-tag">Adding cards here</span>}
             </span>
           </div>
@@ -276,14 +393,67 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
               )}
               <button
                 type="button"
-                className="collections-page__btn"
-                title={children.length > 0
-                  ? `Open ${collection.name} and its subcollections in the catalog`
-                  : `Open ${collection.name} in the catalog`}
+                className={`collections-page__btn${viewedCollections.includes(collection.name) ? " is-armed" : ""}`}
+                aria-pressed={viewedCollections.includes(collection.name)}
+                title={viewedCollections.includes(collection.name)
+                  ? `Stop browsing ${collection.name}`
+                  : children.length > 0
+                    ? `Add ${collection.name} and its subcollections to the catalog view`
+                    : `Add ${collection.name} to the catalog view`}
                 onClick={() => browse(collection.name)}
               >
-                <Eye size={14} aria-hidden="true" /> Browse
+                <Eye size={14} aria-hidden="true" /> {viewedCollections.includes(collection.name) ? "Browsing" : "Browse"}
               </button>
+              {canMove && (
+                <button
+                  type="button"
+                  className={`collections-page__btn${isMoving ? " is-armed" : ""}`}
+                  aria-pressed={isMoving}
+                  aria-label={`Move ${collection.name} into another collection`}
+                  onClick={() => { startAction(); setMovingId(collection.id); }}
+                  disabled={owned.remoteUnavailable}
+                >
+                  <FolderInput size={14} aria-hidden="true" /> Move
+                </button>
+              )}
+              {/* Sharing works on a Collectr collection too: `is_public` and `parent_id`
+                  are the two columns the database leaves to the client on a managed row. */}
+              {Boolean(collection.id) && (
+                <button
+                  type="button"
+                  className={`collections-page__btn${collection.isPublic ? " is-armed" : ""}`}
+                  aria-pressed={collection.isPublic}
+                  onClick={() => handleToggleVisibility(collection)}
+                  disabled={isBusy || owned.remoteUnavailable}
+                >
+                  {collection.isPublic
+                    ? <><Lock size={14} aria-hidden="true" /> Make private</>
+                    : <><Globe size={14} aria-hidden="true" /> Share</>}
+                </button>
+              )}
+              {collection.isPublic && Boolean(collection.id) && (
+                <button
+                  type="button"
+                  className="collections-page__btn"
+                  onClick={() => copyShareLink(collection)}
+                >
+                  {copiedId === collection.id
+                    ? <><Check size={14} aria-hidden="true" /> Copied</>
+                    : <><Link2 size={14} aria-hidden="true" /> Copy link</>}
+                </button>
+              )}
+              {canManage && (
+                <button
+                  type="button"
+                  className={`collections-page__btn${isEditingPrintings ? " is-armed" : ""}`}
+                  aria-pressed={isEditingPrintings}
+                  aria-label={`Edit the printings of ${collection.name}`}
+                  onClick={() => { startAction(); setPrintingsDraft({ id: collection.id, printings: [...collection.printings] }); }}
+                  disabled={owned.remoteUnavailable}
+                >
+                  <Palette size={14} aria-hidden="true" /> Printings
+                </button>
+              )}
               {canManage && (
                 <>
                   <button
@@ -316,6 +486,62 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
             </div>
           )}
         </div>
+
+        {isMoving && (
+          <form
+            className="collections-page__form collections-page__form--sub"
+            onSubmit={(event) => event.preventDefault()}
+          >
+            <select
+              autoFocus
+              aria-label={`Move ${collection.name} into`}
+              defaultValue={collection.parentId ?? ""}
+              disabled={busyId === collection.id}
+              onChange={(event) => handleMove(collection, event.target.value)}
+            >
+              <option value="">Top level (no folder)</option>
+              {folderOptions(collection).map((folder) => (
+                <option key={folder.id} value={folder.id}>{folder.name}</option>
+              ))}
+            </select>
+            <button type="button" className="collections-page__btn" onClick={() => setMovingId(null)} disabled={busyId === collection.id}>
+              Cancel
+            </button>
+          </form>
+        )}
+
+        {isEditingPrintings && printingsDraft && (
+          <div className="collections-page__printings" role="group" aria-label={`Printings of ${collection.name}`}>
+            {/* Rendered in the schema's canonical order, never alphabetically. */}
+            {COLLECTION_PRINTING_ORDER.map((printing) => (
+              <label key={printing}>
+                <input
+                  type="checkbox"
+                  checked={printingsDraft.printings.includes(printing)}
+                  disabled={isBusy}
+                  onChange={(event) => setPrintingsDraft({
+                    id: collection.id,
+                    printings: event.target.checked
+                      ? [...printingsDraft.printings, printing]
+                      : printingsDraft.printings.filter((entry) => entry !== printing),
+                  })}
+                />
+                {printing}
+              </label>
+            ))}
+            <button
+              type="button"
+              className="collections-page__btn collections-page__btn--primary"
+              onClick={() => handleSavePrintings(collection)}
+              disabled={isBusy}
+            >
+              <Check size={14} aria-hidden="true" /> {isBusy ? "Saving…" : "Save"}
+            </button>
+            <button type="button" className="collections-page__btn" onClick={() => setPrintingsDraft(null)} disabled={isBusy}>
+              Cancel
+            </button>
+          </div>
+        )}
 
         {isAddingSub && (
           <form
@@ -450,7 +676,6 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
   return (
     <div className="collections-page">
       <div className="collections-page__header">
-        <AppNav />
         {/* Everything on this page depends on who is signed in, so the account sits in view
             rather than at the bottom of the catalog's sidebar. Signed out, the page body is
             already the sign-in prompt, so a second button here would only repeat it. */}

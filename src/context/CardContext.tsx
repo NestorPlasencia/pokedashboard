@@ -19,6 +19,13 @@ export type CatalogSelectionRequest = {
   sets?: string[];
 };
 
+/** One removable chip for a filter value that isn't the series/set the breadcrumb already names. */
+export type ActiveFilterChip = {
+  id: string;
+  label: string;
+  onRemove: () => void;
+};
+
 interface CardContextType {
   // ========== Card Data States (hierarchical order) ==========
   // All imported cards (base data)
@@ -110,6 +117,12 @@ interface CardContextType {
   // elsewhere: changes go through requestCatalogSelection.
   selectedSets: string[];
   setSelectedSets: React.Dispatch<React.SetStateAction<string[]>>;
+
+  // Every filter value active outside series/set (Rarity, Variant, Type…), published for
+  // the chip row under the breadcrumb. Read-only elsewhere: each chip carries its own
+  // removal, so the Filters panel stays the only place that touches its own state.
+  activeFilterChips: ActiveFilterChip[];
+  setActiveFilterChips: React.Dispatch<React.SetStateAction<ActiveFilterChip[]>>;
 }
 
 const CardContext = createContext<CardContextType | undefined>(undefined);
@@ -165,6 +178,7 @@ export const CardProvider: React.FC<{ children: ReactNode }> = ({
 
   const [catalogSelectionRequest, requestCatalogSelection] = useState<CatalogSelectionRequest | null>(null);
   const [selectedSets, setSelectedSets] = useState<string[]>([]);
+  const [activeFilterChips, setActiveFilterChips] = useState<ActiveFilterChip[]>([]);
 
   return (
     <CardContext.Provider
@@ -221,14 +235,16 @@ export const CardProvider: React.FC<{ children: ReactNode }> = ({
         catalogSelectionRequest,
         requestCatalogSelection,
         selectedSets,
-        setSelectedSets
+        setSelectedSets,
+        activeFilterChips,
+        setActiveFilterChips
       }), [
         allCards, filteredCards, priceFilteredCards, sortedCards,
         collectionFilteredCards, groupedCards, visibleCards, renderCards, sets, seriesSelection,
         variantsFilter, conditionsFilter, priceRange,
         collectionFilter, pokemonGrouping, pokemonFormsData,
         sortConfig, viewOptions, trendByProductId, trendLoading, trendError,
-        viewMode, setViewMode, catalogSelectionRequest, selectedSets
+        viewMode, setViewMode, catalogSelectionRequest, selectedSets, activeFilterChips
       ])}
     >
       {children}

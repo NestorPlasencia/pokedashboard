@@ -99,7 +99,8 @@ export interface FilterParams extends
   viewMode?: string;
   viewWishlist?: string;
   viewSubcollection?: string;
-  viewedCollection?: string;
+  /** One or more collections browsed together; their cards are the union of all of them. */
+  viewedCollection?: string[];
   // Where card edits go, when armed. Each holds the id of its destination, so presence
   // means "armed" and the value says where - one parameter instead of a flag plus a
   // target that could disagree with it.
@@ -129,7 +130,7 @@ export const parseUrlParams = (): FilterParams => {
   
   // Parse array parameters (pipe-separated instead of comma to avoid encoding)
   // Note: These are now stored WITHOUT the "All" option - only specific selections
-  const arrayParams = ['series', 'set', 'rarity', 'tags', 'type', 'energy', 'pokedexRegion', 'pokedexCompletion', 'variants', 'cardVariantTopLevel', 'conditions', 'subtypes', 'artist', 'collections', 'pokedexRegions', 'groupingRegions', 'formsGroupingRegions', 'formsAllowVariants', 'formsHideVariants', 'formsEnabledVariants', ...EXCLUDE_PARAM_NAMES];
+  const arrayParams = ['series', 'set', 'rarity', 'tags', 'type', 'energy', 'pokedexRegion', 'pokedexCompletion', 'variants', 'cardVariantTopLevel', 'conditions', 'subtypes', 'artist', 'collections', 'pokedexRegions', 'groupingRegions', 'formsGroupingRegions', 'formsAllowVariants', 'formsHideVariants', 'formsEnabledVariants', 'viewedCollection', ...EXCLUDE_PARAM_NAMES];
   
   arrayParams.forEach(param => {
     const value = params.get(param);
@@ -254,11 +255,6 @@ export const parseUrlParams = (): FilterParams => {
     filters.viewSubcollection = viewSubcollection;
   }
 
-  const viewedCollection = params.get('viewedCollection');
-  if (viewedCollection) {
-    filters.viewedCollection = decodeValue(viewedCollection);
-  }
-
   return filters;
 };
 
@@ -271,7 +267,7 @@ export const generateUrlParams = (filters: Partial<FilterParams>): string => {
   const queryParts: string[] = [];
   
   // Add array parameters - but SKIP "All" values
-  const arrayParams: (keyof FilterParams)[] = ['series', 'set', 'rarity', 'tags', 'type', 'energy', 'pokedexRegion', 'pokedexCompletion', 'variants', 'cardVariantTopLevel', 'conditions', 'subtypes', 'artist', 'collections', 'pokedexRegions', 'groupingRegions', 'formsGroupingRegions', 'formsAllowVariants', 'formsHideVariants', 'formsEnabledVariants', ...EXCLUDE_PARAM_NAMES];
+  const arrayParams: (keyof FilterParams)[] = ['series', 'set', 'rarity', 'tags', 'type', 'energy', 'pokedexRegion', 'pokedexCompletion', 'variants', 'cardVariantTopLevel', 'conditions', 'subtypes', 'artist', 'collections', 'pokedexRegions', 'groupingRegions', 'formsGroupingRegions', 'formsAllowVariants', 'formsHideVariants', 'formsEnabledVariants', 'viewedCollection', ...EXCLUDE_PARAM_NAMES];
   
   arrayParams.forEach(param => {
     const value = filters[param];
@@ -431,9 +427,9 @@ export const generateUrlParams = (filters: Partial<FilterParams>): string => {
     if (filters.viewSubcollection) {
       queryParts.push(`viewSubcollection=${filters.viewSubcollection}`);
     }
-  } else if (filters.viewMode === 'collection' && filters.viewedCollection) {
+  } else if (filters.viewMode === 'collection' && filters.viewedCollection && filters.viewedCollection.length > 0) {
+    // viewedCollection itself is pushed by the array-params loop above.
     queryParts.push('viewMode=collection');
-    queryParts.push(`viewedCollection=${filters.viewedCollection.replace(/\s+/g, '_').replace(/&/g, 'and')}`);
   }
 
   return queryParts.length > 0 ? `?${queryParts.join('&')}` : '';

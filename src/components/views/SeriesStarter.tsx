@@ -1,19 +1,28 @@
 import { useEffect, useState } from "react";
+import { Eye, Lock } from "lucide-react";
 import { loadHierarchy } from "../../services/cards";
 import { useCardContext } from "../../context/CardContext";
+import { useOptionsContext } from "../../context/OptionsContext";
+import { useAuth } from "../../context/AuthContext";
 import { groupHierarchyForBrowsing, type BrowsableHierarchy } from "../../utils/hierarchy";
+import { toggleViewedCollection } from "../../utils/viewMode";
+import { childrenByParent } from "../../utils/collectionTree";
 import type { HierarchySerie } from "../../types/source-card";
+import type { OptionsCollection } from "../../types/dashboard";
 
 /**
  * What the catalog shows before a series is chosen: every series and its sets, newest
  * first, so the first screen is a map of the catalog rather than an instruction to go
- * find the filter panel.
+ * find the filter panel. Signed in, your own collections follow below it - the same
+ * quick-browse shortcut the Collections page offers, without leaving the catalog.
  *
- * Nothing here holds a selection. Picking a series or a set is a request the Filters
- * panel applies, because that panel owns the selection and writes it to the URL.
+ * Nothing here holds a selection. Picking a series, a set or a collection is a request
+ * the owning panel applies, because that panel owns the selection and writes it to the URL.
  */
 export function SeriesStarter() {
-  const { requestCatalogSelection } = useCardContext();
+  const { requestCatalogSelection, setViewMode, viewMode } = useCardContext();
+  const { collections } = useOptionsContext();
+  const { session } = useAuth();
   const [hierarchy, setHierarchy] = useState<BrowsableHierarchy | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -74,6 +83,34 @@ export function SeriesStarter() {
     </details>
   );
 
+  // Own collections and whatever synced in from Collectr, nested under their parents -
+  // the same tree the Collections page manages, here just to jump into one.
+  const childrenOf = childrenByParent(collections);
+  const ownedRoots = collections.filter((collection) => collection.parentId === null && collection.kind === "owned");
+
+  const renderCollection = (collection: OptionsCollection, depth: number) => {
+    const children = collection.id ? childrenOf.get(collection.id) ?? [] : [];
+    return (
+      <li key={collection.id || collection.name}>
+        <button
+          type="button"
+          className="series-starter__collection"
+          style={depth > 0 ? { marginLeft: depth * 18 } : undefined}
+          onClick={() => setViewMode(toggleViewedCollection(viewMode, collection.name))}
+        >
+          <Eye size={14} aria-hidden="true" />
+          <span>{collection.name}</span>
+          {!collection.editable && <Lock size={12} aria-label="Read-only" />}
+        </button>
+        {children.length > 0 && (
+          <ul className="series-starter__collections-list">
+            {children.map((child) => renderCollection(child, depth + 1))}
+          </ul>
+        )}
+      </li>
+    );
+  };
+
   return (
     <div className="series-starter">
       <div className="series-starter__intro">
@@ -87,6 +124,14 @@ export function SeriesStarter() {
         <>
           <h2 className="series-starter__heading">Special releases</h2>
           {hierarchy.special.map((serie) => renderSerie(serie, false))}
+        </>
+      )}
+      {session && ownedRoots.length > 0 && (
+        <>
+          <h2 className="series-starter__heading">Your collections</h2>
+          <ul className="series-starter__collections-list">
+            {ownedRoots.map((collection) => renderCollection(collection, 0))}
+          </ul>
         </>
       )}
     </div>

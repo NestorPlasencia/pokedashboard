@@ -159,19 +159,10 @@ export function ViewModeBadge() {
   const backToCatalog = () => setViewMode(CATALOG_VIEW);
   switch (viewMode.kind) {
     case 'catalog':
-      // In the catalog the badge becomes the path to what is shown, so it doubles as the way back.
-      return <CatalogBreadcrumb />;
     case 'collection':
-      return <button
-        type="button"
-        className="view-mode-badge view-mode-badge--collection"
-        onClick={backToCatalog}
-        aria-label={`${viewMode.name} — back to catalog`}
-        title="Back to catalog"
-      >
-        <span className="view-mode-badge__name">{viewMode.name}</span>
-        <X size={12} aria-hidden="true" />
-      </button>;
+      // Both share the same series/set selection, so the same breadcrumb shows it either
+      // way - only its root step differs, between "Catalog" and the collection's name.
+      return <CatalogBreadcrumb />;
     case 'wishlist': {
       // The wishlist may still be loading, or may have vanished; until it resolves there
       // is no name to show.

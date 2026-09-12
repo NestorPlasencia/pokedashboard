@@ -32,6 +32,11 @@ let lastSaved: string | null = null;
  */
 export const rememberUrl = (): void => {
   if (typeof window === 'undefined') return;
+  // A shared `/c/<id>` link is someone else's collection, not where this user was
+  // working - and the manifest's scope is `/`, so an installed app captures those links.
+  // Remembering one would relaunch the app into a stranger's page. The prefix is repeated
+  // from `route.ts` rather than imported: that module already imports this one.
+  if (window.location.pathname.startsWith('/c/')) return;
   const url = `${window.location.pathname}${window.location.search}`;
   if (url === lastSaved) return;
   lastSaved = url;
