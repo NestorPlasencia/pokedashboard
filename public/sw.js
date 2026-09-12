@@ -20,6 +20,13 @@ const APP_CACHE = 'pokedashboard-app-v1';
 const OWNED_CACHES = [IMAGE_CACHE, APP_CACHE];
 
 /**
+ * The one entry every navigation shares. Each route serves the same document - vercel.json
+ * rewrites them all to index.html - so storing them separately gains nothing and costs
+ * everything: see handleAppShell.
+ */
+const SHELL_KEY = '/index.html';
+
+/**
  * Whether to cache the app shell, set by the page through the registration URL. Off in
  * development, where the dev server rewrites modules constantly and a cached copy would
  * break hot reloading. Images are cached either way: they are remote and immutable.
@@ -94,21 +101,22 @@ const handleImage = async request => {
 /** Stale-while-revalidate: instant from cache, refreshed in the background for next time. */
 const handleAppShell = async request => {
   const cache = await caches.open(APP_CACHE);
-  const hit = await cache.match(request);
+  // A navigation's cache key is its whole URL, query string included - and this app keeps
+  // its entire state there, so the address opened is almost never the address stored.
+  // Keying navigations by request therefore saved one copy per filter combination and
+  // matched none of them next time, which is why opening a saved link with no connection
+  // failed outright rather than starting the app. They all share the shell entry instead.
+  const key = request.mode === 'navigate' ? SHELL_KEY : request;
+  const hit = await cache.match(key);
   const network = fetch(request)
     .then(response => {
-      if (response.ok) cache.put(request, response.clone());
+      if (response.ok) cache.put(key, response.clone());
       return response;
     })
     .catch(() => null);
   if (hit) return hit;
   const response = await network;
   if (response) return response;
-  // Offline, never visited: a navigation can still fall back to a cached entry point.
-  if (request.mode === 'navigate') {
-    const fallback = await cache.match('/index.html') || await cache.match('/');
-    if (fallback) return fallback;
-  }
   return Response.error();
 };
 

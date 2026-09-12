@@ -18,6 +18,7 @@ import {
   type InventorySnapshot,
 } from "../services/inventory";
 import { useAuth } from "../context/AuthContext";
+import { loadCached } from "../services/offlineCache";
 
 export type InventoryStatus =
   | "idle"
@@ -149,10 +150,14 @@ export function useLoadCards(
     if (!userId || isCardsLoading || isMetadataLoading) return;
 
     const cancelDeferred = deferUntilIdle(() => {
-      loadCollectionOptions()
-        .then((collectionOptions) => {
+      // TTL 0 on purpose: always ask the network, but fall back to the stored copy when it
+      // cannot answer instead of leaving the list empty. A cache that could serve a hit
+      // would be wrong here - this effect re-runs on `inventoryRevision` precisely so a
+      // renamed or newly created collection shows up at once.
+      loadCached(`collections:${userId}`, loadCollectionOptions, 0)
+        .then(({ value }) => {
           if (!cancelled) {
-            setCollectrCollections(collectionOptions);
+            setCollectrCollections(value);
           }
         })
         .catch((collectionLoadError) => {

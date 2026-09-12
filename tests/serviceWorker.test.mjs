@@ -119,6 +119,17 @@ test('the app shell keeps working after the network goes away', async () => {
   assert.equal((await dispatch(script)).__from, 'network', 'served from the cached copy');
 });
 
+test('a saved link opens with no connection, whatever its query string', async () => {
+  // The address bar carries the whole filter state, so a link saved to the home screen is
+  // never the address that was cached. Every navigation shares the shell entry for exactly
+  // this reason: without it, opening one offline failed instead of starting the app.
+  assert.equal((await dispatch(request('https://app.example/', { mode: 'navigate' }))).__from, 'network');
+
+  fetchMode = 'fail';
+  const savedLink = request('https://app.example/collections?series=Base&collections=Hits', { mode: 'navigate' });
+  assert.equal((await dispatch(savedLink)).__from, 'network', 'served from the stored shell');
+});
+
 test('activating drops old versions but never the app data caches', async () => {
   cacheMap.set('pokedashboard-images-v0', new FakeCache());
   cacheMap.set('pokedashboard-data-v1', new FakeCache());
