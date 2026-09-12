@@ -174,11 +174,17 @@ const inventoryStorageKey = (userId: string) =>
   `${inventoryStoragePrefix}${userId}`;
 
 /**
- * The snapshot is shared across tabs and survives restarts, so unlike the old per-tab
- * cache it can be arbitrarily old - and Collectr syncs this account from outside the app.
- * Past this age it is refetched rather than trusted.
+ * How long a stored snapshot is trusted without asking the server again - Collectr syncs
+ * this account from outside the app, so a copy this old is worth re-checking.
+ *
+ * Past it the snapshot is kept, not discarded: an old copy is exactly what makes the app
+ * usable with no connection, and throwing it away left nothing to fall back to. A
+ * reachable network still wins - see `loadInventory`.
  */
 const storedInventoryMaxAge = 12 * 60 * 60 * 1000;
+
+const isFresh = (snapshot: InventorySnapshot): boolean =>
+  snapshot.fetchedAt !== null && Date.now() - snapshot.fetchedAt <= storedInventoryMaxAge;
 
 const readStoredInventory = (userId: string): InventorySnapshot | null => {
   if (typeof window === "undefined") return null;
@@ -192,8 +198,7 @@ const readStoredInventory = (userId: string): InventorySnapshot | null => {
       !Array.isArray(stored.collectionNames) ||
       !Array.isArray(stored.entriesByProductId) ||
       typeof stored.activeCopyCount !== "number" ||
-      typeof stored.fetchedAt !== "number" ||
-      Date.now() - stored.fetchedAt > storedInventoryMaxAge
+      typeof stored.fetchedAt !== "number"
     ) {
       window.localStorage.removeItem(inventoryStorageKey(userId));
       return null;
@@ -515,7 +520,9 @@ export const loadInventory = async (
   if (!options.forceRefresh) {
     if (inventoryCache?.userId === userId) return inventoryCache.snapshot;
     const stored = readStoredInventory(userId);
-    if (stored) {
+    // Only a copy still within its age is served without asking; an older one is kept for
+    // the fallback below rather than returned as if it were current.
+    if (stored && isFresh(stored)) {
       inventoryCache = { userId, snapshot: stored };
       return stored;
     }
@@ -528,6 +535,17 @@ export const loadInventory = async (
       inventoryCache = { userId, snapshot };
       writeStoredInventory(userId, snapshot);
       return snapshot;
+    })
+    .catch((error) => {
+      // The same rule the JSON caches follow: when the network cannot answer, a saved
+      // copy - however old - beats an empty screen.
+      const stored = readStoredInventory(userId);
+      if (!stored) throw error;
+      console.warn("[collections] Network failed; serving the saved inventory", {
+        storedAt: stored.fetchedAt ? new Date(stored.fetchedAt).toISOString() : null,
+      });
+      inventoryCache = { userId, snapshot: stored };
+      return stored;
     })
     .finally(() => {
       if (inventoryPromise?.promise === promise) inventoryPromise = null;
