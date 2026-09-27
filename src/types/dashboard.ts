@@ -232,6 +232,6 @@ export interface TrendSeries {
 
 // Configuración de ordenamiento
 export interface SortConfig {
-  field: 'number' | 'pokedex' | 'energy' | 'rarity' | 'energyAndName' | 'energyAndPokedex' | 'price' | 'name' | 'setAndNumber' | 'buyTimingScore';
+  field: 'number' | 'pokedex' | 'pokedexAndRarity' | 'energy' | 'rarity' | 'energyAndName' | 'energyAndPokedex' | 'price' | 'name' | 'setAndNumber' | 'buyTimingScore';
   direction: 'asc' | 'desc';
 }

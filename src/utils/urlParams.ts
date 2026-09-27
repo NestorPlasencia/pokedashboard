@@ -162,9 +162,9 @@ export const parseUrlParams = (): FilterParams => {
   // Parse order parameter
   const order = params.get('order');
   if (order) {
-    // Decode the order parameter properly - URLSearchParams already decodes it,
-    // but we need to handle special characters like ↑ and ↓
-    filters.order = decodeValue(order);
+    // Keep "and" in option labels. The general filter decoder turns it into "&",
+    // which prevents combined sort options from matching their menu labels.
+    filters.order = order.replace(/_/g, ' ');
   }
   
   // Parse viewCollectionOption parameter

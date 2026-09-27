@@ -467,6 +467,7 @@ import {
   orderByEnergyAndPokedex,
   orderByNumber,
   orderByPokedex,
+  orderByPokedexAndRarity,
   orderByRariTies,
   orderByPriceAsc,
   orderByPriceDesc,
@@ -475,7 +476,7 @@ import {
 
 export const applySorting = (
   cards: Card[],
-  sortField: 'number' | 'pokedex' | 'energy' | 'rarity' | 'energyAndName' | 'energyAndPokedex' | 'price' | 'name' | 'setAndNumber' | 'buyTimingScore',
+  sortField: 'number' | 'pokedex' | 'pokedexAndRarity' | 'energy' | 'rarity' | 'energyAndName' | 'energyAndPokedex' | 'price' | 'name' | 'setAndNumber' | 'buyTimingScore',
   sortDirection: 'asc' | 'desc',
   variantsFilter: string[] = ['All']
 ): Card[] => {
@@ -487,6 +488,8 @@ export const applySorting = (
       return orderBySetAndNumber(cards);
     case 'pokedex':
       return orderByPokedex(cards);
+    case 'pokedexAndRarity':
+      return orderByPokedexAndRarity(cards);
     case 'energy':
       return orderByEnergy(cards);
     case 'rarity':

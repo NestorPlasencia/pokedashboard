@@ -126,6 +126,10 @@ export const orderByPokedex = (cards: Card[]) => {
   return [...cards].sort(sortByPokedex);
 };
 
+export const orderByPokedexAndRarity = (cards: Card[]) => {
+  return [...cards].sort((a, b) => sortByPokedex(a, b) || sortByRariTies(a, b));
+};
+
 export const orderByEnergyAndName = (cards: Card[]) => {
   return [...cards].sort((a, b) => {
     const energyComparison = sortByEnergy(a, b);
@@ -178,6 +182,7 @@ export const ORDER_OPTIONS = [
   "Number",
   "Set and Number",
   "Pokedex",
+  "Pokedex and Rarity",
   "Energy",
   "Rarities",
   "Energy and Name",
@@ -201,6 +206,8 @@ export const orderToSortConfig = (order: string): SortConfig => {
       return { field: 'setAndNumber', direction: 'asc' };
     case "Pokedex":
       return { field: 'pokedex', direction: 'asc' };
+    case "Pokedex and Rarity":
+      return { field: 'pokedexAndRarity', direction: 'asc' };
     case "Energy":
       return { field: 'energy', direction: 'asc' };
     case "Rarities":

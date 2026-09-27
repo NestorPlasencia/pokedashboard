@@ -104,6 +104,14 @@ test('sort, search and price range survive a write and read of the URL', () => {
   assert.equal(parseUrlParams().search, 'char izard');
 });
 
+test('Pokédex and rarity sort survives a URL round trip', () => {
+  updateUrlParams({ order: 'Pokedex and Rarity' });
+  assert.equal(parseUrlParams().order, 'Pokedex and Rarity');
+  assert.deepEqual(initialSortConfig(), { field: 'pokedexAndRarity', direction: 'asc' });
+  setUrl('?order=Energy_and_Pokedex');
+  assert.deepEqual(initialSortConfig(), { field: 'energyAndPokedex', direction: 'asc' });
+});
+
 test('a filter restores its exclusions and advanced settings, not just its checkboxes', () => {
   const custom = {
     excludedValues: ['Sword & Shield', 'Scarlet Violet'], includeMode: 'EXACT_SET',

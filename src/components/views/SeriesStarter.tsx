@@ -95,7 +95,7 @@ export function SeriesStarter() {
         <button
           type="button"
           className="series-starter__collection"
-          style={depth > 0 ? { marginLeft: depth * 18 } : undefined}
+          style={depth > 0 ? { marginLeft: depth * 18, width: `calc(100% - ${depth * 18}px)` } : undefined}
           onClick={() => setViewMode(toggleViewedCollection(viewMode, collection.name))}
         >
           <Eye size={14} aria-hidden="true" />
