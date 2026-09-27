@@ -40,12 +40,14 @@ export const AccountPasswordForm = () => {
 
   return (
     <div className="section-sidebar">
-      <CollapsibleSection title="Sign-in methods">
+      <CollapsibleSection title="Password sign-in">
         <div className="account-password-form">
           <p>
-            Signed in as <strong>{session.user.email}</strong>. Add a password below to
-            also sign in with this email directly, alongside Google.
+            Signed in as <strong>{session.user.email}</strong>. Set a password here to
+            sign in with your email as well as Google. If you already have a password,
+            this replaces it.
           </p>
+          <p>Forgot your password? Use “Forgot password?” on the sign-in screen to get a reset link.</p>
           {error && <p className="auth-card__error" role="alert">{error}</p>}
           {success && <p className="auth-card__notice" role="status">Password set. You can now sign in with this email and password too.</p>}
           <form className="account-password-form__form" onSubmit={handleSubmit}>
