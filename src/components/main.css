@@ -2932,6 +2932,8 @@ td {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  max-width: 100%;
+  min-width: 0;
   margin: 0;
   padding: 4px 10px;
   border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
@@ -2942,6 +2944,16 @@ td {
   font-weight: 700;
   white-space: nowrap;
   cursor: pointer;
+}
+
+.active-filters-row__chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.active-filters-row__chip svg {
+  flex-shrink: 0;
 }
 
 .active-filters-row__chip:hover {

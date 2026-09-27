@@ -218,14 +218,15 @@ export const Search: React.FC<SearchProps> = ({ collectionEnrichment }) => {
   }, [priceRange, setPriceRange]);
 
   const collectionChips: ActiveFilterChip[] = useMemo(
-    () => collectionFilter.selectedCollections.map((name) => ({
-      id: `collection-${name}`,
-      label: `Collection: ${name}`,
-      onRemove: () => setCollectionFilter((prev) => {
-        const selectedCollections = prev.selectedCollections.filter((entry) => entry !== name);
-        return { ...prev, enabled: selectedCollections.length > 0, selectedCollections };
-      }),
-    })),
+    () => collectionFilter.selectedCollections.length > 0 ? [{
+      id: 'collections',
+      label: `Collection: ${collectionFilter.selectedCollections.join(', ')}`,
+      onRemove: () => setCollectionFilter((prev) => ({
+        ...prev,
+        enabled: false,
+        selectedCollections: [],
+      })),
+    }] : [],
     [collectionFilter.selectedCollections, setCollectionFilter]
   );
 
@@ -297,7 +298,8 @@ export const Search: React.FC<SearchProps> = ({ collectionEnrichment }) => {
               onClick={chip.onRemove}
               aria-label={`Remove filter ${chip.label}`}
             >
-              {chip.label} <X size={11} aria-hidden="true" />
+              <span className="active-filters-row__chip-label" title={chip.label}>{chip.label}</span>
+              <X size={11} aria-hidden="true" />
             </button>
           ))}
         </div>

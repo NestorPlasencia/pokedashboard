@@ -749,26 +749,22 @@ export const Filters = () => {
     });
   };
 
-  // Every value active outside series/set, published for the chip row under the
-  // breadcrumb - the one place a filter can be seen and removed without opening this panel.
+  // One chip per active filter outside series/set. Its remove action clears that
+  // filter; individual values can still be removed inside the filter panel.
   useEffect(() => {
     const chips: ActiveFilterChip[] = [];
     filters.forEach((filter) => {
       if (filter.property === 'setSeries' || filter.property === 'setNames') return;
+      if (filter.includedValues.length === 0 && filter.excludedValues.length === 0) return;
       const label = normalizeLabel(filter.label);
-      filter.includedValues.forEach((value) => {
-        chips.push({
-          id: `${filter.order}-in-${value}`,
-          label: `${label}: ${value}`,
-          onRemove: () => handleOptionStateChange(filter.order, value, 'neutral'),
-        });
-      });
-      filter.excludedValues.forEach((value) => {
-        chips.push({
-          id: `${filter.order}-ex-${value}`,
-          label: `${label}: not ${value}`,
-          onRemove: () => handleOptionStateChange(filter.order, value, 'neutral'),
-        });
+      const included = filter.includedValues.join(', ');
+      const excluded = filter.excludedValues.length > 0
+        ? `excluding ${filter.excludedValues.join(', ')}`
+        : '';
+      chips.push({
+        id: `${filter.order}`,
+        label: `${label}: ${[included, excluded].filter(Boolean).join(' · ')}`,
+        onRemove: () => clearFilterSelections(filter.order, 'all'),
       });
     });
     setActiveFilterChips(chips);
