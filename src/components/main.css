@@ -2451,6 +2451,7 @@ th[scope="row"] {
   overflow: clip;
   border-radius: 9px 15px 15px 9px;
   perspective: 3000px;
+  touch-action: pan-y;
 }
 
 .binder-view--spread .binder-view__toolbar,
@@ -2604,6 +2605,8 @@ img.binder-pocket__card {
   height: 100%;
   object-fit: contain;
 }
+
+.binder-pocket__image--dimmed { filter: brightness(50%); }
 
 .binder-pocket__card:focus-visible {
   outline: 3px solid var(--accent);

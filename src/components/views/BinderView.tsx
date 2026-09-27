@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type TouchEvent } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useCardContext } from "../../context/CardContext";
 import type { Card } from "../../types/dashboard";
+import { binderSwipeDirection } from "../../utils/binderSwipe";
 import { SeriesStarter } from "./SeriesStarter";
 
 type Turn = { from: number; to: number; direction: "next" | "previous" };
@@ -20,6 +21,7 @@ export const BinderView = () => {
   const [page, setPage] = useState(0);
   const [turn, setTurn] = useState<Turn | null>(null);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
   const currentPage = Math.min(page, pageCount - 1);
   const isAwaitingSeries = viewMode.kind === 'catalog'
     && seriesSelection.included.length === 0
@@ -59,6 +61,26 @@ export const BinderView = () => {
     setPage(target);
   };
 
+  const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    if (event.touches.length !== 1) {
+      touchStart.current = null;
+      return;
+    }
+    touchStart.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+  };
+
+  const handleTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
+    const start = touchStart.current;
+    touchStart.current = null;
+    if (!start || event.changedTouches.length !== 1) return;
+    const dx = event.changedTouches[0].clientX - start.x;
+    const dy = event.changedTouches[0].clientY - start.y;
+    const direction = binderSwipeDirection(dx, dy);
+    if (!direction) return;
+    event.preventDefault();
+    turnPage(direction);
+  };
+
   const renderPockets = (pageIndex: number, interactive: boolean) =>
     Array.from({ length: pocketsPerPage }, (_, position) => {
       const card = cards[pageIndex * pocketsPerPage + position];
@@ -72,9 +94,9 @@ export const BinderView = () => {
               aria-label={`${card.name}, ${card.variant || 'Normal'}, ${card.setName} ${card.number}`}
               title={`${card.name} · ${card.setName} ${card.number}`}
             >
-              <img loading="lazy" src={card.image} alt="" />
+              <img className={card.shadow ? 'binder-pocket__image--dimmed' : undefined} loading="lazy" src={card.image} alt="" />
             </button>
-          ) : <img className="binder-pocket__card" src={card.image} alt="" /> : null}
+          ) : <img className={`binder-pocket__card${card.shadow ? ' binder-pocket__image--dimmed' : ''}`} src={card.image} alt="" /> : null}
         </div>
       );
     });
@@ -131,7 +153,7 @@ export const BinderView = () => {
           Next <ChevronRight size={18} aria-hidden="true" />
         </button>
       </div>
-      <div className={`binder-view__stage${isTwoPage ? ' binder-view__stage--spread' : ''}`}>
+      <div className={`binder-view__stage${isTwoPage ? ' binder-view__stage--spread' : ''}`} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} onTouchCancel={() => { touchStart.current = null; }}>
         {isTwoPage ? renderSpread(turn ? turn.from : currentPage, !turn, turn) : <>
           <div className="binder-page">
             <div className="binder-page__rings" aria-hidden="true"><i /><i /><i /></div>
