@@ -6,7 +6,7 @@ export const ViewOptionsComponent = () => {
 
   return (
     <div className="section-sidebar">
-      <CollapsibleSection title="View settings" defaultCollapsed={true}>
+      <CollapsibleSection title="View settings" defaultCollapsed={false}>
         <div className="view-options-print-columns">
             <strong>Table printing</strong>
             <small>Columns to include when printing a table:</small>
@@ -66,6 +66,18 @@ export const ViewOptionsComponent = () => {
         </div>
         <div className="binder-settings">
           <strong>Binder</strong>
+          <label htmlFor="binder-style">Binder style</label>
+          <select
+            id="binder-style"
+            value={viewOptions.binderStyle}
+            onChange={(event) => setViewOptions((current) => ({
+              ...current,
+              binderStyle: event.target.value as typeof current.binderStyle,
+            }))}
+          >
+            <option value="ringed">Ringed · single page</option>
+            <option value="twoPage">Two-page · front and back</option>
+          </select>
           <label htmlFor="binder-page-color">Page color</label>
           <input
             id="binder-page-color"
@@ -93,7 +105,7 @@ export const ViewOptionsComponent = () => {
               onChange={(event) => setViewOptions((current) => ({ ...current, binderSleeveColor: event.target.value }))}
             />
           </>}
-          <label htmlFor="binder-layout">Pocket layout</label>
+          <label htmlFor="binder-layout">Pocket layout (rows × columns)</label>
           <select
             id="binder-layout"
             value={viewOptions.binderLayout}
@@ -104,7 +116,7 @@ export const ViewOptionsComponent = () => {
           >
             <option value="2x2">2 × 2</option>
             <option value="3x3">3 × 3</option>
-            <option value="3x4">3 × 4</option>
+            <option value="3x4">3 × 4 · Commercial</option>
             <option value="4x4">4 × 4</option>
           </select>
         </div>

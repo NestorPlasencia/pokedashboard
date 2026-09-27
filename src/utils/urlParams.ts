@@ -62,6 +62,7 @@ export interface FilterParams extends
   binderPageColor?: string;
   binderSleeveColor?: string;
   binderLayout?: string;
+  binderStyle?: string;
   groupByPokedex?: string;
   hideNotOwnPokedex?: string;
   hideObtainedPokedex?: string;
@@ -224,7 +225,7 @@ export const parseUrlParams = (): FilterParams => {
     filters.trendXAxisScale = trendXAxisScale;
   }
 
-  for (const key of ['binderPageColor', 'binderSleeveColor', 'binderLayout'] as const) {
+  for (const key of ['binderPageColor', 'binderSleeveColor', 'binderLayout', 'binderStyle'] as const) {
     const value = params.get(key);
     if (value) filters[key] = value;
   }
@@ -399,7 +400,7 @@ export const generateUrlParams = (filters: Partial<FilterParams>): string => {
   if (filters.trendXAxisScale && filters.trendXAxisScale !== 'normal') {
     queryParts.push(`trendXAxisScale=${filters.trendXAxisScale}`);
   }
-  for (const key of ['binderPageColor', 'binderSleeveColor', 'binderLayout'] as const) {
+  for (const key of ['binderPageColor', 'binderSleeveColor', 'binderLayout', 'binderStyle'] as const) {
     const value = filters[key];
     if (value) queryParts.push(`${key}=${encodeURIComponent(value)}`);
   }

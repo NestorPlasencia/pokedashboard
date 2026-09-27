@@ -86,6 +86,7 @@ export const initialViewOptions = (params: FilterParams = parseUrlParams()): Vie
     binderSleeveColor: params.binderSleeveColor === 'transparent' ? 'transparent'
       : color(params.binderSleeveColor, 'transparent'),
     binderLayout: oneOf(params.binderLayout, ['2x2', '3x3', '3x4', '4x4'] as const, '3x3'),
+    binderStyle: oneOf(params.binderStyle, ['ringed', 'twoPage'] as const, 'ringed'),
     printTableImages: params.printTableImages === 'true',
     printTableQuantityMissing: params.printTableQuantityMissing === 'true',
     // These two default to on, so only an explicit "false" turns them off.
@@ -107,6 +108,7 @@ export const viewOptionsToParams = (viewOptions: ViewOptions): Partial<FilterPar
     binderPageColor: viewOptions.binderPageColor === '#111111' ? undefined : viewOptions.binderPageColor,
     binderSleeveColor: viewOptions.binderSleeveColor === 'transparent' ? undefined : viewOptions.binderSleeveColor,
     binderLayout: viewOptions.binderLayout === '3x3' ? undefined : viewOptions.binderLayout,
+    binderStyle: viewOptions.binderStyle === 'ringed' ? undefined : viewOptions.binderStyle,
     trendSortDirection: viewOptions.trendSortDirection,
     trendXAxisScale: viewOptions.trendXAxisScale,
     printTableImages: viewOptions.printTableImages ? 'true' : undefined,

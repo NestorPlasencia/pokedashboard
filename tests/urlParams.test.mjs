@@ -67,7 +67,7 @@ test('defaults never appear in the URL', () => {
 test('view options survive a write and read of the URL', () => {
   const custom = {
     displayMode: 'trendUngrouped', trendSortDirection: 'asc', trendXAxisScale: 'sectors',
-    binderPageColor: '#111111', binderSleeveColor: 'transparent', binderLayout: '3x3',
+    binderPageColor: '#111111', binderSleeveColor: 'transparent', binderLayout: '3x3', binderStyle: 'ringed',
     printTableImages: true, printTableQuantityMissing: true,
     printTableType: false, printTableVariant: false,
   };
@@ -82,6 +82,7 @@ test('binder view and its page settings survive a URL round trip', () => {
     binderPageColor: '#18243a',
     binderSleeveColor: '#c7d9ef',
     binderLayout: '4x4',
+    binderStyle: 'twoPage',
   };
   updateUrlParams(viewOptionsToParams(binder));
   assert.deepEqual(initialViewOptions(), binder);

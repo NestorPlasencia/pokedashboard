@@ -211,6 +211,7 @@ export interface ViewOptions {
   binderPageColor: string;
   binderSleeveColor: string;
   binderLayout: '2x2' | '3x3' | '3x4' | '4x4';
+  binderStyle: 'ringed' | 'twoPage';
   printTableImages: boolean;
   printTableQuantityMissing: boolean;
   printTableType: boolean;
