@@ -2027,9 +2027,30 @@ th[scope="row"] {
 
 .pokedex-projects {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
-  padding: 12px 0;
+}
+
+.pokedex-page .collections-page__body {
+  gap: 12px;
+  padding-top: 18px;
+}
+
+.pokedex-page .collections-page__intro p {
+  font-size: var(--font-size-sm);
+}
+
+.pokedex-projects__heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 2px 8px;
+}
+
+.pokedex-projects__heading label {
+  margin: 0;
+  font-weight: 700;
 }
 
 .pokedex-projects h3,
@@ -2044,7 +2065,7 @@ th[scope="row"] {
   font-size: var(--font-size-sm);
 }
 
-.pokedex-projects input:not([type="file"]),
+.pokedex-projects input[type="text"],
 .pokedex-projects select,
 .pokedex-projects__forms input {
   width: 100%;
@@ -2055,6 +2076,73 @@ th[scope="row"] {
   border-radius: var(--radius-md);
   background: var(--surface-raised);
   color: var(--text);
+}
+
+.pokedex-projects .pokedex-projects__toggle,
+.pokedex-projects__settings .pokedex-projects__toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0;
+  cursor: pointer;
+}
+
+.pokedex-projects__toggle input[type="checkbox"] {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.pokedex-projects__hint {
+  margin-top: -4px !important;
+}
+
+.pokedex-projects__pending {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  font-size: var(--font-size-sm);
+}
+
+.pokedex-projects__manage,
+.pokedex-projects__settings {
+  min-width: 0;
+  padding-top: 9px;
+  border-top: 1px solid var(--border);
+}
+
+.pokedex-projects__manage summary,
+.pokedex-projects__settings summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.pokedex-projects__settings summary span {
+  float: right;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 400;
+}
+
+.pokedex-projects__manage-content,
+.pokedex-projects__settings-content {
+  display: grid;
+  gap: 8px;
+  padding-top: 10px;
+}
+
+.pokedex-projects__settings-content .pokedex-filter-group {
+  margin: 0;
+}
+
+.pokedex-projects__settings-content .pokedex-filter-select {
+  margin-top: 2px;
 }
 
 .pokedex-projects__actions {
@@ -2068,6 +2156,7 @@ th[scope="row"] {
 }
 
 .pokedex-projects__actions button,
+.pokedex-projects__pending button,
 .pokedex-projects__import,
 .pokedex-projects__form button {
   padding: 7px 10px;
@@ -2200,7 +2289,7 @@ th[scope="row"] {
 
 .pokedex-project-options .section-sidebar,
 .pokedex-projects-card {
-  padding: 18px;
+  padding: 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface-raised);

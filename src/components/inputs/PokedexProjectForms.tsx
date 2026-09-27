@@ -35,7 +35,7 @@ export const PokedexProjectForms = () => {
 
   return <section className="section-sidebar pokedex-projects-card">
     <h2>3. Individual forms</h2>
-    <p>Remove a form that does not belong in this Pokédex. This does not remove the variant from other Pokémon.</p>
+    <p>Remove individual forms without hiding their variant everywhere.</p>
     <details className="pokedex-projects__forms">
       <summary>{includedCount}/{candidateForms.length} forms included</summary>
       <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a Pokémon or form" aria-label="Find a Pokémon or form" />
@@ -53,6 +53,5 @@ export const PokedexProjectForms = () => {
       </div>
       {candidateForms.length > 100 && <small>Showing up to 100 forms. Search to find another.</small>}
     </details>
-    <p>Use “Update” above to keep changes to an existing Pokédex, or “Save as new Pokédex” to create one.</p>
   </section>;
 };

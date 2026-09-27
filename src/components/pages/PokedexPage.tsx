@@ -5,16 +5,16 @@ import { PokedexPreview } from "../inputs/PokedexPreview";
 import { PokedexGroupingOptions } from "../inputs/PokedexGroupingOptions";
 
 export const PokedexPage = () => (
-  <div className="collections-page">
+  <div className="collections-page pokedex-page">
     <main className="collections-page__body">
       <div className="collections-page__intro">
         <h1>Pokédex</h1>
-        <p>Choose or create a Pokédex for the Pokémon groups shown in the catalog or any collection.</p>
+        <p>Choose a Pokédex, then adjust its regions and forms.</p>
       </div>
       <section className="section-sidebar pokedex-projects-card">
         <PokedexProjectControls />
+        <PokedexGroupingOptions />
       </section>
-      <PokedexGroupingOptions />
       <PokedexPreview />
       <PokedexProjectOptions />
       <PokedexProjectForms />

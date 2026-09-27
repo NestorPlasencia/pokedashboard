@@ -74,6 +74,11 @@ test('existing projects gain presets without losing their active selection or re
   assert.equal(readPokedexProjects('older-user').projects.length, 20);
 });
 
+test('an older empty saved list starts with the national Pokédex selected', () => {
+  window.localStorage.setItem('pokedashboard:pokedex-projects:empty-user', JSON.stringify({ projects: [], activeId: null }));
+  assert.equal(readPokedexProjects('empty-user').activeId, 'preset-national-1025');
+});
+
 test('regional membership uses national species number for form choices', () => {
   const rotom = { number: 479, regions: [{ region: { name: 'Kanto' } }] };
   assert.equal(formBelongsToRegions(rotom, ['Kanto']), false);

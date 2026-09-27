@@ -62,7 +62,7 @@ export const PokedexProjectControls = () => {
     setPokemonGrouping((current) => project
       ? applyPokedexProject(current, project)
       : { ...current, enabled: false });
-    setMessage(project ? `Loaded ${project.name}.` : "Using custom Pokédex settings.");
+    setMessage("");
   };
 
   const createProject = () => {
@@ -120,9 +120,10 @@ export const PokedexProjectControls = () => {
 
   return (
     <div className="pokedex-projects">
-      <h2>My Pokédexes</h2>
-      <p>Choose a ready-made Pokédex or save your own set of regions, variants and forms. The selected Pokédex applies to the catalog and any collection on this device.</p>
-      <label htmlFor="pokedex-project-select">Current Pokédex</label>
+      <div className="pokedex-projects__heading">
+        <label htmlFor="pokedex-project-select">Current Pokédex</label>
+        <small>Saved on this device</small>
+      </div>
       <select id="pokedex-project-select" value={saved.activeId ?? ""} onChange={(event) => selectProject(event.target.value)} disabled={blocked}>
         <option value="">Custom Pokédex settings</option>
         {saved.projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
@@ -135,21 +136,28 @@ export const PokedexProjectControls = () => {
           disabled={blocked || !active}
           aria-label="Enable Group by Pokédex"
         />
-        Enable Group by Pokédex
+        <span>Group by Pokédex</span>
       </label>
-      {!active && <p>Select a Pokédex to enable grouping.</p>}
-      <div className="pokedex-projects__actions">
-        <input value={name} onChange={(event) => setName(event.target.value)} placeholder="New Pokédex name" aria-label="New Pokédex name" />
-        <button type="button" onClick={createProject} disabled={blocked}>Save as new Pokédex</button>
-        {active && <button type="button" onClick={updateProject} disabled={blocked || !hasUnsavedChanges}>Update {active.name}</button>}
-        {active && <button type="button" onClick={deleteProject} disabled={blocked}>Delete Pokédex</button>}
-      </div>
-      <div className="pokedex-projects__actions">
-        <button type="button" onClick={exportProjects} disabled={saved.projects.length === 0}>Export Pokédexes</button>
-        {!blocked && <label className="pokedex-projects__import">Import Pokédexes <input type="file" accept="application/json,.json" onChange={importProjects} /></label>}
-      </div>
+      {!active && <p className="pokedex-projects__hint">Choose a Pokédex to enable grouping.</p>}
+      {hasUnsavedChanges && <div className="pokedex-projects__pending">
+        <span>Unsaved Pokédex changes</span>
+        <button type="button" onClick={updateProject} disabled={blocked}>Save changes</button>
+      </div>}
+      <details className="pokedex-projects__manage">
+        <summary>Manage Pokédexes</summary>
+        <div className="pokedex-projects__manage-content">
+          <div className="pokedex-projects__actions">
+            <input type="text" value={name} onChange={(event) => setName(event.target.value)} placeholder="New Pokédex name" aria-label="New Pokédex name" />
+            <button type="button" onClick={createProject} disabled={blocked}>Save as new Pokédex</button>
+          </div>
+          <div className="pokedex-projects__actions">
+            <button type="button" onClick={exportProjects} disabled={saved.projects.length === 0}>Export</button>
+            {!blocked && <label className="pokedex-projects__import">Import <input type="file" accept="application/json,.json" onChange={importProjects} /></label>}
+            {active && <button type="button" onClick={deleteProject} disabled={blocked}>Delete current Pokédex</button>}
+          </div>
+        </div>
+      </details>
       {error && <p role="alert" className="auth-card__error">{error}</p>}
-      {hasUnsavedChanges && <p role="status">Unsaved Pokédex changes. Select Update to keep them.</p>}
       {message && <p role="status">{message}</p>}
     </div>
   );

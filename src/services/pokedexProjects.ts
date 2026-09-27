@@ -82,6 +82,7 @@ export const readPokedexProjects = (userId: string): PokedexProjectsState => {
   return {
     ...state,
     projects: [...POKEDEX_PRESETS.filter((project) => !existingIds.has(project.id)), ...state.projects],
+    activeId: state.projects.length === 0 && state.activeId === null ? POKEDEX_PRESETS[0].id : state.activeId,
     presetVersion: PRESET_VERSION,
   };
 };
