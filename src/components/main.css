@@ -2606,7 +2606,7 @@ img.binder-pocket__card {
   object-fit: contain;
 }
 
-.binder-pocket__image--dimmed { filter: brightness(50%); }
+.binder-pocket__image--dimmed { filter: grayscale(100%) brightness(35%); }
 
 .binder-pocket__card:focus-visible {
   outline: 3px solid var(--accent);
