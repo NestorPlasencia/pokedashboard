@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, Eye, FolderInput, Globe, Link2, Lock, Palette, Pencil, PencilOff, Plus, RefreshCw, TextCursorInput, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, Eye, FolderInput, Globe, Link2, Lock, MoreHorizontal, Palette, Pencil, PencilOff, Plus, RefreshCw, TextCursorInput, Trash2, X } from "lucide-react";
 import { COLLECTION_PRINTING_ORDER } from "../../services/inventory";
 import type { CollectionTag } from "../../services/appCollections";
 import { useOptionsContext } from "../../context/OptionsContext";
@@ -8,7 +8,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useOwnedCollections } from "../../context/OwnedCollectionsContext";
 import type { InventoryStatus } from "../../hooks/useLoadCards";
 import type { OptionsCollection } from "../../types/dashboard";
-import { CATALOG_VIEW, toggleViewedCollection } from "../../utils/viewMode";
+import { CATALOG_VIEW } from "../../utils/viewMode";
 import { navigate, pathForPublicCollection } from "../../utils/route";
 import { childrenByParent, collectionSubtree } from "../../utils/collectionTree";
 import { byTag } from "../../utils/collectionTags";
@@ -53,6 +53,8 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
   const [confirmingDelete, setConfirmingDelete] = useState("");
   const [busyId, setBusyId] = useState("");
   const [notice, setNotice] = useState("");
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [moreId, setMoreId] = useState("");
 
   const childrenOf = useMemo(() => childrenByParent(collections), [collections]);
 
@@ -62,7 +64,7 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
     {
       key: "owned",
       title: "Your collections",
-      description: "Created here for the cards you buy outside Collectr. Nest them to keep related cards together.",
+      description: "Collections you can edit and organize.",
       empty: "No collections yet. Create one to start recording the cards you buy.",
       items: topLevel
         .filter((collection) => collection.editable && collection.kind === "owned")
@@ -71,7 +73,7 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
     {
       key: "collectr",
       title: "Synced from Collectr",
-      description: "Read-only here: the Collectr extension rebuilds them on every sync.",
+      description: "Synced by Collectr; their cards are read-only here.",
       empty: "Nothing synced from Collectr yet.",
       // Ordered by tag. `sort` is stable, so collections sharing a tag keep the order they
       // arrived in - by printing, then name.
@@ -82,7 +84,7 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
     {
       key: "wishlist",
       title: "Wishlists",
-      description: "Created and edited from the Wishlists panel in the catalog.",
+      description: "Lists of cards you want.",
       empty: "No wishlists yet.",
       items: topLevel.filter((collection) => collection.kind === "wishlist"),
     },
@@ -106,13 +108,27 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
     return `${cardLabel} · ${copyLabel}`;
   };
 
-  const viewedCollections = viewMode.kind === "collection" ? viewMode.names : [];
-
-  // Adds or removes this one collection from whatever is being browsed - several can be
-  // viewed together - and always lands you on the catalog to see the result.
+  // Opening a row shows just that collection and its children. Combining several collections
+  // remains available through the catalog filter.
   const browse = (name: string) => {
-    setViewMode(toggleViewedCollection(viewMode, name));
+    setViewMode({ kind: "collection", names: [name] });
     navigate("catalog");
+  };
+
+  const startAdding = (id: string) => {
+    startAction();
+    owned.setSelectedId(id);
+    setViewMode(CATALOG_VIEW);
+    navigate("catalog");
+  };
+
+  const toggleExpanded = (id: string) => {
+    setExpandedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   // Collections are addressed by name in the view mode and in the filter, so both follow a
@@ -155,6 +171,7 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
     setMovingId(null);
     setPrintingsDraft(null);
     setCopiedId("");
+    setMoreId("");
   };
 
   // Folders a collection can be nested under: any of your own collections, minus itself
@@ -280,7 +297,7 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
     return `Delete ${collection.name}, its ${nested} and ${countLabel(collection)}?`;
   };
 
-  const renderRow = (collection: OptionsCollection, depth: number) => {
+  const renderRow = (collection: OptionsCollection, ancestors: string[] = []) => {
     const isTarget = owned.selectedId === collection.id;
     const isBusy = busyId === collection.id;
     const isRenaming = renaming?.id === collection.id;
@@ -299,12 +316,40 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
     // Wishlists panel then refuses to show.
     const canTagWish = collection.editable && collection.parentId === null;
     const children = collection.id ? childrenOf.get(collection.id) ?? [] : [];
+    const rowId = collection.id || collection.name;
+    const detailsId = `collection-details-${encodeURIComponent(rowId)}`;
+    const manageId = `collection-manage-${encodeURIComponent(rowId)}`;
+    const path = [...ancestors, collection.name];
+    const isExpanded = expandedIds.has(rowId);
+    const directCount = cardCounts?.get(collection.name) ?? 0;
 
     return (
-      <li key={collection.id || collection.name} className="collections-page__item">
+      <li key={rowId} className="collections-page__item">
         <div className={`collections-page__row${isTarget ? " is-target" : ""}`}>
-          <div className="collections-page__info">
-            {isRenaming ? (
+          <button
+            type="button"
+            className="collections-page__summary"
+            aria-label={`${path.join(' › ')}, ${countLabel(collection)}`}
+            aria-expanded={isExpanded}
+            aria-controls={isExpanded ? detailsId : undefined}
+            onClick={() => toggleExpanded(rowId)}
+          >
+            <span className="collections-page__name">
+              {collection.name}
+              {!collection.editable && <Lock size={12} aria-label="Read-only" />}
+            </span>
+            <span className="collections-page__meta">
+              <span>{countLabel(collection)}{children.length > 0 ? " total" : ""}</span>
+              {children.length > 0 && <span>{children.length === 1 ? "1 subcollection" : `${children.length} subcollections`}</span>}
+              {isTarget && <span className="collections-page__armed-tag">Adding here</span>}
+              {collection.isPublic && <span className="collections-page__public-tag"><Globe size={11} aria-hidden="true" /> Public</span>}
+            </span>
+            <ChevronDown className="collections-page__chevron" size={18} aria-hidden="true" />
+          </button>
+          {isExpanded && <div className="collections-page__details" id={detailsId}>
+            {ancestors.length > 0 && <p className="collections-page__path">{path.join(' › ')}</p>}
+            {children.length > 0 && cardCounts !== null && <p className="collections-page__direct-count">{directCount.toLocaleString()} cards directly in this collection · {countLabel(collection)} including subcollections</p>}
+            {isRenaming && (
               <form
                 className="collections-page__form"
                 onSubmit={(event) => { event.preventDefault(); handleRename(collection); }}
@@ -326,46 +371,9 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
                   Cancel
                 </button>
               </form>
-            ) : (
-              <span className="collections-page__name">
-                {collection.name}
-                {!collection.editable && <Lock size={12} aria-label="Read-only" />}
-              </span>
             )}
-            <span className="collections-page__meta">
-              <span>{countLabel(collection)}</span>
-              {children.length > 0 && (
-                <span>{children.length === 1 ? "1 subcollection" : `${children.length} subcollections`}</span>
-              )}
-              {/* The printings behind the collection, so its type is readable without opening it. */}
-              {collection.printings.map((printing) => (
-                <span key={printing} className="collection-printing-tag">{printing}</span>
-              ))}
-              {collection.id && (["own", "wish", "watch"] as const).map((tag) => (
-                <button
-                  key={tag}
-                  type="button"
-                  className="collections-page__tag"
-                  aria-pressed={collection.tags.includes(tag)}
-                  disabled={isBusy || owned.remoteUnavailable || (tag === "wish" && !canTagWish)}
-                  title={tag === "wish" && !canTagWish
-                    ? "A wishlist has to be one of your own top-level collections"
-                    : `${collection.tags.includes(tag) ? "Remove" : "Add"} the ${tag} tag`}
-                  onClick={() => handleToggleTag(collection, tag)}
-                >
-                  {tag}
-                </button>
-              ))}
-              {collection.isPublic && (
-                <span className="collections-page__public-tag">
-                  <Globe size={11} aria-hidden="true" /> Public
-                </span>
-              )}
-              {isTarget && <span className="collections-page__armed-tag">Adding cards here</span>}
-            </span>
-          </div>
 
-          {isConfirming ? (
+            {isConfirming ? (
             <div className="collections-page__actions collections-page__confirm" role="group" aria-label={`Confirm deleting ${collection.name}`}>
               <span>{deleteQuestion(collection)}</span>
               <button type="button" className="collections-page__btn collections-page__btn--danger" onClick={() => handleDelete(collection)} disabled={isBusy}>
@@ -375,35 +383,34 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
                 Cancel
               </button>
             </div>
-          ) : !isRenaming && (
-            <div className="collections-page__actions">
-              {/* Adding is armed on purpose, never as a side effect of opening a collection, so
-                  a stray click on a card cannot record a purchase. */}
+            ) : !isRenaming && (
+            <>
+            <div className="collections-page__actions collections-page__actions--primary">
               {canManage && (
                 <button
                   type="button"
-                  className={`collections-page__btn${isTarget ? " is-armed" : ""}`}
-                  aria-pressed={isTarget}
-                  title={isTarget ? `Stop adding cards to ${collection.name}` : `Cards you add in the catalog go to ${collection.name}`}
-                  onClick={() => { startAction(); owned.setSelectedId(isTarget ? "" : collection.id); }}
+                  className="collections-page__btn collections-page__btn--primary"
+                  title={`Choose ${collection.name} as the destination and open the catalog`}
+                  onClick={() => startAdding(collection.id)}
                 >
-                  {isTarget ? <PencilOff size={14} aria-hidden="true" /> : <Pencil size={14} aria-hidden="true" />}
-                  {isTarget ? "Stop adding" : "Add cards here"}
+                  <Pencil size={14} aria-hidden="true" /> Add cards
                 </button>
               )}
+              {isTarget && <button type="button" className="collections-page__btn" onClick={() => owned.setSelectedId("")}><PencilOff size={14} aria-hidden="true" /> Stop adding</button>}
               <button
                 type="button"
-                className={`collections-page__btn${viewedCollections.includes(collection.name) ? " is-armed" : ""}`}
-                aria-pressed={viewedCollections.includes(collection.name)}
-                title={viewedCollections.includes(collection.name)
-                  ? `Stop browsing ${collection.name}`
-                  : children.length > 0
-                    ? `Add ${collection.name} and its subcollections to the catalog view`
-                    : `Add ${collection.name} to the catalog view`}
+                className="collections-page__btn"
+                title={`View cards in ${collection.name}${children.length ? ' and its subcollections' : ''}`}
                 onClick={() => browse(collection.name)}
               >
-                <Eye size={14} aria-hidden="true" /> {viewedCollections.includes(collection.name) ? "Browsing" : "Browse"}
+                <Eye size={14} aria-hidden="true" /> View cards
               </button>
+              <button type="button" className="collections-page__btn collections-page__more-toggle" aria-expanded={moreId === rowId} aria-controls={moreId === rowId ? manageId : undefined} onClick={() => setMoreId((current) => current === rowId ? "" : rowId)}>
+                <MoreHorizontal size={14} aria-hidden="true" /> More
+              </button>
+            </div>
+            {moreId === rowId && <div className="collections-page__manage" id={manageId}>
+              <div className="collections-page__actions">
               {canMove && (
                 <button
                   type="button"
@@ -483,11 +490,18 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
                   </button>
                 </>
               )}
-            </div>
-          )}
+              </div>
+              {collection.printings.length > 0 && <div className="collections-page__manage-meta"><strong>Printings</strong>{collection.printings.map((printing) => <span key={printing} className="collection-printing-tag">{printing}</span>)}</div>}
+              {collection.id && <div className="collections-page__manage-meta"><strong>Tags</strong>{(["own", "wish", "watch"] as const).map((tag) => (
+                <button key={tag} type="button" className="collections-page__tag" aria-pressed={collection.tags.includes(tag)} disabled={isBusy || owned.remoteUnavailable || (tag === "wish" && !canTagWish)} title={tag === "wish" && !canTagWish ? "A wishlist has to be one of your own top-level collections" : `${collection.tags.includes(tag) ? "Remove" : "Add"} the ${tag} tag`} onClick={() => handleToggleTag(collection, tag)}>{tag}</button>
+              ))}</div>}
+            </div>}
+            </>
+            )}
+          </div>}
         </div>
 
-        {isMoving && (
+        {isExpanded && isMoving && (
           <form
             className="collections-page__form collections-page__form--sub"
             onSubmit={(event) => event.preventDefault()}
@@ -510,7 +524,7 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
           </form>
         )}
 
-        {isEditingPrintings && printingsDraft && (
+        {isExpanded && isEditingPrintings && printingsDraft && (
           <div className="collections-page__printings" role="group" aria-label={`Printings of ${collection.name}`}>
             {/* Rendered in the schema's canonical order, never alphabetically. */}
             {COLLECTION_PRINTING_ORDER.map((printing) => (
@@ -543,7 +557,7 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
           </div>
         )}
 
-        {isAddingSub && (
+        {isExpanded && isAddingSub && (
           <form
             className="collections-page__form collections-page__form--sub"
             onSubmit={(event) => { event.preventDefault(); handleCreateSub(collection); }}
@@ -568,9 +582,9 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
           </form>
         )}
 
-        {children.length > 0 && (
+        {isExpanded && children.length > 0 && (
           <ul className="collections-page__children" aria-label={`Subcollections of ${collection.name}`}>
-            {children.map((child) => renderRow(child, depth + 1))}
+            {children.map((child) => renderRow(child, path))}
           </ul>
         )}
       </li>
@@ -663,7 +677,7 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
                 draftName === null && <p className="collections-page__empty">{group.empty}</p>
               ) : (
                 <ul className="collections-page__list">
-                  {group.items.map((collection) => renderRow(collection, 0))}
+                  {group.items.map((collection) => renderRow(collection))}
                 </ul>
               )}
             </section>
@@ -691,7 +705,7 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
       <main className="collections-page__body">
         <div className="collections-page__intro">
           <h1>Collections</h1>
-          <p>Keep track of the cards you own, choose where new cards are recorded and open any collection in the catalog.</p>
+          <p>Open a collection to view its cards or choose where to add new ones.</p>
           {session && (
             <div className="collections-page__toolbar">
               <button
