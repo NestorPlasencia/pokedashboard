@@ -18,7 +18,7 @@ export const PokemonGroupingFilter = () => {
           Group by Pokémon
         </label>
         <button type="button" className="pokedex-open-projects" onClick={() => navigate('pokedex')}>
-          Open Pokédex projects
+          Open Pokédex placeholders
         </button>
         {pokemonGrouping.enabled && <>
           <label>

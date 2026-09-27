@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useCardContext } from "../../context/CardContext";
 import { shouldIncludePokemonForm } from "../../utils/filters";
+import { formBelongsToRegions } from "../../utils/pokedexRegions";
 
 export const PokedexProjectForms = () => {
   const { pokemonGrouping, setPokemonGrouping, pokemonFormsData } = useCardContext();
@@ -9,7 +10,7 @@ export const PokedexProjectForms = () => {
     const regions = pokemonGrouping.groupingRegions;
     return pokemonFormsData
       .filter((form) =>
-        (regions.includes("All") || form.regions.some((entry) => regions.includes(entry.region.name))) &&
+        formBelongsToRegions(form, regions) &&
         shouldIncludePokemonForm(form, pokemonGrouping.allowVariants, pokemonGrouping.hideVariants)
       )
       .sort((a, b) => a.number - b.number || a.name.localeCompare(b.name));
@@ -34,7 +35,7 @@ export const PokedexProjectForms = () => {
 
   return <section className="section-sidebar pokedex-projects-card">
     <h2>3. Individual forms</h2>
-    <p>Remove a form that does not belong in this project. This does not remove the variant from other Pokémon.</p>
+    <p>Remove a form that does not belong in this placeholder. This does not remove the variant from other Pokémon.</p>
     <details className="pokedex-projects__forms">
       <summary>{includedCount}/{candidateForms.length} forms included</summary>
       <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a Pokémon or form" aria-label="Find a Pokémon or form" />
@@ -52,6 +53,6 @@ export const PokedexProjectForms = () => {
       </div>
       {candidateForms.length > 100 && <small>Showing up to 100 forms. Search to find another.</small>}
     </details>
-    <p>Use “Update” above to keep changes to an existing project, or “Save as new project” to create one.</p>
+    <p>Use “Update” above to keep changes to an existing placeholder, or “Save as new placeholder” to create one.</p>
   </section>;
 };

@@ -31,7 +31,7 @@ export const PokedexProjectControls = () => {
     } catch {
       setSaved(empty);
       setBlocked(true);
-      setError("Could not read saved projects. The original data was left untouched.");
+      setError("Could not read saved placeholders. The original data was left untouched.");
     }
   }, [isAuthLoading, userId]);
 
@@ -43,7 +43,7 @@ export const PokedexProjectControls = () => {
       setError("");
       return true;
     } catch {
-      setError("Could not save projects on this device.");
+      setError("Could not save placeholders on this device.");
       return false;
     }
   };
@@ -60,17 +60,17 @@ export const PokedexProjectControls = () => {
     const project = saved.projects.find((entry) => entry.id === id);
     if (!commit({ ...saved, activeId: project?.id ?? null })) return;
     if (project) setPokemonGrouping((current) => applyPokedexProject(current, project));
-    setMessage(project ? `Loaded ${project.name}.` : "Using custom settings.");
+      setMessage(project ? `Loaded ${project.name}.` : "Using custom placeholder settings.");
   };
 
   const createProject = () => {
     const trimmed = name.trim();
     if (!trimmed) {
-      setError("Enter a project name first.");
+      setError("Enter a placeholder name first.");
       return;
     }
     const project = projectFromGrouping(crypto.randomUUID(), trimmed, pokemonGrouping);
-    if (!commit({ projects: [...saved.projects, project], activeId: project.id })) return;
+    if (!commit({ ...saved, projects: [...saved.projects, project], activeId: project.id })) return;
     setPokemonGrouping((current) => ({ ...current, enabled: true }));
     setName("");
     setMessage(`Saved ${project.name}.`);
@@ -86,7 +86,7 @@ export const PokedexProjectControls = () => {
 
   const deleteProject = () => {
     if (!active) return;
-    if (commit({ projects: saved.projects.filter((entry) => entry.id !== active.id), activeId: null })) {
+    if (commit({ ...saved, projects: saved.projects.filter((entry) => entry.id !== active.id), activeId: null })) {
       setMessage(`Deleted ${active.name}. The current view is still available until you change it.`);
     }
   };
@@ -96,7 +96,7 @@ export const PokedexProjectControls = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "pokedex-projects.json";
+    link.download = "pokedex-placeholders.json";
     link.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
@@ -109,34 +109,34 @@ export const PokedexProjectControls = () => {
       const imported = parsePokedexProjects(JSON.parse(await file.text()));
       const copies = imported.projects.map((project) => ({ ...project, id: crypto.randomUUID() }));
       if (commit({ ...saved, projects: [...saved.projects, ...copies] })) {
-        setMessage(`Imported ${copies.length} project${copies.length === 1 ? "" : "s"}.`);
+        setMessage(`Imported ${copies.length} placeholder${copies.length === 1 ? "" : "s"}.`);
       }
     } catch {
-      setError("Could not import this file. No projects were changed.");
+      setError("Could not import this file. No placeholders were changed.");
     }
   };
 
   return (
     <div className="pokedex-projects">
-      <h2>Projects</h2>
-      <p>Save a set of regions, variants and individual forms. The selected project applies to the catalog and any collection on this device.</p>
-      <label htmlFor="pokedex-project-select">Current project</label>
+      <h2>Placeholders</h2>
+      <p>Choose a ready-made Pokédex placeholder or save your own set of regions, variants and forms. The selected placeholder applies to the catalog and any collection on this device.</p>
+      <label htmlFor="pokedex-project-select">Current placeholder</label>
       <select id="pokedex-project-select" value={saved.activeId ?? ""} onChange={(event) => selectProject(event.target.value)} disabled={blocked}>
-        <option value="">Custom settings</option>
+        <option value="">Custom placeholder settings</option>
         {saved.projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
       </select>
       <div className="pokedex-projects__actions">
-        <input value={name} onChange={(event) => setName(event.target.value)} placeholder="New project name" aria-label="New project name" />
-        <button type="button" onClick={createProject} disabled={blocked}>Save as new project</button>
+        <input value={name} onChange={(event) => setName(event.target.value)} placeholder="New placeholder name" aria-label="New placeholder name" />
+        <button type="button" onClick={createProject} disabled={blocked}>Save as new placeholder</button>
         {active && <button type="button" onClick={updateProject} disabled={blocked || !hasUnsavedChanges}>Update {active.name}</button>}
-        {active && <button type="button" onClick={deleteProject} disabled={blocked}>Delete project</button>}
+        {active && <button type="button" onClick={deleteProject} disabled={blocked}>Delete placeholder</button>}
       </div>
       <div className="pokedex-projects__actions">
-        <button type="button" onClick={exportProjects} disabled={saved.projects.length === 0}>Export projects</button>
-        {!blocked && <label className="pokedex-projects__import">Import projects <input type="file" accept="application/json,.json" onChange={importProjects} /></label>}
+        <button type="button" onClick={exportProjects} disabled={saved.projects.length === 0}>Export placeholders</button>
+        {!blocked && <label className="pokedex-projects__import">Import placeholders <input type="file" accept="application/json,.json" onChange={importProjects} /></label>}
       </div>
       {error && <p role="alert" className="auth-card__error">{error}</p>}
-      {hasUnsavedChanges && <p role="status">Unsaved project changes. Select Update to keep them.</p>}
+      {hasUnsavedChanges && <p role="status">Unsaved placeholder changes. Select Update to keep them.</p>}
       {message && <p role="status">{message}</p>}
     </div>
   );

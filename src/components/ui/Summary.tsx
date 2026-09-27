@@ -4,6 +4,7 @@ import type { Card } from "../../types/dashboard";
 import { calculatePriceSummary } from "../../utils/utils";
 import { shouldIncludePokemonForm } from "../../utils/filters";
 import { POKEDEX_REGIONS } from "../../constants/constants";
+import { formBelongsToRegions } from "../../utils/pokedexRegions";
 import { useOptionsContext } from "../../context/OptionsContext";
 import { activeFilterCollectionNames, quantityCollectionNames } from "../../utils/collectionQuantity";
 
@@ -192,11 +193,10 @@ export const Summary = () => {
     // Determine which forms to include based on current filter settings
     let filteredForms = pokemonFormsData;
     if (pokemonGrouping.groupingRegions.length > 0 && !pokemonGrouping.groupingRegions.includes('All')) {
-      filteredForms = pokemonFormsData.filter(form =>
-        form.regions.some(r => pokemonGrouping.groupingRegions.includes(r.region.name))
-      );
+      filteredForms = pokemonFormsData.filter(form => formBelongsToRegions(form, pokemonGrouping.groupingRegions));
     }
     const formsToShow = filteredForms.filter(form =>
+      !pokemonGrouping.excludedFormIds.includes(form.id) &&
       shouldIncludePokemonForm(form, pokemonGrouping.allowVariants, pokemonGrouping.hideVariants)
     );
 
@@ -283,9 +283,7 @@ export const Summary = () => {
       });
 
       // Forms in this region
-      const regionForms = formsToShow.filter(f => {
-        return f.regions.some(r => r.region.name === region.name);
-      });
+      const regionForms = formsToShow.filter(f => f.number >= region.start && f.number <= region.end);
       const formsTotal = regionForms.length;
       const formsAvailable = regionForms.filter(f => formNamesWithCards.has(f.name)).length;
       const formsOwned = regionForms.filter(f => formNamesOwned.has(f.name)).length;
@@ -317,6 +315,7 @@ export const Summary = () => {
     pokemonGrouping.groupingRegions,
     pokemonGrouping.allowVariants,
     pokemonGrouping.hideVariants,
+    pokemonGrouping.excludedFormIds,
     filteredCards,
     collectionFilteredCards,
     showsOwnership,

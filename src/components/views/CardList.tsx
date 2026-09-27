@@ -7,6 +7,7 @@ import { Card, PokemonFormData, PokemonFormWithoutCard } from "../../types/dashb
 import { CardGroup } from "./CardGroup";
 import { SeriesStarter } from "./SeriesStarter";
 import { groupCardsByForm, sliceFormGroups, shouldIncludePokemonForm } from "../../utils/filters";
+import { formBelongsToRegions } from "../../utils/pokedexRegions";
 
 const CardListComponent: React.FC = () => {
   const {
@@ -42,9 +43,7 @@ const CardListComponent: React.FC = () => {
     if (!isFormsGrouping) return [];
     let filtered = pokemonFormsData;
     if (pokemonGrouping.groupingRegions.length > 0 && !pokemonGrouping.groupingRegions.includes('All')) {
-      filtered = pokemonFormsData.filter(form =>
-        form.regions.some(r => pokemonGrouping.groupingRegions.includes(r.region.name))
-      );
+      filtered = pokemonFormsData.filter(form => formBelongsToRegions(form, pokemonGrouping.groupingRegions));
     }
     return filtered.filter(form =>
       !pokemonGrouping.excludedFormIds.includes(form.id) &&
