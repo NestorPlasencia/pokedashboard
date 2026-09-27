@@ -32,10 +32,13 @@ const getBestRarityForOrder = (card: Card) => {
   const candidates = [...(card.rarities || []), card.rarity].filter(
     Boolean
   ) as string[];
-  // Choose the candidate with the highest index (best match) in default order
-  let best = candidates[0] || "";
+  // Promo can be an additional catalog classification. When another rarity exists,
+  // use that rarity to position the card among its peers.
+  const nonPromo = candidates.filter((candidate) => !/\bpromo\b/i.test(candidate));
+  const orderedCandidates = nonPromo.length ? nonPromo : candidates;
+  let best = orderedCandidates[0] || "";
   let bestIdx = -1;
-  for (const c of candidates) {
+  for (const c of orderedCandidates) {
     const idx = DEFAULT_RARITIES_ORDER.indexOf(c);
     if (idx !== -1 && idx > bestIdx) {
       best = c;
@@ -50,7 +53,9 @@ const sortByRariTies = (a: Card, b: Card) => {
   const bValue = getBestRarityForOrder(b);
   const aIndex = DEFAULT_RARITIES_ORDER.indexOf(aValue);
   const bIndex = DEFAULT_RARITIES_ORDER.indexOf(bValue);
-  return aIndex - bIndex;
+  // An unlisted rarity should not jump ahead of Common because indexOf returned -1.
+  return (aIndex === -1 ? DEFAULT_RARITIES_ORDER.length : aIndex)
+    - (bIndex === -1 ? DEFAULT_RARITIES_ORDER.length : bIndex);
 };
 
 const sortByNumber = (a: Card, b: Card) => {
