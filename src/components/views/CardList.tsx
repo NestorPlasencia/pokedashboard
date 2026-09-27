@@ -47,9 +47,10 @@ const CardListComponent: React.FC = () => {
       );
     }
     return filtered.filter(form =>
+      !pokemonGrouping.excludedFormIds.includes(form.id) &&
       shouldIncludePokemonForm(form, pokemonGrouping.allowVariants, pokemonGrouping.hideVariants)
     );
-  }, [isFormsGrouping, pokemonFormsData, pokemonGrouping.groupingRegions, pokemonGrouping.allowVariants, pokemonGrouping.hideVariants]);
+  }, [isFormsGrouping, pokemonFormsData, pokemonGrouping.groupingRegions, pokemonGrouping.allowVariants, pokemonGrouping.hideVariants, pokemonGrouping.excludedFormIds]);
 
   // Memoize grouped cards by form
   const groupedCardsByForm = useMemo(() => {

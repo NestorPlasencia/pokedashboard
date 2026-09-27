@@ -3,6 +3,7 @@ import { useCardContext } from "../../context/CardContext";
 import { CollapsibleSection } from "../ui/CollapsibleSection";
 import { updateUrlParams } from "../../utils/urlParams";
 import { POKEMON_FORM_VARIANTS_ORDER } from "../../constants/constants";
+import { PokedexProjectControls } from "./PokedexProjectControls";
 
 const GROUPING_REGIONS = [
   "All",
@@ -121,6 +122,8 @@ export const PokemonGroupingFilter = () => {
           Group by Pokémon
         </label>
 
+        <PokedexProjectControls />
+
         {pokemonGrouping.enabled && (
           <>
             <label>
@@ -184,6 +187,22 @@ export const PokemonGroupingFilter = () => {
             </div>
 
             <div className="pokedex-filter-group">
+              <p className="pokedex-filter-label">Regions to group:</p>
+              {GROUPING_REGIONS.map((region) => (
+                <label key={region} className="pokedex-region-option">
+                  <input
+                    type="checkbox"
+                    value={region}
+                    checked={pokemonGrouping.groupingRegions.includes(region)}
+                    onChange={() => handleGroupingRegionChange(region)}
+                    aria-label={`Include region ${region} in grouping`}
+                  />
+                  <span className="pokedex-region-label">{region}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="pokedex-filter-group">
               <p className="pokedex-filter-label">Variants to display:</p>
               <div className="forms-variant-legend">
                 <span className="forms-variant-legend-name">Variant</span>
@@ -211,21 +230,6 @@ export const PokemonGroupingFilter = () => {
               ))}
             </div>
 
-            <div className="pokedex-filter-group">
-              <p className="pokedex-filter-label">Regions to group:</p>
-              {GROUPING_REGIONS.map((region) => (
-                <label key={region} className="pokedex-region-option">
-                  <input
-                    type="checkbox"
-                    value={region}
-                    checked={pokemonGrouping.groupingRegions.includes(region)}
-                    onChange={() => handleGroupingRegionChange(region)}
-                    aria-label={`Include region ${region} in grouping`}
-                  />
-                  <span className="pokedex-region-label">{region}</span>
-                </label>
-              ))}
-            </div>
           </>
         )}
       </CollapsibleSection>

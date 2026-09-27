@@ -628,6 +628,7 @@ export const applyFormsFilter = (
     groupingRegions: string[];
     allowVariants: string[];
     hideVariants: string[];
+    excludedFormIds: number[];
     selectedCollections: string[];
     collectionMode: 'none' | 'hideOwned' | 'hideNotOwned' | 'shadowOwned' | 'shadowNotOwned';
     fallbackToDefault: boolean;
@@ -644,7 +645,9 @@ export const applyFormsFilter = (
   }
 
   // Variant rule: allow first, hide second
+  const excludedFormIds = new Set(options.excludedFormIds);
   const formsToShow = filteredForms.filter(form =>
+    !excludedFormIds.has(form.id) &&
     shouldIncludePokemonForm(form, options.allowVariants, options.hideVariants)
   );
 
@@ -699,14 +702,13 @@ export const applyFormsFilter = (
     }) as (Card | PokemonFormWithoutCard)[];
   }
 
-  // Filter cards by region: only include cards whose pokemonForms intersect with formNamesToInclude
-  if (options.groupingRegions.length > 0 && !options.groupingRegions.includes('All')) {
-    result = result.filter(card => {
-      if (!('pokemonForms' in card)) return false;
-      const cardForms = (card as Card).pokemonForms || [];
-      return cardForms.some(formName => formNamesToInclude.has(formName));
-    }) as Card[];
-  }
+  // The project's selected forms are the group universe in every view. Keep only
+  // cards that belong to one of them, including when all regions are selected.
+  result = result.filter(card => {
+    if (!('pokemonForms' in card)) return false;
+    const cardForms = (card as Card).pokemonForms || [];
+    return cardForms.some(formName => formNamesToInclude.has(formName));
+  }) as Card[];
 
   // Determine which forms have cards
   const isShadowMode = options.collectionMode === 'shadowOwned' || options.collectionMode === 'shadowNotOwned';

@@ -189,6 +189,7 @@ export interface PokemonGroupingOptions {
   groupingRegions: string[]; // Regiones que aparecerán en la agrupación
   allowVariants: string[]; // allowlist de variantes; empty = "all"
   hideVariants: string[]; // variantes que ocultan forms/cards
+  excludedFormIds: number[]; // formas quitadas de un proyecto concreto
   groupSortBy: 'default' | 'cardCount' | 'cardCountDesc' | 'ownedCount' | 'ownedCountDesc'; // ordenar grupos
   fallbackToDefault: boolean; // Agrupar cartas con formas no listadas bajo la forma default
 }

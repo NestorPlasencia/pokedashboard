@@ -21,6 +21,8 @@ import { useRoute } from "../hooks/useRoute";
 import { navigate } from "../utils/route";
 import { assertNeverViewMode } from "../utils/viewMode";
 import { collectionScopeNames } from "../utils/collectionTree";
+import { useAuth } from "../context/AuthContext";
+import { applyPokedexProject, readPokedexProjects } from "../services/pokedexProjects";
 
 // Lazy load heavy view components
 const CardList = lazy(() => import("./views/CardList").then(module => ({ default: module.CardList })));
@@ -35,6 +37,7 @@ const MOBILE_NAVIGATION: { id: MobilePanel; label: string; Icon: LucideIcon }[] 
 ];
 
 export const Main: React.FC = () => {
+  const { session, isAuthLoading } = useAuth();
   const wishlists = useWishlists();
   const owned = useOwnedCollections();
   const route = useRoute();
@@ -80,8 +83,21 @@ export const Main: React.FC = () => {
     seriesSelection,
     collectionFilter,
     pokemonGrouping,
+    setPokemonGrouping,
     viewMode,
   } = useCardContext();
+  // Restore the last Pokédex project once the account is known. Projects are local
+  // until the shared database can store them, and are kept separate by account ID.
+  useEffect(() => {
+    if (isAuthLoading) return;
+    try {
+      const saved = readPokedexProjects(session?.user.id ?? "");
+      const active = saved.projects.find((project) => project.id === saved.activeId);
+      if (active) setPokemonGrouping((current) => applyPokedexProject(current, active));
+    } catch (error) {
+      console.warn("[pokedex] Unable to restore saved projects", error);
+    }
+  }, [isAuthLoading, session?.user.id, setPokemonGrouping]);
   const { collections, setCollections } = useOptionsContext();
   // A collection shows the cards of its subcollections too; browsing several at once
   // is the union of every one of their scopes.

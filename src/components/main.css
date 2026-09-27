@@ -2025,6 +2025,109 @@ th[scope="row"] {
   opacity: 0.65;
 }
 
+.pokedex-projects {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px 0;
+}
+
+.pokedex-projects h3,
+.pokedex-projects h4,
+.pokedex-projects p {
+  margin: 0;
+}
+
+.pokedex-projects p,
+.pokedex-projects small {
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.pokedex-projects input:not([type="file"]),
+.pokedex-projects select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.pokedex-projects__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pokedex-projects__actions input {
+  flex: 1 1 170px;
+}
+
+.pokedex-projects__actions button,
+.pokedex-projects__import,
+.pokedex-projects__form button {
+  padding: 7px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+}
+
+.pokedex-projects__import input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.pokedex-projects__import:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.pokedex-projects__forms {
+  min-width: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.pokedex-projects__forms summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.pokedex-projects__forms[open] > :not(summary) {
+  margin-top: 8px;
+}
+
+.pokedex-projects__form-list {
+  display: grid;
+  gap: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.pokedex-projects__form {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.pokedex-projects__form span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .sidebar-content--disabled {
   pointer-events: none;
 }

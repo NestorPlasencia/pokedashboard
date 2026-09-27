@@ -63,12 +63,13 @@ export const Search: React.FC<SearchProps> = ({ collectionEnrichment }) => {
         );
         // Grouping runs last, on the scoped cards, so the Pokémon missing from this
         // collection show up as placeholders just as they do in the catalog.
-        if (!pokemonGrouping.enabled || ownershipFiltered.length === 0) return ownershipFiltered;
+        if (!pokemonGrouping.enabled) return ownershipFiltered;
         return applyFormsFilter(ownershipFiltered, pokemonFormsData, {
           filterByCollection: pokemonGrouping.filterByCollection,
           groupingRegions: pokemonGrouping.groupingRegions,
           allowVariants: pokemonGrouping.allowVariants,
           hideVariants: pokemonGrouping.hideVariants,
+          excludedFormIds: pokemonGrouping.excludedFormIds,
           selectedCollections: scopedCollections,
           collectionMode: collectionFilter.mode,
           fallbackToDefault: pokemonGrouping.fallbackToDefault,

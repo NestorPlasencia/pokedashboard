@@ -100,7 +100,6 @@ export const useCardFilters = () => {
 
   // Level 5: Apply Pokemon Grouping (Forms mode)
   const groupedCards = useMemo(() => {
-    if (collectionFilteredCards.length === 0) return [];
     if (!pokemonGrouping.enabled) return collectionFilteredCards;
     return applyFormsFilter(
       collectionFilteredCards,
@@ -110,6 +109,7 @@ export const useCardFilters = () => {
         groupingRegions: pokemonGrouping.groupingRegions,
         allowVariants: pokemonGrouping.allowVariants,
         hideVariants: pokemonGrouping.hideVariants,
+        excludedFormIds: pokemonGrouping.excludedFormIds,
         selectedCollections: scopedCollections,
         collectionMode: collectionFilter.mode,
         fallbackToDefault: pokemonGrouping.fallbackToDefault
@@ -122,6 +122,7 @@ export const useCardFilters = () => {
     pokemonGrouping.groupingRegions,
     pokemonGrouping.allowVariants,
     pokemonGrouping.hideVariants,
+    pokemonGrouping.excludedFormIds,
     pokemonGrouping.fallbackToDefault,
     pokemonFormsData,
     scopedCollections,

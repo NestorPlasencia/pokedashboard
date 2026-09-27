@@ -64,6 +64,7 @@ export const initialPokemonGrouping = (params: FilterParams = parseUrlParams()):
     groupingRegions: groupingRegions?.length ? groupingRegions : ['All'],
     allowVariants: allowVariants?.length ? allowVariants : ['Default'],
     hideVariants: params.formsHideVariants ?? [],
+    excludedFormIds: [],
     groupSortBy: oneOf(params.formsGroupSortBy, ['default', 'cardCount', 'cardCountDesc', 'ownedCount', 'ownedCountDesc'] as const, 'default'),
     fallbackToDefault: params.formsFallbackToDefault === 'true',
   };

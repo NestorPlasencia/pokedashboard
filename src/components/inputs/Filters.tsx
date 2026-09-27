@@ -700,6 +700,7 @@ export const Filters = () => {
       groupingRegions: ["All"],
       allowVariants: ['Default'],
       hideVariants: [],
+      excludedFormIds: [],
       groupSortBy: 'default',
       fallbackToDefault: false
     });
