@@ -88,10 +88,7 @@ export const BinderView = () => {
   const spreadFaces = (index: number) => ({ left: index * 2, right: index * 2 + 1 });
   const renderSpreadPage = (face: number, side: 'left' | 'right', interactive: boolean) => {
     const cover = face >= faceCount;
-    const sheet = Math.floor(face / 2) + 1;
-    const label = cover ? 'Empty page' : `${side === 'left' ? 'Front' : 'Back'} · Sheet ${sheet}`;
     return <div className={`binder-page binder-page--${side}`}>
-      <span className="binder-page__side-label">{label}</span>
       <div className="binder-page__pockets">{cover
         ? Array.from({ length: pocketsPerPage }, (_, position) => <div className="binder-pocket" key={position} />)
         : renderPockets(face, interactive)}</div>

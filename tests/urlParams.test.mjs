@@ -82,13 +82,19 @@ test('binder view and its page settings survive a URL round trip', () => {
     binderPageColor: '#18243a',
     binderSleeveColor: '#c7d9ef',
     binderLayout: '4x4',
-    binderStyle: 'twoPage',
+    binderStyle: 'ringed',
   };
   updateUrlParams(viewOptionsToParams(binder));
   assert.deepEqual(initialViewOptions(), binder);
   assert.equal(parseUrlParams().showBinder, 'true');
+  assert.equal(parseUrlParams().binderStyle, 'ringed');
   updateUrlParams(viewOptionsToParams({ ...binder, displayMode: 'cardsUngrouped' }));
   assert.equal(parseUrlParams().showBinder, undefined);
+});
+
+test('the two-page binder style is the default', () => {
+  assert.equal(initialViewOptions().binderStyle, 'twoPage');
+  assert.equal(viewOptionsToParams(initialViewOptions()).binderStyle, undefined);
 });
 
 test('sort, search and price range survive a write and read of the URL', () => {

@@ -2488,16 +2488,6 @@ th[scope="row"] {
 .binder-spread .binder-page--left { border-radius: 13px 4px 4px 13px; }
 .binder-spread .binder-page--right { border-radius: 4px 13px 13px 4px; }
 
-.binder-page__side-label {
-  display: block;
-  min-height: 22px;
-  margin-bottom: 6px;
-  color: color-mix(in srgb, var(--binder-page) 35%, white);
-  font-size: clamp(10px, 1.1vw, 13px);
-  font-weight: 700;
-  text-align: center;
-}
-
 .binder-spread .binder-page__pockets { gap: clamp(3px, .8vw, 9px); }
 .binder-spread .binder-pocket { padding: 3%; }
 
@@ -2537,7 +2527,6 @@ th[scope="row"] {
   .binder-spread .binder-page { padding: 5px; }
   .binder-spread .binder-page__pockets { gap: 3px; }
   .binder-spread .binder-pocket { padding: 2%; }
-  .binder-page__side-label { min-height: 18px; margin-bottom: 3px; font-size: 10px; }
 }
 
 .binder-page {

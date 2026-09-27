@@ -75,8 +75,8 @@ export const ViewOptionsComponent = () => {
               binderStyle: event.target.value as typeof current.binderStyle,
             }))}
           >
+            <option value="twoPage">Two pages</option>
             <option value="ringed">Ringed · single page</option>
-            <option value="twoPage">Two-page · front and back</option>
           </select>
           <label htmlFor="binder-page-color">Page color</label>
           <input
