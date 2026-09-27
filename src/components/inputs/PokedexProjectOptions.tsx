@@ -51,7 +51,7 @@ export const PokedexProjectOptions = () => {
   return <div className="pokedex-project-options">
     <section className="section-sidebar">
       <h2>1. Regions</h2>
-      <p>Choose the Pokémon that belong in this placeholder.</p>
+      <p>Choose the Pokémon that belong in this Pokédex.</p>
       <div className="pokedex-project-options__regions">
         {REGIONS.map((region) => <label key={region} className="pokedex-region-option">
           <input
@@ -66,7 +66,7 @@ export const PokedexProjectOptions = () => {
     </section>
     <section className="section-sidebar">
       <h2>2. Variants</h2>
-      <p>Only forms belonging to Pokémon in the selected regions appear here. Allow the forms you want; hide a variant to exclude it throughout the placeholder.</p>
+      <p>Only forms belonging to Pokémon in the selected regions appear here. Allow the forms you want; hide a variant to exclude it throughout the Pokédex.</p>
       <div className="pokedex-project-options__variants">
         <div className="forms-variant-legend">
           <span className="forms-variant-legend-name">Variant</span>

@@ -185,7 +185,7 @@ export interface PokemonFormWithoutCard {
 // Modo de agrupación por Pokémon (basado en Pokemon Forms)
 export interface PokemonGroupingOptions {
   enabled: boolean; // Activar agrupación por Pokémon
-  filterByCollection: 'all' | 'owned' | 'notOwned' | 'ownedNone'; // Filtrar Pokémon por colecciones
+  filterByCollection: 'all' | 'owned' | 'notOwned' | 'ownedAny' | 'ownedNone'; // Filtrar Pokémon por colecciones
   groupingRegions: string[]; // Regiones que aparecerán en la agrupación
   allowVariants: string[]; // allowlist de variantes; empty = "all"
   hideVariants: string[]; // variantes que ocultan forms/cards

@@ -45,11 +45,11 @@ const formIds = (value: unknown): value is number[] =>
   Array.isArray(value) && value.every((item) => Number.isInteger(item) && item > 0);
 
 export const parsePokedexProjects = (raw: unknown): PokedexProjectsState => {
-  if (!raw || typeof raw !== "object") throw new Error("Invalid Pokédex projects file.");
+  if (!raw || typeof raw !== "object") throw new Error("Invalid Pokédex file.");
   const value = raw as Record<string, unknown>;
-  if (!Array.isArray(value.projects)) throw new Error("Invalid Pokédex projects file.");
+  if (!Array.isArray(value.projects)) throw new Error("Invalid Pokédex file.");
   const projects = value.projects.map((entry): PokedexProject => {
-    if (!entry || typeof entry !== "object") throw new Error("Invalid Pokédex project.");
+    if (!entry || typeof entry !== "object") throw new Error("Invalid Pokédex.");
     const project = entry as Record<string, unknown>;
     if (
       typeof project.id !== "string" || !project.id ||
@@ -57,7 +57,7 @@ export const parsePokedexProjects = (raw: unknown): PokedexProjectsState => {
       !strings(project.groupingRegions) || !strings(project.allowVariants) ||
       !strings(project.hideVariants) || !formIds(project.excludedFormIds) ||
       typeof project.fallbackToDefault !== "boolean"
-    ) throw new Error("Invalid Pokédex project.");
+    ) throw new Error("Invalid Pokédex.");
     return {
       id: project.id,
       name: project.name.trim(),
@@ -109,7 +109,6 @@ export const applyPokedexProject = (
   project: PokedexProject
 ): PokemonGroupingOptions => ({
   ...grouping,
-  enabled: true,
   groupingRegions: [...project.groupingRegions],
   allowVariants: [...project.allowVariants],
   hideVariants: [...project.hideVariants],

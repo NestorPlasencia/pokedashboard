@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo, useCallback, ReactNode } from "react";
+import React, { createContext, useContext, useState, useMemo, useCallback, useEffect, ReactNode } from "react";
 import { Card, PokemonWithoutCard, PokemonFormWithoutCard, PokemonFormData, PokemonGroupingOptions, CollectionFilterOptions, ViewOptions, SortConfig, Set, TrendSeries } from "../types/dashboard";
 import { initializeFiltersFromUrl, parseUrlParams, updateUrlParams } from "../utils/urlParams";
 import { initialCollectionFilter, initialPokemonGrouping, initialPriceRange, initialSortConfig, initialViewOptions } from "../utils/urlState";
@@ -167,6 +167,15 @@ export const CardProvider: React.FC<{ children: ReactNode }> = ({
   const [sortConfig, setSortConfig] = useState<SortConfig>(() => initialSortConfig(urlParams));
 
   const [viewOptions, setViewOptions] = useState<ViewOptions>(() => initialViewOptions(urlParams));
+
+  useEffect(() => {
+    setViewOptions((current) => {
+      const mode = current.displayMode.startsWith('trend') ? 'trend'
+        : current.displayMode.startsWith('table') ? 'table' : 'cards';
+      const displayMode = `${mode}${pokemonGrouping.enabled ? 'Grouped' : 'Ungrouped'}` as ViewOptions['displayMode'];
+      return current.displayMode === displayMode ? current : { ...current, displayMode };
+    });
+  }, [pokemonGrouping.enabled]);
 
   const [viewMode, setViewModeState] = useState<ViewMode>(() => parseViewModeFromUrl());
   // The mode and its URL parameters move together, so no caller can update one and

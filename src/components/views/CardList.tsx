@@ -8,6 +8,9 @@ import { CardGroup } from "./CardGroup";
 import { SeriesStarter } from "./SeriesStarter";
 import { groupCardsByForm, sliceFormGroups, shouldIncludePokemonForm } from "../../utils/filters";
 import { formBelongsToRegions } from "../../utils/pokedexRegions";
+import { orderPokedexGroupNames } from "../../utils/pokedexGroupOrder";
+import { useOptionsContext } from "../../context/OptionsContext";
+import { collectionScopeNames } from "../../utils/collectionTree";
 
 const CardListComponent: React.FC = () => {
   const {
@@ -19,6 +22,10 @@ const CardListComponent: React.FC = () => {
     viewOptions,
     viewMode
   } = useCardContext();
+  const { collections } = useOptionsContext();
+  const selectedCollectionNames = useMemo(() => [...new Set(
+    collectionFilter.selectedCollections.flatMap((name) => collectionScopeNames(collections, name))
+  )], [collectionFilter.selectedCollections, collections]);
 
   const [displayedCards, setDisplayedCards] = useState<Card[]>([]);
   const [displayedFormGroups, setDisplayedFormGroups] = useState<Record<string, { form: PokemonFormData; cards: (Card | PokemonFormWithoutCard)[] }>>({});
@@ -48,7 +55,7 @@ const CardListComponent: React.FC = () => {
     return filtered.filter(form =>
       !pokemonGrouping.excludedFormIds.includes(form.id) &&
       shouldIncludePokemonForm(form, pokemonGrouping.allowVariants, pokemonGrouping.hideVariants)
-    );
+    ).sort((a, b) => a.number - b.number || a.name.localeCompare(b.name));
   }, [isFormsGrouping, pokemonFormsData, pokemonGrouping.groupingRegions, pokemonGrouping.allowVariants, pokemonGrouping.hideVariants, pokemonGrouping.excludedFormIds]);
 
   // Memoize grouped cards by form
@@ -59,24 +66,31 @@ const CardListComponent: React.FC = () => {
     return groupCardsByForm(
       renderCards as (Card | PokemonFormWithoutCard)[],
       formsToShow,
-      collectionFilter.selectedCollections,
+      selectedCollectionNames,
       pokemonGrouping.filterByCollection
     );
   }, [
     isFormsGrouping,
     renderCards,
     formsToShow,
-    collectionFilter.selectedCollections,
+    selectedCollectionNames,
     pokemonGrouping.filterByCollection
   ]);
 
-  // Memoize displayed form groups
+  const orderedGroupNames = useMemo(() => {
+    if (!isFormsGrouping || !groupedCardsByForm) return [];
+    return orderPokedexGroupNames(formsToShow, groupedCardsByForm, pokemonGrouping.groupSortBy, selectedCollectionNames);
+  }, [isFormsGrouping, groupedCardsByForm, formsToShow, pokemonGrouping.groupSortBy,
+    selectedCollectionNames]);
+
+  // Sort the entire group universe before pagination, so later groups can move to the top.
   const memoizedDisplayedFormGroups = useMemo(() => {
     if (!isFormsGrouping || !groupedCardsByForm) {
       return {};
     }
-    return sliceFormGroups(groupedCardsByForm, itemsToShow);
-  }, [isFormsGrouping, groupedCardsByForm, itemsToShow]);
+    const ordered = Object.fromEntries(orderedGroupNames.map((name) => [name, groupedCardsByForm[name]]));
+    return sliceFormGroups(ordered, itemsToShow);
+  }, [isFormsGrouping, groupedCardsByForm, orderedGroupNames, itemsToShow]);
 
   // Memoize displayed cards (ungrouped)
   const memoizedDisplayedCards = useMemo(() => {
@@ -123,31 +137,11 @@ const CardListComponent: React.FC = () => {
 
   // Memoize filtered pokedex numbers for rendering — removed (pokedex mode eliminated)
 
-  // Memoize form names to render (preserve insertion order from formsToShow, optionally sorted by card count)
+  // The paged groups already follow the selected group order.
   const formNamesToRender = useMemo(() => {
     if (!isFormsGrouping) return [];
-    const names = formsToShow
-      .map(f => f.name)
-      .filter(name => displayedFormGroups[name] !== undefined);
-
-    if (pokemonGrouping.groupSortBy === 'cardCount' || pokemonGrouping.groupSortBy === 'cardCountDesc') {
-      const dir = pokemonGrouping.groupSortBy === 'cardCount' ? 1 : -1;
-      names.sort((a, b) => {
-        const countA = displayedFormGroups[a]?.cards.filter(c => !('isPlaceholder' in c)).length ?? 0;
-        const countB = displayedFormGroups[b]?.cards.filter(c => !('isPlaceholder' in c)).length ?? 0;
-        return (countA - countB) * dir;
-      });
-    } else if (pokemonGrouping.groupSortBy === 'ownedCount' || pokemonGrouping.groupSortBy === 'ownedCountDesc') {
-      const dir = pokemonGrouping.groupSortBy === 'ownedCount' ? 1 : -1;
-      names.sort((a, b) => {
-        const nonShadowA = (displayedFormGroups[a]?.cards.filter(c => !('isPlaceholder' in c) && !(c as Card).shadow).length) ?? 0;
-        const nonShadowB = (displayedFormGroups[b]?.cards.filter(c => !('isPlaceholder' in c) && !(c as Card).shadow).length) ?? 0;
-        return (nonShadowA - nonShadowB) * dir;
-      });
-    }
-
-    return names;
-  }, [isFormsGrouping, formsToShow, displayedFormGroups, pokemonGrouping.groupSortBy]);
+    return orderedGroupNames.filter((name) => displayedFormGroups[name] !== undefined);
+  }, [isFormsGrouping, orderedGroupNames, displayedFormGroups]);
 
   const isEmpty = renderCards.length === 0;
   const isAwaitingSeries =

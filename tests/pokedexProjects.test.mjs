@@ -26,7 +26,7 @@ test('a project restores the same form universe without changing collection cont
     groupingRegions: ['All'],
     excludedFormIds: [],
   }, project);
-  assert.equal(restored.enabled, true);
+  assert.equal(restored.enabled, false);
   assert.deepEqual(restored.groupingRegions, ['Kanto']);
   assert.deepEqual(restored.allowVariants, ['Default', 'Mega']);
   assert.deepEqual(restored.excludedFormIds, [42]);

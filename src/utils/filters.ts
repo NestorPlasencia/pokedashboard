@@ -625,7 +625,7 @@ export const applyFormsFilter = (
   cards: Card[],
   pokemonFormsData: PokemonFormData[],
   options: {
-    filterByCollection: 'all' | 'owned' | 'notOwned' | 'ownedNone';
+    filterByCollection: 'all' | 'owned' | 'notOwned' | 'ownedAny' | 'ownedNone';
     groupingRegions: string[];
     allowVariants: string[];
     hideVariants: string[];
@@ -761,7 +761,7 @@ export const groupCardsByForm = (
   cards: (Card | PokemonFormWithoutCard)[],
   formsToShow: PokemonFormData[],
   selectedCollections?: string[],
-  filterByCollection?: 'all' | 'owned' | 'notOwned' | 'ownedNone'
+  filterByCollection?: 'all' | 'owned' | 'notOwned' | 'ownedAny' | 'ownedNone'
 ) => {
   return formsToShow.reduce(
     (acc: Record<string, { form: PokemonFormData; cards: (Card | PokemonFormWithoutCard)[] }>, form) => {
@@ -773,25 +773,16 @@ export const groupCardsByForm = (
         return (card as Card).pokemonForms?.includes(formName) || false;
       });
 
-      let hasOwnedCards = false;
-      let hasRealCards = false;
-
-      if (selectedCollections && selectedCollections.length > 0) {
-        hasRealCards = cardsForForm.some(card => !('isPlaceholder' in card));
-        hasOwnedCards = cardsForForm.some(card => {
+      if (filterByCollection === 'ownedAny' || filterByCollection === 'ownedNone') {
+        const hasRealCards = cardsForForm.some(card => !('isPlaceholder' in card));
+        const hasOwnedCards = cardsForForm.some(card => {
           if ('isPlaceholder' in card) return false;
-          return ((card as Card).collections || [])
-            .filter(c => selectedCollections.includes(c.name))
-            .reduce((sum, c) => {
-              const qty = c.quantity || {};
-              return sum + Object.values(qty).reduce((s, v) => s + (v || 0), 0);
-            }, 0) > 0;
+          return ((card as Card).collections || []).some((collection) =>
+            (!selectedCollections?.length || selectedCollections.includes(collection.name)) &&
+            Object.values(collection.quantity || {}).some((quantity) => quantity > 0)
+          );
         });
-      }
-
-      // Apply ownedNone filter
-      if (filterByCollection === 'ownedNone') {
-        if (hasRealCards && !hasOwnedCards) {
+        if (hasRealCards && (filterByCollection === 'ownedAny' ? hasOwnedCards : !hasOwnedCards)) {
           acc[formName] = { form, cards: cardsForForm };
         }
         return acc;

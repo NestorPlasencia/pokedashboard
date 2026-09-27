@@ -11,6 +11,7 @@ import { updateUrlParams, initializeFiltersFromUrl, type FilterParamName } from 
 import { filterSettingsToParams, initialFilterSettings } from "../../utils/urlState";
 import { loadHierarchy } from "../../services/cards";
 import { orderHierarchy } from "../../utils/hierarchy";
+import { PokedexGroupFilter } from "./PokedexGroupFilter";
 
 /**
  * The URL parameter each filter reads and writes. One map serves both directions, so a
@@ -77,6 +78,7 @@ export const Filters = () => {
     variantsFilter,
     setVariantsFilter,
     setPokemonGrouping,
+    pokemonGrouping,
     setPriceRange,
     setCollectionFilter,
     setSortConfig,
@@ -694,16 +696,7 @@ export const Filters = () => {
       }))
     );
     setVariantsFilter(["All"]);
-    setPokemonGrouping({
-      enabled: false,
-      filterByCollection: 'all',
-      groupingRegions: ["All"],
-      allowVariants: ['Default'],
-      hideVariants: [],
-      excludedFormIds: [],
-      groupSortBy: 'default',
-      fallbackToDefault: false
-    });
+    setPokemonGrouping((current) => ({ ...current, filterByCollection: 'all' }));
     setPriceRange({ min: null, max: null });
     setCollectionFilter({
       enabled: false,
@@ -718,7 +711,7 @@ export const Filters = () => {
     });
     setViewOptions(prev => ({
       ...prev,
-      displayMode: 'cardsUngrouped',
+      displayMode: pokemonGrouping.enabled ? 'cardsGrouped' : 'cardsUngrouped',
     }));
 
     // Clear all URL parameters
@@ -742,11 +735,11 @@ export const Filters = () => {
       showListTable: undefined,
       groupByPokedex: undefined,
       includeWithoutCards: undefined,
-      groupingRegions: undefined,
       filterByCollections: undefined,
       viewCollectionOption: undefined,
       priceMin: undefined,
-      priceMax: undefined
+      priceMax: undefined,
+      filterByCollection: undefined
     });
   };
 
@@ -1051,6 +1044,7 @@ export const Filters = () => {
           </CollapsibleSection>
         );
       })}
+      {pokemonGrouping.enabled && <PokedexGroupFilter />}
       </CollapsibleGroup>
     </div>
   );

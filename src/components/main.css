@@ -2129,9 +2129,68 @@ th[scope="row"] {
   white-space: nowrap;
 }
 
-.pokedex-open-projects {
-  display: block;
-  margin-block: 10px;
+.pokedex-preview > summary {
+  cursor: pointer;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.pokedex-preview > p {
+  margin: 10px 0;
+  color: var(--text-muted);
+}
+
+.pokedex-preview .pokedex-preview__count {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.pokedex-preview input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.pokedex-preview__list {
+  display: grid;
+  max-height: 420px;
+  margin-top: 10px;
+  overflow-y: auto;
+}
+
+.pokedex-preview__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: baseline;
+  padding: 8px 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pokedex-preview__number,
+.pokedex-preview__detail {
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.pokedex-preview__name {
+  flex: 1 1 130px;
+  font-weight: 600;
+}
+
+.pokedex-preview > button {
+  margin-top: 10px;
+  padding: 7px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
 }
 
 .pokedex-project-options {

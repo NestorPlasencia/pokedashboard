@@ -60,7 +60,7 @@ export const initialPokemonGrouping = (params: FilterParams = parseUrlParams()):
   return {
     // Backward compatible with the separate Pokédex and Forms toggles this replaced.
     enabled: params.pokemonGroupingEnabled === 'true' || params.groupByPokedex === 'true' || params.groupByForms === 'true',
-    filterByCollection: oneOf(filterByCollection, ['all', 'owned', 'notOwned', 'ownedNone'] as const, legacyOwnership),
+    filterByCollection: oneOf(filterByCollection, ['all', 'owned', 'notOwned', 'ownedAny', 'ownedNone'] as const, legacyOwnership),
     groupingRegions: groupingRegions?.length ? groupingRegions : ['All'],
     allowVariants: allowVariants?.length ? allowVariants : ['Default'],
     hideVariants: params.formsHideVariants ?? [],
