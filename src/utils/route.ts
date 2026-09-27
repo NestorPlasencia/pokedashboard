@@ -10,11 +10,12 @@ import { rememberUrl } from '../services/launchUrl.ts';
  *
  * Deliberately free of React so the URL logic can be tested without a DOM.
  */
-export type Route = 'catalog' | 'collections' | 'settings';
+export type Route = 'catalog' | 'collections' | 'pokedex' | 'settings';
 
 const PATHS: Record<Route, string> = {
   catalog: '/',
   collections: '/collections',
+  pokedex: '/pokedex',
   settings: '/settings',
 };
 
@@ -46,6 +47,7 @@ export const pathForPublicCollection = (id: string): string =>
 export const routeFromPath = (pathname: string): Route => {
   const normalized = pathname.replace(/\/+$/, '') || '/';
   if (normalized === PATHS.collections) return 'collections';
+  if (normalized === PATHS.pokedex) return 'pokedex';
   if (normalized === PATHS.settings) return 'settings';
   return 'catalog';
 };

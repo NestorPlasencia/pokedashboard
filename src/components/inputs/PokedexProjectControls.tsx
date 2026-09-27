@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useCardContext } from "../../context/CardContext";
-import { shouldIncludePokemonForm } from "../../utils/filters";
 import {
   applyPokedexProject,
   parsePokedexProjects,
@@ -15,11 +14,10 @@ const empty: PokedexProjectsState = { projects: [], activeId: null };
 
 export const PokedexProjectControls = () => {
   const { session, isAuthLoading } = useAuth();
-  const { pokemonGrouping, setPokemonGrouping, pokemonFormsData } = useCardContext();
+  const { pokemonGrouping, setPokemonGrouping } = useCardContext();
   const userId = session?.user.id ?? "";
   const [saved, setSaved] = useState<PokedexProjectsState>(empty);
   const [name, setName] = useState("");
-  const [formSearch, setFormSearch] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [blocked, setBlocked] = useState(false);
@@ -118,37 +116,9 @@ export const PokedexProjectControls = () => {
     }
   };
 
-  const candidateForms = useMemo(() => {
-    const regions = pokemonGrouping.groupingRegions;
-    return pokemonFormsData
-      .filter((form) =>
-        (regions.includes("All") || form.regions.some((entry) => regions.includes(entry.region.name))) &&
-        shouldIncludePokemonForm(form, pokemonGrouping.allowVariants, pokemonGrouping.hideVariants)
-      )
-      .sort((a, b) => a.number - b.number || a.name.localeCompare(b.name));
-  }, [pokemonFormsData, pokemonGrouping.groupingRegions, pokemonGrouping.allowVariants, pokemonGrouping.hideVariants]);
-
-  const visibleForms = useMemo(() => {
-    const query = formSearch.trim().toLowerCase();
-    return candidateForms.filter((form) =>
-      !query || form.name.toLowerCase().includes(query) ||
-      form.pokemon.name.toLowerCase().includes(query) || String(form.number).includes(query)
-    ).slice(0, 100);
-  }, [candidateForms, formSearch]);
-
-  const toggleForm = (id: number) => {
-    setPokemonGrouping((current) => ({
-      ...current,
-      excludedFormIds: current.excludedFormIds.includes(id)
-        ? current.excludedFormIds.filter((entry) => entry !== id)
-        : [...current.excludedFormIds, id],
-    }));
-    setMessage(active ? "Save changes to update this project." : "Save a project to keep these changes.");
-  };
-
   return (
     <div className="pokedex-projects">
-      <h3>Pokédex projects</h3>
+      <h2>Projects</h2>
       <p>Save a set of regions, variants and individual forms. The selected project applies to the catalog and any collection on this device.</p>
       <label htmlFor="pokedex-project-select">Current project</label>
       <select id="pokedex-project-select" value={saved.activeId ?? ""} onChange={(event) => selectProject(event.target.value)} disabled={blocked}>
@@ -168,26 +138,6 @@ export const PokedexProjectControls = () => {
       {error && <p role="alert" className="auth-card__error">{error}</p>}
       {hasUnsavedChanges && <p role="status">Unsaved project changes. Select Update to keep them.</p>}
       {message && <p role="status">{message}</p>}
-      {pokemonGrouping.enabled && <details className="pokedex-projects__forms">
-        <summary>Individual forms ({candidateForms.length - candidateForms.filter((form) => pokemonGrouping.excludedFormIds.includes(form.id)).length}/{candidateForms.length} included)</summary>
-        <p>Choose regions and variants below, then remove any form that does not belong in this project. Save your changes when finished.</p>
-        <input value={formSearch} onChange={(event) => setFormSearch(event.target.value)} placeholder="Find a Pokémon or form" aria-label="Find a Pokémon or form" />
-        <div className="pokedex-projects__form-list">
-          {visibleForms.map((form) => {
-            const excluded = pokemonGrouping.excludedFormIds.includes(form.id);
-            return (
-              <div className="pokedex-projects__form" key={form.id}>
-                <span>#{form.number} {form.name}</span>
-                <button type="button" onClick={() => toggleForm(form.id)} aria-label={`${excluded ? "Restore" : "Remove"} ${form.name}`}>
-                  {excluded ? "Restore" : "Remove"}
-                </button>
-              </div>
-            );
-          })}
-          {candidateForms.length === 0 && <p>{pokemonFormsData.length === 0 ? "Form catalog is loading or unavailable." : "No forms match these regions and variants."}</p>}
-        </div>
-        {candidateForms.length > 100 && <small>Showing up to 100 forms. Search to find another.</small>}
-      </details>}
     </div>
   );
 };

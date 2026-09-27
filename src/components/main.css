@@ -2045,7 +2045,8 @@ th[scope="row"] {
 }
 
 .pokedex-projects input:not([type="file"]),
-.pokedex-projects select {
+.pokedex-projects select,
+.pokedex-projects__forms input {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
@@ -2126,6 +2127,50 @@ th[scope="row"] {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.pokedex-open-projects {
+  display: block;
+  margin-block: 10px;
+}
+
+.pokedex-project-options {
+  display: grid;
+  gap: 18px;
+}
+
+.pokedex-project-options .section-sidebar,
+.pokedex-projects-card {
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+
+.pokedex-project-options h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.pokedex-projects-card h2 {
+  margin: 0 0 10px;
+  font-size: 1.1rem;
+}
+
+.pokedex-project-options p {
+  margin: 8px 0 14px;
+  color: var(--text-muted);
+}
+
+.pokedex-project-options__regions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 6px 14px;
+}
+
+.pokedex-project-options__variants {
+  max-height: 320px;
+  overflow-y: auto;
 }
 
 .sidebar-content--disabled {
@@ -3941,7 +3986,7 @@ button.mass-entry-btn.sidebar-action-btn:disabled {
     bottom: 0;
     transform: none;
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 4px;
     width: 100%;
     padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
@@ -3960,12 +4005,13 @@ button.mass-entry-btn.sidebar-action-btn:disabled {
     justify-content: center;
     gap: 2px;
     min-height: 52px;
-    padding: 5px 8px;
+    min-width: 0;
+    padding: 5px 2px;
     border: 0;
     border-radius: 15px;
     background: transparent;
     color: var(--text-muted);
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     font-weight: 700;
     cursor: pointer;
   }
@@ -3973,6 +4019,13 @@ button.mass-entry-btn.sidebar-action-btn:disabled {
   .mobile-panel-nav button.is-active {
     background: var(--accent-soft);
     color: var(--accent);
+  }
+
+  .mobile-panel-nav button span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .mobile-panel-nav button:focus-visible {

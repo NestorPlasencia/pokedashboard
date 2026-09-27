@@ -1,4 +1,4 @@
-import { LayoutGrid, Library, Settings, Sigma, SlidersHorizontal, type LucideIcon } from "lucide-react";
+import { BookOpen, LayoutGrid, Library, Settings, Sigma, SlidersHorizontal, type LucideIcon } from "lucide-react";
 import { useWishlists } from "../context/WishlistsContext";
 import { useOwnedCollections } from "../context/OwnedCollectionsContext";
 import React, { Suspense, lazy, useEffect, useMemo, useState } from "react";
@@ -15,12 +15,14 @@ import { useCardFilters } from "../hooks/useCardFilters";
 import { Summary } from "./ui/Summary";
 import { CollectionsPage } from "./pages/CollectionsPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { PokedexPage } from "./pages/PokedexPage";
 import { useTrendPoints } from "../hooks/useTrendPoints";
 import { useOfflineStatus } from "../hooks/useOfflineStatus";
 import { useRoute } from "../hooks/useRoute";
 import { navigate } from "../utils/route";
 import { assertNeverViewMode } from "../utils/viewMode";
 import { collectionScopeNames } from "../utils/collectionTree";
+import { updateUrlParams } from "../utils/urlParams";
 import { useAuth } from "../context/AuthContext";
 import { applyPokedexProject, readPokedexProjects } from "../services/pokedexProjects";
 
@@ -98,6 +100,25 @@ export const Main: React.FC = () => {
       console.warn("[pokedex] Unable to restore saved projects", error);
     }
   }, [isAuthLoading, session?.user.id, setPokemonGrouping]);
+  // Grouping can now be edited from either Settings or the Pokédex page.
+  useEffect(() => {
+    updateUrlParams({
+      pokemonGroupingEnabled: pokemonGrouping.enabled ? 'true' : 'false',
+      filterByCollection: pokemonGrouping.filterByCollection,
+      groupingRegions: pokemonGrouping.groupingRegions,
+      formsAllowVariants: pokemonGrouping.allowVariants,
+      formsHideVariants: pokemonGrouping.hideVariants,
+      formsGroupSortBy: pokemonGrouping.groupSortBy,
+      formsFallbackToDefault: pokemonGrouping.fallbackToDefault ? 'true' : 'false',
+      pokemonGroupingMode: undefined,
+      groupByPokedex: undefined,
+      groupByForms: undefined,
+      includeWithoutCards: undefined,
+      formsFilterByCollection: undefined,
+      formsGroupingRegions: undefined,
+      formsEnabledVariants: undefined,
+    });
+  }, [pokemonGrouping]);
   const { collections, setCollections } = useOptionsContext();
   // A collection shows the cards of its subcollections too; browsing several at once
   // is the union of every one of their scopes.
@@ -216,6 +237,7 @@ export const Main: React.FC = () => {
         />
       )}
       {route === 'settings' && <SettingsPage printBusy={isLoading} />}
+      {route === 'pokedex' && <PokedexPage />}
       {/* Outside the catalog so it stays on every page. A panel button from another page
           returns to the catalog with that panel open. */}
       <nav className="mobile-panel-nav" aria-label="Mobile sections">
@@ -243,6 +265,15 @@ export const Main: React.FC = () => {
         >
           <Library className="mobile-panel-nav__icon" size={20} aria-hidden="true" />
           <span>Collections</span>
+        </button>
+        <button
+          type="button"
+          className={route === 'pokedex' ? 'is-active' : ''}
+          aria-current={route === 'pokedex' ? 'page' : undefined}
+          onClick={() => navigate('pokedex')}
+        >
+          <BookOpen className="mobile-panel-nav__icon" size={20} aria-hidden="true" />
+          <span>Pokédex</span>
         </button>
         <button
           type="button"
@@ -293,6 +324,15 @@ export const Main: React.FC = () => {
         >
           <Library size={16} aria-hidden="true" />
           <span>Collections</span>
+        </button>
+        <button
+          type="button"
+          className={route === 'pokedex' ? 'is-active' : ''}
+          aria-current={route === 'pokedex' ? 'page' : undefined}
+          onClick={() => navigate('pokedex')}
+        >
+          <BookOpen size={16} aria-hidden="true" />
+          <span>Pokédex</span>
         </button>
         <button
           type="button"

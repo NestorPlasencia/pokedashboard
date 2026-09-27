@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 // takes the pathname as an argument, so this stand-in only has to exist.
 globalThis.window = { location: { search: '', pathname: '/' } };
 
-const { publicCollectionId, pathForPublicCollection, routeFromPath } =
+const { publicCollectionId, pathForPublicCollection, routeFromPath, pathForRoute } =
   await import('../src/utils/route.ts');
 
 const SHARED_ID = 'a0000000-0000-0000-0000-000000000001';
@@ -19,9 +19,14 @@ test('a trailing slash on a shared link still resolves', () => {
 });
 
 test('the app pages are not shared links', () => {
-  for (const pathname of ['/', '/collections', '/settings']) {
+  for (const pathname of ['/', '/collections', '/pokedex', '/settings']) {
     assert.equal(publicCollectionId(pathname), null, pathname);
   }
+});
+
+test('the Pokédex page has its own navigable address', () => {
+  assert.equal(routeFromPath('/pokedex'), 'pokedex');
+  assert.equal(pathForRoute('pokedex'), '/pokedex');
 });
 
 test('a malformed id is not treated as a shared collection', () => {
