@@ -25,6 +25,12 @@ export const SortMenu = () => {
     setSortConfig(orderToSortConfig(checkedOrder));
   }, [checkedOrder, setSortConfig]);
 
+  useEffect(() => {
+    if (viewOptions.displayMode.includes('trend') || !checkedOrder.startsWith('Trend score')) return;
+    setCheckedOrder('None');
+    updateUrlParams({ order: 'None' });
+  }, [checkedOrder, viewOptions.displayMode]);
+
   // A menu with no backdrop closes on its own terms: anywhere else, or Escape.
   useEffect(() => {
     if (!open) return;

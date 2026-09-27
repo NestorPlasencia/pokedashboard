@@ -72,13 +72,20 @@ export const initialPokemonGrouping = (params: FilterParams = parseUrlParams()):
 
 export const initialViewOptions = (params: FilterParams = parseUrlParams()): ViewOptions => {
   const grouped = initialPokemonGrouping(params).enabled;
-  const mode = params.showTrendPoints === 'true' ? 'trend'
+  const mode = params.showBinder === 'true' ? 'binder'
+    : params.showTrendPoints === 'true' ? 'trend'
     : params.showTable === 'true' || params.showListTable === 'true' ? 'table'
       : 'cards';
+  const color = (value: string | undefined, fallback: string) =>
+    value && /^#[0-9a-fA-F]{6}$/.test(value) ? value : fallback;
   return {
     displayMode: `${mode}${grouped ? 'Grouped' : 'Ungrouped'}` as ViewOptions['displayMode'],
     trendSortDirection: oneOf(params.trendSortDirection, ['asc', 'desc'] as const, 'desc'),
     trendXAxisScale: oneOf(params.trendXAxisScale, ['normal', 'sectors'] as const, 'normal'),
+    binderPageColor: color(params.binderPageColor, '#111111'),
+    binderSleeveColor: params.binderSleeveColor === 'transparent' ? 'transparent'
+      : color(params.binderSleeveColor, 'transparent'),
+    binderLayout: oneOf(params.binderLayout, ['2x2', '3x3', '3x4', '4x4'] as const, '3x3'),
     printTableImages: params.printTableImages === 'true',
     printTableQuantityMissing: params.printTableQuantityMissing === 'true',
     // These two default to on, so only an explicit "false" turns them off.
@@ -91,10 +98,15 @@ export const initialViewOptions = (params: FilterParams = parseUrlParams()): Vie
 export const viewOptionsToParams = (viewOptions: ViewOptions): Partial<FilterParams> => {
   const isTable = viewOptions.displayMode.includes('table');
   const isTrend = viewOptions.displayMode.includes('trend');
+  const isBinder = viewOptions.displayMode.includes('binder');
   return {
     showTable: isTable ? 'true' : undefined,
     showListTable: isTable ? 'true' : undefined,
     showTrendPoints: isTrend ? 'true' : undefined,
+    showBinder: isBinder ? 'true' : undefined,
+    binderPageColor: viewOptions.binderPageColor === '#111111' ? undefined : viewOptions.binderPageColor,
+    binderSleeveColor: viewOptions.binderSleeveColor === 'transparent' ? undefined : viewOptions.binderSleeveColor,
+    binderLayout: viewOptions.binderLayout === '3x3' ? undefined : viewOptions.binderLayout,
     trendSortDirection: viewOptions.trendSortDirection,
     trendXAxisScale: viewOptions.trendXAxisScale,
     printTableImages: viewOptions.printTableImages ? 'true' : undefined,

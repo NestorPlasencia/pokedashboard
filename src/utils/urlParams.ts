@@ -58,6 +58,10 @@ export interface FilterParams extends
   showTable?: string;
   showListTable?: string;
   showTrendPoints?: string;
+  showBinder?: string;
+  binderPageColor?: string;
+  binderSleeveColor?: string;
+  binderLayout?: string;
   groupByPokedex?: string;
   hideNotOwnPokedex?: string;
   hideObtainedPokedex?: string;
@@ -146,7 +150,7 @@ export const parseUrlParams = (): FilterParams => {
   }
   
   // Parse boolean parameters (stored as "true" or "false")
-  const booleanParams = ['showTable', 'showListTable', 'showTrendPoints', 'groupByPokedex', 'hideNotOwnPokedex', 'hideObtainedPokedex', 'showOnlyMissing', 'showOnlyIncomplete', 'filterByCollections', 'pokedexEnabled', 'includeWithoutCards', 'groupByForms', 'pokemonGroupingEnabled', 'formsFallbackToDefault', 'printTableImages', 'printTableQuantityMissing', ...TRUE_BY_DEFAULT_PARAMS];
+  const booleanParams = ['showTable', 'showListTable', 'showTrendPoints', 'showBinder', 'groupByPokedex', 'hideNotOwnPokedex', 'hideObtainedPokedex', 'showOnlyMissing', 'showOnlyIncomplete', 'filterByCollections', 'pokedexEnabled', 'includeWithoutCards', 'groupByForms', 'pokemonGroupingEnabled', 'formsFallbackToDefault', 'printTableImages', 'printTableQuantityMissing', ...TRUE_BY_DEFAULT_PARAMS];
   booleanParams.forEach(param => {
     const value = params.get(param);
     if (value) {
@@ -218,6 +222,11 @@ export const parseUrlParams = (): FilterParams => {
   const trendXAxisScale = params.get('trendXAxisScale');
   if (trendXAxisScale) {
     filters.trendXAxisScale = trendXAxisScale;
+  }
+
+  for (const key of ['binderPageColor', 'binderSleeveColor', 'binderLayout'] as const) {
+    const value = params.get(key);
+    if (value) filters[key] = value;
   }
 
   // Parse the per-filter advanced settings
@@ -307,6 +316,9 @@ export const generateUrlParams = (filters: Partial<FilterParams>): string => {
   if (filters.showTrendPoints === 'true') {
     queryParts.push('showTrendPoints=true');
   }
+  if (filters.showBinder === 'true') {
+    queryParts.push('showBinder=true');
+  }
   if (filters.groupByPokedex === 'true') {
     queryParts.push('groupByPokedex=true');
   }
@@ -386,6 +398,10 @@ export const generateUrlParams = (filters: Partial<FilterParams>): string => {
   }
   if (filters.trendXAxisScale && filters.trendXAxisScale !== 'normal') {
     queryParts.push(`trendXAxisScale=${filters.trendXAxisScale}`);
+  }
+  for (const key of ['binderPageColor', 'binderSleeveColor', 'binderLayout'] as const) {
+    const value = filters[key];
+    if (value) queryParts.push(`${key}=${encodeURIComponent(value)}`);
   }
 
   // Add print column toggles. Images and Quantity default to off, Type and Variant to on,

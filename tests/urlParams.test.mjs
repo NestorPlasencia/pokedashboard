@@ -67,11 +67,27 @@ test('defaults never appear in the URL', () => {
 test('view options survive a write and read of the URL', () => {
   const custom = {
     displayMode: 'trendUngrouped', trendSortDirection: 'asc', trendXAxisScale: 'sectors',
+    binderPageColor: '#111111', binderSleeveColor: 'transparent', binderLayout: '3x3',
     printTableImages: true, printTableQuantityMissing: true,
     printTableType: false, printTableVariant: false,
   };
   updateUrlParams(viewOptionsToParams(custom));
   assert.deepEqual(initialViewOptions(), custom);
+});
+
+test('binder view and its page settings survive a URL round trip', () => {
+  const binder = {
+    ...initialViewOptions(),
+    displayMode: 'binderUngrouped',
+    binderPageColor: '#18243a',
+    binderSleeveColor: '#c7d9ef',
+    binderLayout: '4x4',
+  };
+  updateUrlParams(viewOptionsToParams(binder));
+  assert.deepEqual(initialViewOptions(), binder);
+  assert.equal(parseUrlParams().showBinder, 'true');
+  updateUrlParams(viewOptionsToParams({ ...binder, displayMode: 'cardsUngrouped' }));
+  assert.equal(parseUrlParams().showBinder, undefined);
 });
 
 test('sort, search and price range survive a write and read of the URL', () => {

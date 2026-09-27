@@ -205,9 +205,12 @@ export interface CollectionFilterOptions {
 
 // Opciones de visualización
 export interface ViewOptions {
-  displayMode: 'tableGrouped' | 'tableUngrouped' | 'cardsGrouped' | 'cardsUngrouped' | 'trendGrouped' | 'trendUngrouped';
+  displayMode: 'tableGrouped' | 'tableUngrouped' | 'cardsGrouped' | 'cardsUngrouped' | 'trendGrouped' | 'trendUngrouped' | 'binderGrouped' | 'binderUngrouped';
   trendSortDirection: 'asc' | 'desc';
   trendXAxisScale: 'normal' | 'sectors';
+  binderPageColor: string;
+  binderSleeveColor: string;
+  binderLayout: '2x2' | '3x3' | '3x4' | '4x4';
   printTableImages: boolean;
   printTableQuantityMissing: boolean;
   printTableType: boolean;

@@ -13,7 +13,7 @@ type SettingsPageProps = {
 
 /**
  * Everything that configures how the catalog behaves or looks, rather than what cards it
- * shows: view options, the export tools, offline storage and appearance.
+ * shows: view settings, the export tools, offline storage and appearance.
  * Kept off the catalog's own sidebar so that one stays about filtering and browsing cards.
  */
 export const SettingsPage = ({ printBusy }: SettingsPageProps) => (
@@ -21,7 +21,7 @@ export const SettingsPage = ({ printBusy }: SettingsPageProps) => (
     <main className="collections-page__body">
       <div className="collections-page__intro">
         <h1>Settings</h1>
-        <p>View options, export tools, offline storage and appearance - everything that shapes how the catalog behaves rather than what it shows.</p>
+        <p>Table printing, trends, binder pages, export tools, offline storage and appearance.</p>
       </div>
       <AccountPasswordForm />
       <ViewOptionsComponent />

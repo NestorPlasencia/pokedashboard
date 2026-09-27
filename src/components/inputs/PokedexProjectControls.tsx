@@ -4,6 +4,7 @@ import { useCardContext } from "../../context/CardContext";
 import {
   applyPokedexProject,
   parsePokedexProjects,
+  POKEDEX_PRESETS,
   projectFromGrouping,
   readPokedexProjects,
   writePokedexProjects,
@@ -62,6 +63,19 @@ export const PokedexProjectControls = () => {
     setPokemonGrouping((current) => project
       ? applyPokedexProject(current, project)
       : { ...current, enabled: false });
+    setMessage("");
+  };
+
+  const toggleGrouping = (enabled: boolean) => {
+    if (!enabled || active) {
+      setPokemonGrouping((current) => ({ ...current, enabled }));
+      return;
+    }
+    const national = saved.projects.find((project) => project.id === POKEDEX_PRESETS[0].id) ?? POKEDEX_PRESETS[0];
+    const projects = saved.projects.some((project) => project.id === national.id)
+      ? saved.projects : [national, ...saved.projects];
+    if (!commit({ ...saved, projects, activeId: national.id })) return;
+    setPokemonGrouping((current) => ({ ...applyPokedexProject(current, national), enabled: true }));
     setMessage("");
   };
 
@@ -132,13 +146,13 @@ export const PokedexProjectControls = () => {
         <input
           type="checkbox"
           checked={pokemonGrouping.enabled && Boolean(active)}
-          onChange={(event) => setPokemonGrouping((current) => ({ ...current, enabled: event.target.checked }))}
-          disabled={blocked || !active}
+          onChange={(event) => toggleGrouping(event.target.checked)}
+          disabled={blocked}
           aria-label="Enable Group by Pokédex"
         />
         <span>Group by Pokédex</span>
       </label>
-      {!active && <p className="pokedex-projects__hint">Choose a Pokédex to enable grouping.</p>}
+      {!active && <p className="pokedex-projects__hint">Turning this on selects the National Pokédex.</p>}
       {hasUnsavedChanges && <div className="pokedex-projects__pending">
         <span>Unsaved Pokédex changes</span>
         <button type="button" onClick={updateProject} disabled={blocked}>Save changes</button>

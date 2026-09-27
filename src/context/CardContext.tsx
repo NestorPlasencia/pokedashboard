@@ -171,7 +171,8 @@ export const CardProvider: React.FC<{ children: ReactNode }> = ({
   useEffect(() => {
     setViewOptions((current) => {
       const mode = current.displayMode.startsWith('trend') ? 'trend'
-        : current.displayMode.startsWith('table') ? 'table' : 'cards';
+        : current.displayMode.startsWith('table') ? 'table'
+          : current.displayMode.startsWith('binder') ? 'binder' : 'cards';
       const displayMode = `${mode}${pokemonGrouping.enabled ? 'Grouped' : 'Ungrouped'}` as ViewOptions['displayMode'];
       return current.displayMode === displayMode ? current : { ...current, displayMode };
     });

@@ -5,6 +5,7 @@ import { useWishlists } from "../../context/WishlistsContext";
 import { ViewModeBadge } from "../ui/Wishlists";
 import { EditTargetBadge } from "../ui/EditTargetBadge";
 import { SortMenu } from "../ui/SortMenu";
+import { ViewMenu } from "../ui/ViewMenu";
 import React, { useDeferredValue, useEffect, useState, useRef } from "react";
 import { useCardContext, type ActiveFilterChip } from "../../context/CardContext";
 import { useOptionsContext } from "../../context/OptionsContext";
@@ -283,6 +284,7 @@ export const Search: React.FC<SearchProps> = ({ collectionEnrichment }) => {
           )}
         </div>
         <div className="search-bar__end">
+          <ViewMenu />
           <SortMenu />
           <span className="search-item-count" aria-live="polite" aria-label={`${itemCount} cards shown`}>
             {itemCount.toLocaleString()}

@@ -23,12 +23,14 @@ import { navigate } from "../utils/route";
 import { assertNeverViewMode } from "../utils/viewMode";
 import { collectionScopeNames } from "../utils/collectionTree";
 import { updateUrlParams } from "../utils/urlParams";
+import { viewOptionsToParams } from "../utils/urlState";
 import { useAuth } from "../context/AuthContext";
 import { applyPokedexProject, readPokedexProjects } from "../services/pokedexProjects";
 
 // Lazy load heavy view components
 const CardList = lazy(() => import("./views/CardList").then(module => ({ default: module.CardList })));
 const CardListTable = lazy(() => import("./views/CardListTable").then(module => ({ default: module.CardListTable })));
+const BinderView = lazy(() => import("./views/BinderView").then(module => ({ default: module.BinderView })));
 
 type MobilePanel = 'filters' | 'cards' | 'summary';
 
@@ -88,6 +90,9 @@ export const Main: React.FC = () => {
     setPokemonGrouping,
     viewMode,
   } = useCardContext();
+  useEffect(() => {
+    updateUrlParams(viewOptionsToParams(viewOptions));
+  }, [viewOptions]);
   // Restore the last Pokédex project once the account is known. Projects are local
   // until the shared database can store them, and are kept separate by account ID.
   useEffect(() => {
@@ -184,6 +189,7 @@ export const Main: React.FC = () => {
 
   // Determine which view to show based on displayMode
   const showListTable = viewOptions.displayMode.includes('table');
+  const showBinder = viewOptions.displayMode.includes('binder');
 
   return (
     <>
@@ -220,7 +226,7 @@ export const Main: React.FC = () => {
           )}
           {!isLoading && !error && (
             <Suspense fallback={<div className="main-status-message">Loading view...</div>}>
-              {showListTable ? <CardListTable /> : <CardList />}
+              {showListTable ? <CardListTable /> : showBinder ? <BinderView /> : <CardList />}
             </Suspense>
           )}
         </div>
