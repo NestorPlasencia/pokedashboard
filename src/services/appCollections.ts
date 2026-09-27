@@ -355,6 +355,69 @@ export async function addCard(
   if (error) fail(error);
 }
 
+/** Adds one copy of each distinct catalog card/printing, in bounded requests. */
+export async function addCards(
+  ownerId: string,
+  collectionId: string,
+  cards: Card[]
+): Promise<number> {
+  const unique = new Map<string, { card: Card; reference: AppCardRef }>();
+  for (const card of cards) {
+    const reference = cardReference(card);
+    if (reference) unique.set(JSON.stringify([reference.productId, reference.printing]), { card, reference });
+  }
+
+  let added = 0;
+  const candidates = [...unique.values()];
+  for (let start = 0; start < candidates.length; start += 100) {
+    const chunk = candidates.slice(start, start + 100);
+    const catalog = await client().from("cards").upsert(
+      chunk.map(({ card, reference }) => ({
+        owner_id: ownerId,
+        product_id: reference.productId,
+        name: reference.name,
+        set_name: reference.setName || null,
+        number: card.number || null,
+        rarity: card.rarity || null,
+        image_url: card.image || null,
+      })),
+      { onConflict: "owner_id,product_id", ignoreDuplicates: true }
+    );
+    if (catalog.error) fail(catalog.error);
+
+    const productIds = [...new Set(chunk.map(({ reference }) => reference.productId))];
+    const held = new Set<string>();
+    for (let offset = 0; ; offset += 1000) {
+      const existing = await client().from("card_copies")
+        .select("product_id,printing")
+        .eq("owner_id", ownerId)
+        .eq("collection_id", collectionId)
+        .eq("status", "active")
+        .is("managed_by", null)
+        .in("product_id", productIds)
+        .order("id")
+        .range(offset, offset + 999);
+      if (existing.error) fail(existing.error);
+      for (const copy of existing.data ?? []) held.add(JSON.stringify([copy.product_id, copy.printing]));
+      if ((existing.data?.length ?? 0) < 1000) break;
+    }
+    const missing = chunk.filter(({ reference }) => !held.has(JSON.stringify([reference.productId, reference.printing])));
+    if (missing.length === 0) continue;
+
+    const inserted = await client().from("card_copies").insert(missing.map(({ reference }) => ({
+      owner_id: ownerId,
+      collection_id: collectionId,
+      product_id: reference.productId,
+      printing: reference.printing,
+      status: "active",
+      managed_by: null,
+    })));
+    if (inserted.error) fail(inserted.error);
+    added += missing.length;
+  }
+  return added;
+}
+
 export async function removeCard(
   ownerId: string,
   collectionId: string,

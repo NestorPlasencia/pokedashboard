@@ -203,7 +203,7 @@ export const Main: React.FC = () => {
           <Collections />
         </Sidebar>
         <div className={`card-view${viewMode.kind === 'wishlist' ? ' card-view--wishlist' : ''}`}>
-          <Search collectionEnrichment={viewMode.kind === 'collection' ? collectionEnrichment : undefined} />
+          <Search collectionEnrichment={viewMode.kind === 'collection' ? collectionEnrichment : undefined} loading={isLoading} />
           {(!online || servingStale) && (
             <div className="main-status-message main-status-message--warning">
               {online

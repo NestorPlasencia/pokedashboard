@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useWishlists } from "../../context/WishlistsContext";
 import { ViewModeBadge } from "../ui/Wishlists";
 import { EditTargetBadge } from "../ui/EditTargetBadge";
+import { AddVisibleToCollection } from "../ui/AddVisibleToCollection";
 import { SortMenu } from "../ui/SortMenu";
 import { ViewMenu } from "../ui/ViewMenu";
 import React, { useDeferredValue, useEffect, useState, useRef } from "react";
@@ -20,9 +21,10 @@ import { countCopies } from "../../utils/copyCount";
 type SearchProps = {
   /** How far the viewed collection has been matched to the external catalog. */
   collectionEnrichment?: CollectionEnrichment;
+  loading?: boolean;
 };
 
-export const Search: React.FC<SearchProps> = ({ collectionEnrichment }) => {
+export const Search: React.FC<SearchProps> = ({ collectionEnrichment, loading = false }) => {
   // A search restored from the URL is applied on the first render, so a shared link
   // lands on the same result list it was copied from.
   const [query, setQuery] = useState<string>(() => parseUrlParams().search ?? "");
@@ -307,6 +309,7 @@ export const Search: React.FC<SearchProps> = ({ collectionEnrichment }) => {
           ))}
         </div>
       )}
+      <AddVisibleToCollection loading={loading} />
     </>
   );
 };

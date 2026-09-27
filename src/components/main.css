@@ -3596,6 +3596,34 @@ td {
   outline-offset: 2px;
 }
 
+.collection-bulk-add {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--canvas-bg);
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.collection-bulk-add button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.collection-bulk-add button:disabled { opacity: .5; cursor: default; }
+.collection-bulk-add .collection-bulk-add__cancel { border: 0; background: transparent; }
+
 .search-bar input::placeholder,
 input::placeholder {
   color: var(--text-muted);

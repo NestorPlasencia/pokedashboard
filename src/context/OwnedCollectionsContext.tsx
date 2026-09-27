@@ -3,6 +3,7 @@ import type { Card } from '../types/dashboard';
 import {
   AppCollectionsUnavailableError,
   addCard,
+  addCards,
   createCollection,
   deleteCollection,
   moveCollection,
@@ -226,6 +227,22 @@ function useOwnedCollectionsState() {
     return added;
   };
 
+  const addMany = async (cards: Card[]) => {
+    if (!userId || !selected || !cards.length) return 0;
+    const target = selected;
+    let added = 0;
+    await enqueue(async () => {
+      try {
+        added = await addCards(userId, target.id, cards);
+      } catch (error) {
+        // Earlier chunks may have succeeded. Reload so the UI and a retry see them.
+        refreshInventory();
+        throw error;
+      }
+    });
+    return added;
+  };
+
   const removeCardFromSelected = async (card: Card) => {
     if (!userId || !selected) return false;
     const target = selected;
@@ -249,7 +266,7 @@ function useOwnedCollectionsState() {
     () => ({
       collections: editable, selected, selectedId, setSelectedId,
       create, rename, remove, move, setTag, setVisibility, setPrintings,
-      add, removeCard: removeCardFromSelected, has, canTrack,
+      add, addMany, removeCard: removeCardFromSelected, has, canTrack,
       error, loading: isAuthLoading, remoteUnavailable,
       synced: Boolean(userId) && !remoteUnavailable,
       names: editable.map((collection) => collection.name),
