@@ -192,6 +192,7 @@ const CardListTableComponent: React.FC = () => {
             <th>Quantity</th>
             <th>Missing</th>
             <th>Price</th>
+            <th>TCGplayer ID</th>
             <th>Explorer</th>
           </tr>
         </thead>
@@ -239,6 +240,7 @@ const CardListTableComponent: React.FC = () => {
                   {missing}
                 </td>
                 <td>{formatCurrency(price)}</td>
+                <td>{card.productId ?? '-'}</td>
                 <td>
                   {priceExplorerUrl ? (
                     <a

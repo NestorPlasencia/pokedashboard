@@ -217,7 +217,7 @@ export const PrintButton: React.FC<{ busy?: boolean }> = ({ busy = false }) => {
     } else if (showListTable) {
       // Formato tabla
 
-      const tableColumnCount = 6
+      const tableColumnCount = 7
         + (viewOptions.printTableImages ? 1 : 0)
         + (viewOptions.printTableVariant ? 1 : 0)
         + (viewOptions.printTableType ? 1 : 0)
@@ -362,6 +362,7 @@ export const PrintButton: React.FC<{ busy?: boolean }> = ({ busy = false }) => {
                 <th>Rarity</th>
                 ${viewOptions.printTableQuantityMissing ? '<th class="number-cell">Quantity</th><th class="number-cell">Missing</th>' : ''}
                 <th class="number-cell">Price</th>
+                <th class="number-cell">TCGplayer ID</th>
               </tr>
             </thead>
             <tbody>
@@ -391,6 +392,7 @@ export const PrintButton: React.FC<{ busy?: boolean }> = ({ busy = false }) => {
                     <td>${card.rarity || '-'}</td>
                     ${viewOptions.printTableQuantityMissing ? `<td class="number-cell">${owned}</td><td class="number-cell">${missing}</td>` : ''}
                     <td class="number-cell">${formatCurrency(price)}</td>
+                    <td class="number-cell">${escapeHtml(card.productId ?? '-')}</td>
                   </tr>
                 `;
       }).join('')}`).join('')}
