@@ -5,6 +5,8 @@ import { useCardContext } from "../../context/CardContext";
 import { Card, TrendSeries } from "../../types/dashboard";
 import { activeFilterCollectionNames, quantityCollectionNames, quantityForCollections } from "../../utils/collectionQuantity";
 import { useOptionsContext } from "../../context/OptionsContext";
+import { useSuggestedPrices } from "../../context/SuggestedPricesContext";
+import { calculateSuggestedPrice, formatSuggestedPrice } from "../../utils/suggestedPrice";
 
 const escapeHtml = (value: string | number) => String(value).replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character] || character);
 const getTimingTone = (score: number | null | undefined) => score === null || score === undefined ? 'unknown' : score >= 70 ? 'good' : score >= 40 ? 'fair' : 'bad';
@@ -59,6 +61,7 @@ export const PrintButton: React.FC<{ busy?: boolean }> = ({ busy = false }) => {
   const wishlists = useWishlists();
   const { renderCards, collectionFilter, viewOptions, sets, trendByProductId, trendLoading, viewMode } = useCardContext();
   const { collections } = useOptionsContext();
+  const { settings: suggestedPriceSettings } = useSuggestedPrices();
 
   const setSymbolById = useMemo(() => {
     return new Map(sets.map((set) => [set.id, set.images?.symbol || set.symbolImage || ""]));
@@ -97,33 +100,6 @@ export const PrintButton: React.FC<{ busy?: boolean }> = ({ busy = false }) => {
     return card.prices?.["Near Mint"] ?? null;
   };
 
-  // Wishlist print: suggest a target price the way real sellers price a buylist -
-  // a "nice" round whole number a bit under market, not an exact percentage. Sellers
-  // favor numbers ending in 0, then 5 - never cents. Rounding DOWN (not to nearest)
-  // guarantees the real discount never dips below the 15% floor.
-  // Discount band: 15% floor always. Ceiling depends on price tier - 20% for high-cost
-  // cards ($100+), 25% for the middle tier, up to 30% for small amounts (<$20).
-  const getWishlistPrice = (card: Card) => {
-    const price = getPrice(card);
-    if (price === null || price <= 0) return null;
-    const step = price >= 100 ? 10 : price >= 20 ? 5 : 1;
-    const minDiscount = 0.15;
-    const maxDiscount = price >= 100 ? 0.20 : price >= 20 ? 0.25 : 0.30;
-    const lower = price * (1 - maxDiscount); // steepest discount allowed
-    const upper = price * (1 - minDiscount); // shallowest discount allowed
-    const candidates: number[] = [];
-    for (let value = Math.ceil(lower / step) * step; value <= upper + 1e-9; value += step) {
-      if (value > 0) candidates.push(value);
-    }
-    // The [lower, upper] window can be narrower than one rounding step for cheap cards -
-    // when no nice multiple falls inside it, favor staying under the max-discount cap.
-    const roundedPrice = candidates.length
-      ? candidates[Math.floor(Math.random() * candidates.length)]
-      : Math.max(1, Math.ceil(lower));
-    const percent = Math.round((1 - roundedPrice / price) * 100);
-    return { price: roundedPrice, percent };
-  };
-
   const formatCurrency = (value: number | null) => {
     if (value === null || value === undefined) return '-';
     return value.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
@@ -139,12 +115,13 @@ export const PrintButton: React.FC<{ busy?: boolean }> = ({ busy = false }) => {
 
     const showListTable = viewOptions.displayMode.includes('table');
     const showTrendPoints = viewOptions.displayMode.includes('trend');
+    const showTargets = !!(wishlists.viewing && wishlists.wishlist && suggestedPriceSettings.showInWishlistPrint);
 
     // Computed once so the per-group headings and the card badges always agree on the same numbers.
     const wishlistPriceByCard = new Map<string, { price: number; percent: number }>();
-    if (wishlists.viewing && wishlists.wishlist) {
+    if (showTargets) {
       actualCards.forEach(card => {
-        const value = getWishlistPrice(card);
+        const value = calculateSuggestedPrice(getPrice(card), suggestedPriceSettings);
         if (value) wishlistPriceByCard.set(card.id, value);
       });
     }
@@ -168,7 +145,7 @@ export const PrintButton: React.FC<{ busy?: boolean }> = ({ busy = false }) => {
     const groupHeadingText = (group: { label: string; cards: Card[] }) => {
       if (!group.label) return '';
       const stats = summarizeGroup(group.cards);
-      return `${escapeHtml(group.label)} <span class="print-group-stats">— ${stats.count} items · Market: ${formatCurrency(stats.realTotal)} total, ${formatCurrency(stats.realAvg)} average · Target: ${formatCurrency(stats.discountedTotal)} total, ${formatCurrency(stats.discountedAvg)} average</span>`;
+      return `${escapeHtml(group.label)} <span class="print-group-stats">— ${stats.count} items · Market: ${formatCurrency(stats.realTotal)} total, ${formatCurrency(stats.realAvg)} average${showTargets ? ` · Target: ${formatCurrency(stats.discountedTotal)} total, ${formatCurrency(stats.discountedAvg)} average` : ''}</span>`;
     };
 
     if (showTrendPoints) {
@@ -726,7 +703,7 @@ export const PrintButton: React.FC<{ busy?: boolean }> = ({ busy = false }) => {
                   ${nearMintPrice !== null ? `<div class="prices">${formatCurrency(nearMintPrice)}</div>` : ''}
                   ${countersHtml ? `<div class="counters"><span class="counters__label">Owned</span>${countersHtml}</div>` : ''}
                   ${wishlistPrice !== null
-        ? `<div class="wishlist-price-box"><span class="wishlist-price-box__amount">${wishlistPrice.price}</span><span class="wishlist-price-box__percent">-${wishlistPrice.percent}%</span></div>`
+        ? `<div class="wishlist-price-box"><span class="wishlist-price-box__amount">${formatSuggestedPrice(wishlistPrice.price)}</span><span class="wishlist-price-box__percent">-${wishlistPrice.percent}%</span></div>`
         : (missing > 0 && collectionFilter.selectedCollections.length > 0) ? `<div class="missing-box"><span class="missing-box__label">Missing</span><strong class="missing-box__value">${missing}</strong></div>` : ''}
                 </div>
               `;

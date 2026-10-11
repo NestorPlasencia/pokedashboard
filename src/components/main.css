@@ -481,6 +481,30 @@ th[scope="row"] {
   gap: 1px;
 }
 
+.card .prices:has(.suggested-price) {
+  top: 58%;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.suggested-price {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  gap: 1px 6px;
+  padding: 4px 7px;
+  border: 1px solid #75d5b0;
+  border-radius: 6px;
+  background: #103b30;
+  color: #fff;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.suggested-price strong { font-size: 12px; }
+.suggested-price small { font-size: 9px; color: #a9ebd1; }
+.trend-card-view__info > .suggested-price { flex-basis: 100%; justify-content: start; }
+
 .card-group-modal .card {
   margin-bottom: 0;
 }
@@ -2365,6 +2389,17 @@ th[scope="row"] {
   gap: 5px;
   margin-top: 10px;
 }
+
+.suggested-price-settings { display: grid; gap: 12px; }
+.suggested-price-settings p { margin: 0; color: var(--text-muted); font-size: var(--font-size-sm); }
+.suggested-price-settings label:not(.view-options-checkbox) { display: grid; gap: 5px; font-size: var(--font-size-sm); }
+.suggested-price-settings input[type="number"] { width: 100%; max-width: 170px; padding: 8px; border: 1px solid var(--border-strong); border-radius: 7px; background: var(--surface-raised); color: var(--text); }
+.suggested-price-settings__tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.suggested-price-settings fieldset { display: grid; gap: 10px; min-width: 0; margin: 0; padding: 12px; border: 1px solid var(--border); border-radius: 9px; }
+.suggested-price-settings legend { font-weight: 700; font-size: var(--font-size-sm); padding: 0 4px; }
+.suggested-price-settings fieldset small, .suggested-price-settings__hint { color: var(--text-muted); font-size: var(--font-size-sm); }
+.suggested-price-settings__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.suggested-price-settings__actions [role="status"] { font-size: var(--font-size-sm); color: var(--text-muted); }
 
 .view-options-print-columns small,
 .trend-scale-control .trend-view-hint {

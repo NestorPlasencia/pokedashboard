@@ -4,6 +4,8 @@ import { filterReportCards, partitionReportCards, reportValue, reportFilters, re
 import { aggregateReportHistory, indexReportHistory } from '../src/utils/reportHistory.ts';
 import { assignReportGroup, groupReportList, orderSelectedReports, parseReports, planReportsBy, readReports, reportBaseFilters, reportCollectionNames, writeReports } from '../src/services/reports.ts';
 import { parseUrlParams } from '../src/utils/urlParams.ts';
+import { initialCollectionFilter, initialViewOptions } from '../src/utils/urlState.ts';
+import { applyCollectionFilter } from '../src/utils/filters.ts';
 import { loadReportHistory } from '../src/services/reportHistory.ts';
 
 const card = (id, extra = {}) => ({ id: String(id), productId: id, name: 'Pikachu', setName: 'Shining Fates', setNames: ['Shining Fates'], setSeries: 'Sword & Shield', setSeriesNames: ['Sword & Shield'], variant: 'Normal Holo', printing: 'Holofoil', cardVariantTopLevel: 'Standard', rarities: ['Rare Shiny'], cardType: 'Pokémon', types: ['Lightning'], subtypes: [], number: '001', prices: { 'Near Mint': 10 }, collections: [], ...extra });
@@ -48,10 +50,18 @@ test('common collections apply the same ownership scope to every report, includi
     assert.equal(reportValue(groups.total, report.condition).value, 60);
     const link = parseUrlParams(reportQuery({ ...report.filters, collections: names }, report.condition));
     assert.deepEqual(link.collections, ['Binder']);
-    assert.equal(link.viewCollectionOption, 'shadowOwned');
+    assert.equal(initialCollectionFilter(link).mode, 'hideOwned');
+    assert.equal(initialViewOptions(link).displayMode, 'trendUngrouped');
+    assert.deepEqual(applyCollectionFilter(cards, 'hideOwned', ['Binder', 'Child']).map(card => card.id), ['2', '3']);
     assert.deepEqual(link.conditions, ['Near Mint']);
     const all = partitionReportCards(cards, reportCollectionNames(report, { ...state, ownershipCollections: [] }), collections);
     assert.deepEqual(all.owned.map(card => card.id), ['1', '2'], 'empty common scope means all inventory, not the old report scope');
+    const allParams = parseUrlParams(reportQuery({ ...report.filters, collections: [] }, report.condition, ['Binder', 'Child', 'Other']));
+    const allFilter = initialCollectionFilter(allParams);
+    assert.equal(allFilter.enabled, true);
+    assert.equal(allFilter.mode, 'hideOwned');
+    assert.equal(initialViewOptions(allParams).displayMode, 'trendUngrouped');
+    assert.deepEqual(applyCollectionFilter(cards, allFilter.mode, allFilter.selectedCollections).map(card => card.id), ['3']);
     assert.deepEqual(reportCollectionNames(report, { reports, selectedIds: [] }), report.filters.collections);
   }
   assert.deepEqual(reports, original, 'common settings preserve each report for switching back');

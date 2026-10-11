@@ -7,6 +7,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { OwnedCollectionsProvider } from "./context/OwnedCollectionsContext";
 import { PublicCollectionPage } from "./components/pages/PublicCollectionPage";
 import { publicCollectionId } from "./utils/route";
+import { SuggestedPricesProvider } from "./context/SuggestedPricesContext";
 
 const App: React.FC = () => {
   // A shared collection is read through the anonymous RPC and shows the same thing to
@@ -17,15 +18,17 @@ const App: React.FC = () => {
 
   return (
     <AuthProvider>
-      <OptionsProvider>
-        <OwnedCollectionsProvider>
-          <CardProvider>
-            <WishlistsProvider>
-              <Main />
-            </WishlistsProvider>
-          </CardProvider>
-        </OwnedCollectionsProvider>
-      </OptionsProvider>
+      <SuggestedPricesProvider>
+        <OptionsProvider>
+          <OwnedCollectionsProvider>
+            <CardProvider>
+              <WishlistsProvider>
+                <Main />
+              </WishlistsProvider>
+            </CardProvider>
+          </OwnedCollectionsProvider>
+        </OptionsProvider>
+      </SuggestedPricesProvider>
     </AuthProvider>
   );
 };

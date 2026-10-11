@@ -9,6 +9,7 @@ import { useOptionsContext } from "../../context/OptionsContext";
 import { getCardPriceBreakdown } from "../../utils/utils";
 import { buildPriceExplorerUrl } from "../../utils/priceExplorer";
 import { ownedCountersForCard } from "../../utils/collectionQuantity";
+import { SuggestedPriceBadge } from "../ui/SuggestedPriceBadge";
 
 const formatCurrency = (value: number) => {
   return value.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
@@ -158,6 +159,7 @@ const CardViewComponent: React.FC<{
               </div>
             )}
           </div>
+          <SuggestedPriceBadge marketPrice={nearMintPrice} />
         </div>
       )}
       {ownedCounters.length > 0 && <div className="counters" aria-label="Owned quantities by selected collection">

@@ -68,14 +68,18 @@ export const reportValue = (cards: Card[], condition: ConditionKey) => cards.red
   return result;
 }, { value: 0, unpriced: 0 });
 
-/** A catalog link reproduces the report's filters and dims owned cards. */
-export const reportQuery = (filters: FilterParams, condition: ConditionKey): string => {
+/** Open the report's cards as trends, hiding the cards already owned. */
+export const reportQuery = (filters: FilterParams, condition: ConditionKey, allCollectionNames: string[] = []): string => {
   const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(reportFilters(filters))) {
+  // The catalog needs an explicit scope to apply Hide owned. Reports with an empty
+  // scope use all inventory, so expand that choice to every available collection.
+  const collections = filters.collections?.length ? filters.collections : allCollectionNames;
+  for (const [key, value] of Object.entries(reportFilters({ ...filters, collections }))) {
     if (Array.isArray(value) && value.length) params.set(key, value.map(item => item.replace(/ /g, '_').replace(/&/g, 'and')).join('|'));
     else if (typeof value === 'string' && value) params.set(key, value.replace(/ /g, '_').replace(/&/g, 'and'));
   }
   params.set('conditions', condition.replace(/ /g, '_'));
-  params.set('viewCollectionOption', 'shadowOwned');
+  params.set('viewCollectionOption', 'hideOwned');
+  params.set('showTrendPoints', 'true');
   return `?${params}`;
 };

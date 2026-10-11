@@ -8,6 +8,7 @@ import { useOptionsContext } from "../../context/OptionsContext";
 import { getCardPriceBreakdown } from "../../utils/utils";
 import { buildPriceExplorerUrl } from "../../utils/priceExplorer";
 import { ownedCountersForCard } from "../../utils/collectionQuantity";
+import { SuggestedPriceBadge } from "../ui/SuggestedPriceBadge";
 
 const formatCurrency = (value: number) => value.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
 const getTimingTone = (score: number | null) => score === null ? "unknown" : score >= 70 ? "good" : score >= 40 ? "fair" : "bad";
@@ -53,6 +54,7 @@ const TrendCardViewComponent: React.FC<{ card: Card }> = ({ card }) => {
           {card.productId ? <a href={`https://www.tcgplayer.com/product/${card.productId}?Language=English&Condition=Near+Mint`} target="_blank" rel="noopener noreferrer">{formatCurrency(nearMintPrice)}</a> : <strong>{formatCurrency(nearMintPrice)}</strong>}
           {priceBreakdown.length > 0 && <div className="card-price-tooltip"><div className="card-price-tooltip-title">{variantName}</div>{priceBreakdown.map((item, index) => <div key={index} className="tooltip-price-line"><span className="tooltip-condition-label">{item.condition}:</span><span className="tooltip-price-value">{item.price}</span></div>)}</div>}
         </div>}
+        <SuggestedPriceBadge marketPrice={nearMintPrice} />
         {ownedCounters.length > 0 && <span className="trend-card-view__inventory"><span className="trend-card-view__inventory-label">Owned</span>{ownedCounters.map(({ collection, quantity }) => <span className={`trend-card-view__owned${quantity >= 3 ? " trend-card-view__owned--high" : ""}`} key={collection} title={`${collection}: ${quantity} owned`}>{quantity}</span>)}</span>}
         {!wishlistTakesMissingSlot && hasOwnershipScope && missingToLimit > 0 && <span className="trend-card-view__missing">Missing {missingToLimit}</span>}
         {showWishlistButton && <WishlistCardButton card={card} />}

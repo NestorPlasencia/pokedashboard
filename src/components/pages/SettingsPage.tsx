@@ -5,6 +5,7 @@ import { PrintButton } from "../ui/PrintButton";
 import { CachePanel } from "../ui/CachePanel";
 import { ThemeSelector } from "../ui/ThemeSelector";
 import { AccountPasswordForm } from "../ui/AccountPasswordForm";
+import { SuggestedPriceSettings } from "../inputs/SuggestedPriceSettings";
 
 type SettingsPageProps = {
   /** Whether the catalog is still loading its cards - Print waits on the same thing it did in the sidebar. */
@@ -24,6 +25,7 @@ export const SettingsPage = ({ printBusy }: SettingsPageProps) => (
         <p>Table printing, trends, binder pages, export tools, offline storage and appearance.</p>
       </div>
       <AccountPasswordForm />
+      <SuggestedPriceSettings />
       <ViewOptionsComponent />
       <div className="section-sidebar">
         <PriceExplorerButton />

@@ -415,7 +415,7 @@ export const ReportsPage = ({ inventory, inventoryStatus, inventoryError }: {
       {selectedReports.map(result => <section className="report-panel report-selected" key={result.report.id} id={`report-${result.report.id}`} aria-labelledby={`report-${result.report.id}-title`}>
         <div className="report-section-heading"><h2 id={`report-${result.report.id}-title`}>{result.report.name}</h2><div className="report-actions">
           <button type="button" aria-label={`Editar informe ${result.report.name}`} onClick={() => editReport(result.report)}><Pencil size={15} /> Editar informe</button>
-          <a href={`/${reportQuery({ ...result.report.filters, collections: result.collectionNames }, result.report.condition)}`} target="_blank" rel="noreferrer"><ExternalLink size={15} /> Abrir cartas</a>
+          <a href={`/${reportQuery({ ...result.report.filters, collections: result.collectionNames }, result.report.condition, collections.map(collection => collection.name))}`} target="_blank" rel="noreferrer"><ExternalLink size={15} /> Abrir cartas</a>
         </div></div>
         <p className="report-note">{sharedOwnership ? 'Colecciones comunes' : 'Colecciones'}: {result.collectionNames.length ? result.collectionNames.join(', ') : 'Todo el inventario'}</p>
         <div className="report-detail-charts">{GROUPS.map((key, index) => {
