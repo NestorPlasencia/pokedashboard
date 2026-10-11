@@ -58,6 +58,7 @@ export function useLoadCards(
   const [isCardsLoading, setIsCardsLoading] = useState(false);
   const [baseCards, setBaseCards] = useState<Card[]>([]);
   const [inventory, setInventory] = useState<InventorySnapshot | null>(null);
+  const [inventoryOwner, setInventoryOwner] = useState<string | null>(null);
   // Collectr's own collections with their printings, kept apart so one effect can own the
   // list the sidebar shows.
   const [collectrCollections, setCollectrCollections] = useState<CollectionOption[]>([]);
@@ -136,6 +137,7 @@ export function useLoadCards(
 
   useEffect(() => {
     setInventory(null);
+    setInventoryOwner(null);
     setCollectrCollections([]);
     setInventoryNames([]);
     setIsInventoryEmpty(false);
@@ -201,6 +203,7 @@ export function useLoadCards(
           if (cancelled) return;
           handledInventoryRevision.current = inventoryRevision;
           setInventory(inventory);
+          setInventoryOwner(userId);
           setInventoryNames(inventory.collectionNames);
           setIsInventoryEmpty(inventory.activeCopyCount === 0);
           setInventoryStatus("ready");
@@ -490,6 +493,7 @@ export function useLoadCards(
     Boolean(viewedCollection) && Boolean(userId) && !effectiveInventory && inventoryStatus !== "error";
 
   return {
+    inventory: userId && inventoryOwner === userId ? inventory : null,
     isLoading: isMetadataLoading || isCardsLoading || isCollectionPending,
     isInventoryEmpty,
     inventoryStatus,

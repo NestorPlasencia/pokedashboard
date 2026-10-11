@@ -1,4 +1,4 @@
-import { BookOpen, LayoutGrid, Library, Settings, Sigma, SlidersHorizontal, type LucideIcon } from "lucide-react";
+import { BookOpen, ChartNoAxesCombined, LayoutGrid, Library, Settings, Sigma, SlidersHorizontal, type LucideIcon } from "lucide-react";
 import { useWishlists } from "../context/WishlistsContext";
 import { useOwnedCollections } from "../context/OwnedCollectionsContext";
 import React, { Suspense, lazy, useEffect, useMemo, useState } from "react";
@@ -31,6 +31,7 @@ import { applyPokedexProject, readPokedexProjects } from "../services/pokedexPro
 const CardList = lazy(() => import("./views/CardList").then(module => ({ default: module.CardList })));
 const CardListTable = lazy(() => import("./views/CardListTable").then(module => ({ default: module.CardListTable })));
 const BinderView = lazy(() => import("./views/BinderView").then(module => ({ default: module.BinderView })));
+const ReportsPage = lazy(() => import("./pages/ReportsPage").then(module => ({ default: module.ReportsPage })));
 
 type MobilePanel = 'filters' | 'cards' | 'summary';
 
@@ -141,7 +142,7 @@ export const Main: React.FC = () => {
     collectionFilter.selectedCollections.length > 0 ||
     (pokemonGrouping.enabled && pokemonGrouping.filterByCollection !== "all") ||
     Boolean(owned.selectedId) ||
-    route === 'collections';
+    route === 'collections' || route === 'reports';
 
   // One place decides what the current mode needs from the loader. Adding a mode to
   // ViewMode without handling it here stops compiling.
@@ -160,6 +161,7 @@ export const Main: React.FC = () => {
   })();
 
   const {
+    inventory,
     isLoading,
     isInventoryEmpty,
     inventoryStatus,
@@ -244,6 +246,11 @@ export const Main: React.FC = () => {
       )}
       {route === 'settings' && <SettingsPage printBusy={isLoading} />}
       {route === 'pokedex' && <PokedexPage />}
+      {route === 'reports' && (
+        <Suspense fallback={<div className="main-status-message">Cargando informes…</div>}>
+          <ReportsPage key={session?.user.id ?? 'guest'} inventory={inventory} inventoryStatus={inventoryStatus} inventoryError={inventoryError} />
+        </Suspense>
+      )}
       {/* Outside the catalog so it stays on every page. A panel button from another page
           returns to the catalog with that panel open. */}
       <nav className="mobile-panel-nav" aria-label="Mobile sections">
@@ -280,6 +287,11 @@ export const Main: React.FC = () => {
         >
           <BookOpen className="mobile-panel-nav__icon" size={20} aria-hidden="true" />
           <span>Pokédex</span>
+        </button>
+        <button type="button" className={route === 'reports' ? 'is-active' : ''}
+          aria-current={route === 'reports' ? 'page' : undefined} onClick={() => navigate('reports')}>
+          <ChartNoAxesCombined className="mobile-panel-nav__icon" size={20} aria-hidden="true" />
+          <span>Informes</span>
         </button>
         <button
           type="button"
@@ -339,6 +351,11 @@ export const Main: React.FC = () => {
         >
           <BookOpen size={16} aria-hidden="true" />
           <span>Pokédex</span>
+        </button>
+        <button type="button" className={route === 'reports' ? 'is-active' : ''}
+          aria-current={route === 'reports' ? 'page' : undefined} onClick={() => navigate('reports')}>
+          <ChartNoAxesCombined size={16} aria-hidden="true" />
+          <span>Informes</span>
         </button>
         <button
           type="button"

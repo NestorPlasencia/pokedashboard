@@ -19,7 +19,7 @@ test('a trailing slash on a shared link still resolves', () => {
 });
 
 test('the app pages are not shared links', () => {
-  for (const pathname of ['/', '/collections', '/pokedex', '/settings']) {
+  for (const pathname of ['/', '/collections', '/pokedex', '/reports', '/settings']) {
     assert.equal(publicCollectionId(pathname), null, pathname);
   }
 });
@@ -27,6 +27,11 @@ test('the app pages are not shared links', () => {
 test('the Pokédex page has its own navigable address', () => {
   assert.equal(routeFromPath('/pokedex'), 'pokedex');
   assert.equal(pathForRoute('pokedex'), '/pokedex');
+});
+
+test('reports have a dedicated address, including a trailing slash', () => {
+  assert.equal(routeFromPath('/reports/'), 'reports');
+  assert.equal(pathForRoute('reports'), '/reports');
 });
 
 test('a malformed id is not treated as a shared collection', () => {

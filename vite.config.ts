@@ -63,6 +63,11 @@ export default defineConfig({
   plugins: [react(), localPricesApi()],
   server: {
     proxy: {
+      '/api/report-history': {
+        target: 'http://150.136.113.246',
+        changeOrigin: true,
+        rewrite: () => '/api/v1/data/explorer',
+      },
       '/api/poke-db': {
         target: 'https://poke-db-git-master-nestorplasencias-projects.vercel.app',
         changeOrigin: true,

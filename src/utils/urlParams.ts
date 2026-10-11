@@ -121,8 +121,8 @@ const TRUE_BY_DEFAULT_PARAMS = ['printTableType', 'printTableVariant'] as const;
 /**
  * Parse URL query parameters into filter state
  */
-export const parseUrlParams = (): FilterParams => {
-  const params = new URLSearchParams(window.location.search);
+export const parseUrlParams = (query: string = window.location.search): FilterParams => {
+  const params = new URLSearchParams(query);
   
   const filters: FilterParams = {};
   

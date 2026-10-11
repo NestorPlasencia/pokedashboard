@@ -51,7 +51,7 @@ self.addEventListener('activate', event => {
     const names = await caches.keys();
     await Promise.all(
       names
-        .filter(name => name.startsWith('pokedashboard-') && !OWNED_CACHES.includes(name) && !name.startsWith('pokedashboard-data') && !name.startsWith('pokedashboard-tcg-prices'))
+        .filter(name => name.startsWith('pokedashboard-') && !OWNED_CACHES.includes(name) && !name.startsWith('pokedashboard-data') && !name.startsWith('pokedashboard-tcg-prices') && !name.startsWith('pokedashboard-report-history'))
         .map(name => caches.delete(name))
     );
     await self.clients.claim();

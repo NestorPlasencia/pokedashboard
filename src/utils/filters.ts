@@ -1,6 +1,6 @@
 import type { Card, ConditionKey, PokemonFormWithoutCard, PokemonFormData, Set } from "../types/dashboard";
-import { countCopies } from "./copyCount";
-import { formBelongsToRegions } from "./pokedexRegions";
+import { countCopies } from "./copyCount.ts";
+import { formBelongsToRegions } from "./pokedexRegions.ts";
 const NON_HIT_RARITIES = ["Common", "Uncommon", "Rare", "Rare Holo"];
 const NON_HOLO_RARITIES = ["Common", "Uncommon", "Rare"];
 const BULK_RARITIES = ["Common", "Uncommon"];
@@ -472,7 +472,7 @@ import {
   orderByPriceAsc,
   orderByPriceDesc,
   orderBySetAndNumber,
-} from './orders';
+} from './orders.ts';
 
 export const applySorting = (
   cards: Card[],
@@ -528,7 +528,7 @@ export const applyCollectionFilter = (
   return filterCollectionViewCards(cards, mode, selectedCollections, limit, conditionsToFilter);
 };
 
-import { getRegionForPokedexNumber } from '../constants/constants';
+import { getRegionForPokedexNumber } from '../constants/constants.ts';
 
 /**
  * Apply search filter to cards

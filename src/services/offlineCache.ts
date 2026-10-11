@@ -18,6 +18,8 @@ export const IMAGE_CACHE = 'pokedashboard-images-v1';
 export const APP_CACHE = 'pokedashboard-app-v1';
 /** Price bundles, owned by runtimeCards.ts and cleared from here. */
 export const PRICE_CACHE = 'pokedashboard-tcg-prices-v5';
+/** Public product history, independent of saved reports and private inventory. */
+export const REPORT_HISTORY_CACHE = 'pokedashboard-report-history-v1';
 
 /** Header carrying an entry's byte size, so reporting never re-reads whole bodies. */
 const SIZE_HEADER = 'x-pokedashboard-size';
@@ -36,10 +38,10 @@ const cacheUrl = (key: string) =>
   new URL(`/__pokedashboard_cache__/${encodeURIComponent(key)}`, window.location.origin).toString();
 
 /** Cache API is missing in insecure contexts and private modes; callers degrade to network-only. */
-const openDataCache = async (): Promise<Cache | null> => {
+const openDataCache = async (name = DATA_CACHE): Promise<Cache | null> => {
   if (typeof window === 'undefined' || !('caches' in window)) return null;
   try {
-    return await window.caches.open(DATA_CACHE);
+    return await window.caches.open(name);
   } catch (error) {
     console.warn('[cache] Cache storage is unavailable', error);
     return null;
@@ -168,14 +170,14 @@ export const loadCached = async <T>(
  * silently - leaving nothing on disk to open the app with offline.
  */
 export const readStoredValue = async <T>(
-  key: string
+  key: string, cacheName = DATA_CACHE
 ): Promise<{ value: T; storedAt: number } | null> => {
-  const cache = await openDataCache();
+  const cache = await openDataCache(cacheName);
   return cache ? readEntry<T>(cache, key) : null;
 };
 
-export const writeStoredValue = async (key: string, value: unknown): Promise<void> => {
-  const cache = await openDataCache();
+export const writeStoredValue = async (key: string, value: unknown, cacheName = DATA_CACHE): Promise<void> => {
+  const cache = await openDataCache(cacheName);
   if (cache) await writeEntry(cache, key, value);
 };
 
@@ -215,6 +217,7 @@ export type CacheOverview = {
 const CACHE_DESCRIPTIONS: { name: string; label: string; description: string }[] = [
   { name: DATA_CACHE, label: 'Card data', description: 'Series, sets and Pokémon forms' },
   { name: PRICE_CACHE, label: 'Prices', description: 'TCGplayer price bundles' },
+  { name: REPORT_HISTORY_CACHE, label: 'Historial de informes', description: 'Precios históricos para gráficas y prioridad de compra' },
   { name: IMAGE_CACHE, label: 'Images', description: 'Card and set artwork' },
   { name: APP_CACHE, label: 'App shell', description: 'The dashboard itself, for offline start-up' },
 ];
