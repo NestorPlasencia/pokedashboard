@@ -11,8 +11,10 @@ export const SuggestedPriceSettings = () => {
   const [draft, setDraft] = useState(settings);
   const [saved, setSaved] = useState(false);
   const edit = (update: (current: Settings) => Settings) => { setDraft(update); setSaved(false); };
-  const valid = Number.isFinite(draft.minimumDiscountPercent) && draft.minimumDiscountPercent >= 0 && draft.minimumDiscountPercent <= 95 &&
-    tiers.every(({ id }) => Number.isFinite(draft.tiers[id].maximumDiscountPercent) && draft.tiers[id].maximumDiscountPercent >= draft.minimumDiscountPercent && draft.tiers[id].maximumDiscountPercent <= 95 && Number.isFinite(draft.tiers[id].roundingStep) && draft.tiers[id].roundingStep >= 0.01 && draft.tiers[id].roundingStep <= 1000);
+  const valid = tiers.every(({ id }) => {
+    const tier = draft.tiers[id];
+    return Number.isFinite(tier.minimumDiscountPercent) && tier.minimumDiscountPercent >= 0 && tier.minimumDiscountPercent <= 95 && Number.isFinite(tier.maximumDiscountPercent) && tier.maximumDiscountPercent >= tier.minimumDiscountPercent && tier.maximumDiscountPercent <= 95 && Number.isFinite(tier.roundingStep) && tier.roundingStep >= 0.01 && tier.roundingStep <= 1000;
+  });
 
   return <div className="section-sidebar">
     <CollapsibleSection title="Precios sugeridos" defaultCollapsed={false}>
@@ -20,19 +22,19 @@ export const SuggestedPriceSettings = () => {
         <p>Precio objetivo de compra basado en el precio Near Mint. Usa la misma regla en las cartas y al imprimir una wishlist.</p>
         <label className="view-options-checkbox"><input type="checkbox" checked={draft.showOnCards} onChange={event => edit(current => ({ ...current, showOnCards: event.target.checked }))} />Mostrar en la vista de cartas y tendencias</label>
         <label className="view-options-checkbox"><input type="checkbox" checked={draft.showInWishlistPrint} onChange={event => edit(current => ({ ...current, showInWishlistPrint: event.target.checked }))} />Incluir al imprimir una wishlist</label>
-        <label className="suggested-price-settings__minimum">Descuento mínimo (%)<input type="number" required min="0" max="95" step="0.1" value={Number.isNaN(draft.minimumDiscountPercent) ? "" : draft.minimumDiscountPercent} onChange={event => edit(current => ({ ...current, minimumDiscountPercent: event.target.valueAsNumber }))} /></label>
         <div className="suggested-price-settings__tiers">
           {tiers.map(({ id, label, example }) => {
             const target = valid ? calculateSuggestedPrice(example, draft) : null;
             return <fieldset key={id}>
               <legend>{label}</legend>
-              <label>Descuento máximo deseado (%)<input type="number" required min={Number.isFinite(draft.minimumDiscountPercent) ? draft.minimumDiscountPercent : 0} max="95" step="0.1" value={Number.isNaN(draft.tiers[id].maximumDiscountPercent) ? "" : draft.tiers[id].maximumDiscountPercent} onChange={event => edit(current => ({ ...current, tiers: { ...current.tiers, [id]: { ...current.tiers[id], maximumDiscountPercent: event.target.valueAsNumber } } }))} /></label>
+              <label>Descuento mínimo (%)<input type="number" required min="0" max="95" step="0.1" value={Number.isNaN(draft.tiers[id].minimumDiscountPercent) ? "" : draft.tiers[id].minimumDiscountPercent} onChange={event => edit(current => ({ ...current, tiers: { ...current.tiers, [id]: { ...current.tiers[id], minimumDiscountPercent: event.target.valueAsNumber } } }))} /></label>
+              <label>Descuento máximo deseado (%)<input type="number" required min={Number.isFinite(draft.tiers[id].minimumDiscountPercent) ? draft.tiers[id].minimumDiscountPercent : 0} max="95" step="0.1" value={Number.isNaN(draft.tiers[id].maximumDiscountPercent) ? "" : draft.tiers[id].maximumDiscountPercent} onChange={event => edit(current => ({ ...current, tiers: { ...current.tiers, [id]: { ...current.tiers[id], maximumDiscountPercent: event.target.valueAsNumber } } }))} /></label>
               <label>Redondear a múltiplos de ($)<input type="number" required min="0.01" max="1000" step="0.01" value={Number.isNaN(draft.tiers[id].roundingStep) ? "" : draft.tiers[id].roundingStep} onChange={event => edit(current => ({ ...current, tiers: { ...current.tiers, [id]: { ...current.tiers[id], roundingStep: event.target.valueAsNumber } } }))} /></label>
               <small>Ejemplo: {currency(example)} → {target ? `${formatSuggestedPrice(target.price)} (−${target.percent}%)` : "—"}</small>
             </fieldset>;
           })}
         </div>
-        <p className="suggested-price-settings__hint">Prioriza cifras redondas: $1, $5 y $10 por defecto. Si no cabe un múltiplo en el rango, usa el inferior; el descuento puede superar el máximo deseado. Si no hay un múltiplo positivo con el descuento mínimo, no muestra precio sugerido. Solo usa centavos si eliges un múltiplo decimal. Se guarda en este navegador.</p>
+        <p className="suggested-price-settings__hint">Cada rango tiene su descuento mínimo y su redondeo. Usa múltiplos de $0.50, $1, $3 o $10 por defecto. Si no cabe un múltiplo entre el mínimo y el máximo deseado, usa el inferior; el descuento puede superar el máximo deseado. Si no hay un múltiplo positivo con el descuento mínimo, no muestra precio sugerido. Se guarda en este navegador.</p>
         {!valid && <p role="alert">El máximo debe ser mayor o igual al mínimo (0–95%). El múltiplo debe estar entre $0.01 y $1,000.</p>}
         <div className="suggested-price-settings__actions">
           <button type="submit" disabled={!valid}>Guardar precios sugeridos</button>

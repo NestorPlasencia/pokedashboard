@@ -53,6 +53,8 @@ export interface FilterParams extends
   subtypes?: string[];
   artist?: string[];
   collections?: string[];
+  /** Collections annotated visually, independently of filtering and browsing. */
+  markedCollections?: string[];
   search?: string;
   order?: string;
   showTable?: string;
@@ -135,7 +137,7 @@ export const parseUrlParams = (query: string = window.location.search): FilterPa
   
   // Parse array parameters (pipe-separated instead of comma to avoid encoding)
   // Note: These are now stored WITHOUT the "All" option - only specific selections
-  const arrayParams = ['series', 'set', 'rarity', 'tags', 'type', 'energy', 'pokedexRegion', 'pokedexCompletion', 'variants', 'cardVariantTopLevel', 'conditions', 'subtypes', 'artist', 'collections', 'pokedexRegions', 'groupingRegions', 'formsGroupingRegions', 'formsAllowVariants', 'formsHideVariants', 'formsEnabledVariants', 'viewedCollection', ...EXCLUDE_PARAM_NAMES];
+  const arrayParams = ['series', 'set', 'rarity', 'tags', 'type', 'energy', 'pokedexRegion', 'pokedexCompletion', 'variants', 'cardVariantTopLevel', 'conditions', 'subtypes', 'artist', 'collections', 'markedCollections', 'pokedexRegions', 'groupingRegions', 'formsGroupingRegions', 'formsAllowVariants', 'formsHideVariants', 'formsEnabledVariants', 'viewedCollection', ...EXCLUDE_PARAM_NAMES];
   
   arrayParams.forEach(param => {
     const value = params.get(param);
@@ -277,7 +279,7 @@ export const generateUrlParams = (filters: Partial<FilterParams>): string => {
   const queryParts: string[] = [];
   
   // Add array parameters - but SKIP "All" values
-  const arrayParams: (keyof FilterParams)[] = ['series', 'set', 'rarity', 'tags', 'type', 'energy', 'pokedexRegion', 'pokedexCompletion', 'variants', 'cardVariantTopLevel', 'conditions', 'subtypes', 'artist', 'collections', 'pokedexRegions', 'groupingRegions', 'formsGroupingRegions', 'formsAllowVariants', 'formsHideVariants', 'formsEnabledVariants', 'viewedCollection', ...EXCLUDE_PARAM_NAMES];
+  const arrayParams: (keyof FilterParams)[] = ['series', 'set', 'rarity', 'tags', 'type', 'energy', 'pokedexRegion', 'pokedexCompletion', 'variants', 'cardVariantTopLevel', 'conditions', 'subtypes', 'artist', 'collections', 'markedCollections', 'pokedexRegions', 'groupingRegions', 'formsGroupingRegions', 'formsAllowVariants', 'formsHideVariants', 'formsEnabledVariants', 'viewedCollection', ...EXCLUDE_PARAM_NAMES];
   
   arrayParams.forEach(param => {
     const value = filters[param];

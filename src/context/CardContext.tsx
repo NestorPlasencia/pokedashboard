@@ -2,7 +2,9 @@ import React, { createContext, useContext, useState, useMemo, useCallback, useEf
 import { Card, PokemonWithoutCard, PokemonFormWithoutCard, PokemonFormData, PokemonGroupingOptions, CollectionFilterOptions, ViewOptions, SortConfig, Set, TrendSeries } from "../types/dashboard";
 import { initializeFiltersFromUrl, parseUrlParams, updateUrlParams } from "../utils/urlParams";
 import { initialCollectionFilter, initialPokemonGrouping, initialPriceRange, initialSortConfig, initialViewOptions } from "../utils/urlState";
-import { parseViewModeFromUrl, viewModeToParams, type ViewMode } from "../utils/viewMode";
+import { collectionBrowseParams, parseViewModeFromUrl, viewModeToParams, type ViewMode } from "../utils/viewMode";
+import { useOptionsContext } from './OptionsContext';
+import { buildCollectionMarkIndex, collectionMarksForCard, type CollectionMark } from '../utils/collectionMarks';
 
 export type SeriesSelection = {
   included: string[];
@@ -14,6 +16,8 @@ export type SeriesSelection = {
  * keeps its current selection, so dropping the set can leave the series alone.
  */
 export type CatalogSelectionRequest = {
+  /** Open a saved collection with every card visible, preserving the display mode. */
+  clearFilters?: boolean;
   series?: SeriesSelection;
   /** Included sets; any excluded ones are cleared with them. */
   sets?: string[];
@@ -86,6 +90,9 @@ interface CardContextType {
   // Collection filter options
   collectionFilter: CollectionFilterOptions;
   setCollectionFilter: React.Dispatch<React.SetStateAction<CollectionFilterOptions>>;
+  markedCollections: string[];
+  setMarkedCollections: React.Dispatch<React.SetStateAction<string[]>>;
+  getCollectionMarks: (card: Card) => CollectionMark[];
 
   // Pokemon Grouping options (unified Pokédex + Forms)
   pokemonGrouping: PokemonGroupingOptions;
@@ -107,6 +114,7 @@ interface CardContextType {
   // source of truth for all three, so two of them can never be active at once.
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
+  browseCollections: (names: string[]) => void;
 
   // A pending selection made outside the sidebar. The Filters panel owns the series and set
   // selection, so it applies the request and clears it.
@@ -159,6 +167,13 @@ export const CardProvider: React.FC<{ children: ReactNode }> = ({
   const [priceRange, setPriceRange] = useState<{ min: number | null; max: number | null }>(() => initialPriceRange(urlParams));
 
   const [collectionFilter, setCollectionFilter] = useState<CollectionFilterOptions>(() => initialCollectionFilter(urlParams));
+  const [markedCollections, setMarkedCollections] = useState<string[]>(() => urlParams.markedCollections ?? []);
+  const { collections } = useOptionsContext();
+  const markIndex = useMemo(() => buildCollectionMarkIndex(collections, markedCollections), [collections, markedCollections]);
+  const getCollectionMarks = useCallback((card: Card) => collectionMarksForCard(card, markIndex), [markIndex]);
+  useEffect(() => {
+    updateUrlParams({ markedCollections });
+  }, [markedCollections]);
 
   const [pokemonGrouping, setPokemonGrouping] = useState<PokemonGroupingOptions>(() => initialPokemonGrouping(urlParams));
 
@@ -187,6 +202,17 @@ export const CardProvider: React.FC<{ children: ReactNode }> = ({
   }, []);
 
   const [catalogSelectionRequest, requestCatalogSelection] = useState<CatalogSelectionRequest | null>(null);
+  const browseCollections = useCallback((names: string[]) => {
+    if (!names.length) return;
+    const params = collectionBrowseParams(names);
+    setPriceRange(initialPriceRange(params));
+    setCollectionFilter(initialCollectionFilter(params));
+    setVariantsFilter(['All']);
+    setPokemonGrouping((current) => ({ ...current, enabled: false, filterByCollection: 'all' }));
+    requestCatalogSelection({ clearFilters: true });
+    setViewModeState({ kind: 'collection', names });
+    updateUrlParams(params);
+  }, []);
   const [selectedSets, setSelectedSets] = useState<string[]>([]);
   const [activeFilterChips, setActiveFilterChips] = useState<ActiveFilterChip[]>([]);
 
@@ -232,6 +258,9 @@ export const CardProvider: React.FC<{ children: ReactNode }> = ({
         setPriceRange,
         collectionFilter,
         setCollectionFilter,
+        markedCollections,
+        setMarkedCollections,
+        getCollectionMarks,
         pokemonGrouping,
         setPokemonGrouping,
         pokemonFormsData,
@@ -242,6 +271,7 @@ export const CardProvider: React.FC<{ children: ReactNode }> = ({
         setViewOptions,
         viewMode,
         setViewMode,
+        browseCollections,
         catalogSelectionRequest,
         requestCatalogSelection,
         selectedSets,
@@ -252,9 +282,9 @@ export const CardProvider: React.FC<{ children: ReactNode }> = ({
         allCards, filteredCards, priceFilteredCards, sortedCards,
         collectionFilteredCards, groupedCards, visibleCards, renderCards, sets, seriesSelection,
         variantsFilter, conditionsFilter, priceRange,
-        collectionFilter, pokemonGrouping, pokemonFormsData,
+        collectionFilter, markedCollections, getCollectionMarks, pokemonGrouping, pokemonFormsData,
         sortConfig, viewOptions, trendByProductId, trendLoading, trendError,
-        viewMode, setViewMode, catalogSelectionRequest, selectedSets, activeFilterChips
+        viewMode, setViewMode, browseCollections, catalogSelectionRequest, selectedSets, activeFilterChips
       ])}
     >
       {children}

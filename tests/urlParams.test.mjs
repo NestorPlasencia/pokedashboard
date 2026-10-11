@@ -13,9 +13,9 @@ globalThis.window = {
 };
 
 const { parseUrlParams, updateUrlParams, generateUrlParams, initializeFiltersFromUrl } = await import('../src/utils/urlParams.ts');
-const { parseViewModeFromUrl, viewModeToParams } = await import('../src/utils/viewMode.ts');
+const { collectionBrowseParams, parseViewModeFromUrl, viewModeToParams } = await import('../src/utils/viewMode.ts');
 const {
-  initialPriceRange, initialSortConfig, initialViewOptions, initialPokemonGrouping,
+  initialCollectionFilter, initialPriceRange, initialSortConfig, initialViewOptions, initialPokemonGrouping,
   viewOptionsToParams, initialFilterSettings, filterSettingsToParams,
 } = await import('../src/utils/urlState.ts');
 
@@ -56,6 +56,65 @@ test('the collections filter and the viewed collection stay independent', () => 
   updateUrlParams(viewModeToParams({ kind: 'collection', names: ['Deck Box'] }));
   assert.deepEqual(parseUrlParams().collections, ['Binder One', 'Deck Box']);
   assert.deepEqual(parseViewModeFromUrl(), { kind: 'collection', names: ['Deck Box'] });
+});
+
+test('marked collections persist independently of owned filters, browsing and the add destination', () => {
+  updateUrlParams({
+    collections: ['Hits'], viewCollectionOption: 'hideOwned',
+    markedCollections: ['Búsqueda para Maclean', 'Promos'], addCollection: 'owned-id',
+  });
+  assert.deepEqual(parseUrlParams().markedCollections, ['Búsqueda para Maclean', 'Promos']);
+  updateUrlParams(collectionBrowseParams(['Other collection']));
+  assert.deepEqual(parseUrlParams().markedCollections, ['Búsqueda para Maclean', 'Promos']);
+  assert.equal(parseUrlParams().addCollection, 'owned-id');
+  updateUrlParams({ markedCollections: [] });
+  assert.equal(parseUrlParams().markedCollections, undefined);
+  assert.deepEqual(parseViewModeFromUrl(), { kind: 'collection', names: ['Other collection'] });
+});
+
+test('Browse removes inherited report constraints while retaining trend view and the add destination', () => {
+  updateUrlParams({
+    series: ['Mega Evolution'], set: ['Mega Evolution'], rarity: ['Illustration Rare'],
+    variants: ['Holo', 'Normal Holo', 'Promo'], notCardVariantTopLevel: ['Parallel'],
+    collections: ['Busqueda para Maclean'], viewCollectionOption: 'hideOwned',
+    conditions: ['Near Mint'], priceMin: '10', priceMax: '20', search: 'Tyrunt',
+    pokemonGroupingEnabled: 'true', groupByPokedex: 'true', groupByForms: 'true',
+    hideNotOwnPokedex: 'true', filterByCollection: 'notOwned',
+    viewMode: 'wishlist', viewWishlist: 'old-wishlist', viewSubcollection: 'old-list',
+    showTrendPoints: 'true', trendSortDirection: 'desc', order: 'Price ↓',
+    addCollection: 'destination-id',
+  });
+  updateUrlParams(collectionBrowseParams(['Busqueda para Maclean']));
+  const params = parseUrlParams();
+  assert.deepEqual(parseViewModeFromUrl(), { kind: 'collection', names: ['Busqueda para Maclean'] });
+  for (const key of ['series', 'set', 'rarity', 'variants', 'notCardVariantTopLevel', 'search', 'viewWishlist', 'viewSubcollection']) {
+    assert.equal(params[key], undefined, key);
+  }
+  assert.deepEqual(initialPriceRange(params), { min: null, max: null });
+  assert.deepEqual(initialCollectionFilter(params), {
+    enabled: false, mode: 'none', selectedCollections: [], limit: 1, conditionsFilter: ['All'],
+  });
+  assert.equal(initialPokemonGrouping(params).enabled, false);
+  assert.equal(initialViewOptions(params).displayMode, 'trendUngrouped');
+  assert.equal(params.addCollection, 'destination-id');
+  assert.equal(params.order, 'Price ↓');
+});
+
+test('a newly saved Holo card remains visible after opening a collection from an Illustration Rare report', async () => {
+  const { filterCardsByProperty, applyPriceFilter, applyCollectionFilter } = await import('../src/utils/filters.ts');
+  const riolu = {
+    id: 'riolu-holo', name: 'Riolu', rarity: 'Rare Holo', rarities: ['Rare Holo'], variant: 'Holo',
+    prices: { 'Near Mint': 8.04 },
+    collections: [{ name: 'Busqueda para Maclean', quantity: { Unknown: 1 } }],
+  };
+  assert.deepEqual(filterCardsByProperty([riolu], 'rarities', ['Illustration Rare']), []);
+  const params = collectionBrowseParams(['Busqueda para Maclean']);
+  const range = initialPriceRange(params);
+  const ownership = initialCollectionFilter(params);
+  const basic = filterCardsByProperty([riolu], 'rarities', params.rarity ?? ['All']);
+  const priced = applyPriceFilter(basic, range.min, range.max);
+  const visible = applyCollectionFilter(priced, ownership.mode, ownership.selectedCollections, ownership.limit, ownership.conditionsFilter);
+  assert.deepEqual(visible, [riolu], 'unknown condition and existing ownership must not hide the saved card');
 });
 
 test('defaults never appear in the URL', () => {

@@ -10,6 +10,8 @@ import { getCardPriceBreakdown } from "../../utils/utils";
 import { buildPriceExplorerUrl } from "../../utils/priceExplorer";
 import { ownedCountersForCard } from "../../utils/collectionQuantity";
 import { SuggestedPriceBadge } from "../ui/SuggestedPriceBadge";
+import { CollectionMarkBadge } from '../ui/CollectionMarkBadge';
+import { collectionMarkClass } from '../../utils/collectionMarks';
 
 const formatCurrency = (value: number) => {
   return value.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
@@ -19,7 +21,8 @@ const CardViewComponent: React.FC<{
   card: Card;
 }> = ({ card }) => {
 
-  const { collectionFilter, sets, trendByProductId, viewOptions, trendLoading, viewMode } = useCardContext();
+  const { collectionFilter, sets, trendByProductId, viewOptions, trendLoading, viewMode, getCollectionMarks } = useCardContext();
+  const marks = getCollectionMarks(card);
   const { collections } = useOptionsContext();
   const wishlists = useWishlists();
   const showWishlistButton = wishlists.canToggle();
@@ -73,7 +76,8 @@ const CardViewComponent: React.FC<{
   }, [sets, card.setId, card.setName]);
 
   return (
-    <div className={`card card-view-card${viewOptions.displayMode.includes('trend') ? ' card-view-card--trend' : ''}`}>
+    <div className={`card card-view-card${viewOptions.displayMode.includes('trend') ? ' card-view-card--trend' : ''}${collectionMarkClass(marks)}`}>
+      <CollectionMarkBadge marks={marks} compact />
       <img
         loading="lazy"
         className={card.shadow ? 'shadow' : ''}

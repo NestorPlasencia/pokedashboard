@@ -33,7 +33,8 @@ export const Search: React.FC<SearchProps> = ({ collectionEnrichment, loading = 
   const {
     groupedCards, sortedCards, allCards, visibleCards, setVisibleCards, sortConfig, variantsFilter,
     priceRange, setPriceRange, conditionsFilter, collectionFilter, setCollectionFilter,
-    pokemonGrouping, pokemonFormsData, viewMode, activeFilterChips,
+    pokemonGrouping, pokemonFormsData, viewMode, activeFilterChips, catalogSelectionRequest,
+    markedCollections, setMarkedCollections,
   } = useCardContext();
   // A marked collection stands for its subcollections too, the same way a viewed one
   // does. Expanded here rather than when the box is ticked, so the stored selection - and
@@ -117,6 +118,9 @@ export const Search: React.FC<SearchProps> = ({ collectionEnrichment, loading = 
     if (didMount.current) setQuery('');
     didMount.current = true;
   }, [isViewingWishlist]);
+  useEffect(() => {
+    if (catalogSelectionRequest?.clearFilters) setQuery('');
+  }, [catalogSelectionRequest]);
   const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -237,8 +241,12 @@ export const Search: React.FC<SearchProps> = ({ collectionEnrichment, loading = 
   // Rarity, Type, Variant… only narrow the catalog and collection views - a wishlist skips
   // them entirely (Search starts from every saved card instead), so they stay out of its row.
   const allActiveChips = useMemo(
-    () => [...(viewMode.kind !== 'wishlist' ? activeFilterChips : []), ...collectionChips, ...priceChips],
-    [viewMode.kind, activeFilterChips, collectionChips, priceChips]
+    () => [...(viewMode.kind !== 'wishlist' ? activeFilterChips : []), ...collectionChips, ...priceChips,
+      ...markedCollections.map(name => ({
+        id: `marked-${name}`, label: `Marcada: ${name}`,
+        onRemove: () => setMarkedCollections(current => current.filter(value => value !== name)),
+      }))],
+    [viewMode.kind, activeFilterChips, collectionChips, priceChips, markedCollections, setMarkedCollections]
   );
   const showActiveFilterChips = allActiveChips.length > 0;
 

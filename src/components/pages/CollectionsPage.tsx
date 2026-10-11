@@ -41,7 +41,7 @@ type Group = {
  */
 export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCounts, copyCounts }: CollectionsPageProps) => {
   const { collections } = useOptionsContext();
-  const { collectionFilter, setCollectionFilter, viewMode, setViewMode } = useCardContext();
+  const { collectionFilter, setCollectionFilter, viewMode, setViewMode, browseCollections, setMarkedCollections } = useCardContext();
   const { session, isAuthLoading, refreshInventory, requestSignIn, signOut } = useAuth();
   const owned = useOwnedCollections();
   const [draftName, setDraftName] = useState<string | null>(null);
@@ -111,7 +111,7 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
   // Opening a row shows just that collection and its children. Combining several collections
   // remains available through the catalog filter.
   const browse = (name: string) => {
-    setViewMode({ kind: "collection", names: [name] });
+    browseCollections([name]);
     navigate("catalog");
   };
 
@@ -134,6 +134,7 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
   // Collections are addressed by name in the view mode and in the filter, so both follow a
   // rename and let go of deleted collections instead of pointing at nothing.
   const followRename = (from: string, to: string) => {
+    setMarkedCollections(current => current.map(name => name === from ? to : name));
     if (viewMode.kind === "collection" && viewMode.names.includes(from)) {
       setViewMode({ kind: "collection", names: viewMode.names.map((name) => (name === from ? to : name)) });
     }
@@ -146,6 +147,7 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
   };
 
   const forget = (names: string[]) => {
+    setMarkedCollections(current => current.filter(name => !names.includes(name)));
     if (viewMode.kind === "collection" && viewMode.names.some((name) => names.includes(name))) {
       const remaining = viewMode.names.filter((name) => !names.includes(name));
       setViewMode(remaining.length > 0 ? { kind: "collection", names: remaining } : CATALOG_VIEW);

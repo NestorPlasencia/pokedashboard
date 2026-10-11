@@ -1,4 +1,4 @@
-import { parseUrlParams, type FilterParams } from './urlParams.ts';
+import { FILTER_PARAM_NAMES, excludeParam, parseUrlParams, type FilterParams } from './urlParams.ts';
 
 /**
  * What the user is looking at. The three modes are mutually exclusive by construction:
@@ -51,6 +51,37 @@ export const toggleViewedCollection = (mode: ViewMode, name: string): ViewMode =
     return remaining.length > 0 ? { kind: 'collection', names: remaining } : CATALOG_VIEW;
   }
   return { kind: 'collection', names: [...names, name] };
+};
+
+/** Browse the saved collection without constraints inherited from a report or catalog. */
+export const collectionBrowseParams = (names: string[]): Partial<FilterParams> => {
+  const params: Partial<FilterParams> = {
+    ...viewModeToParams({ kind: 'collection', names }),
+    collections: undefined,
+    filterByCollections: undefined,
+    viewCollectionOption: undefined,
+    conditions: undefined,
+    limit: undefined,
+    priceMin: undefined,
+    priceMax: undefined,
+    search: undefined,
+    tags: undefined,
+    pokedexCompletion: undefined,
+    pokemonGroupingEnabled: 'false',
+    groupByPokedex: undefined,
+    groupByForms: undefined,
+    hideNotOwnPokedex: undefined,
+    hideObtainedPokedex: undefined,
+    showOnlyMissing: undefined,
+    showOnlyIncomplete: undefined,
+    filterByCollection: 'all',
+    formsFilterByCollection: undefined,
+  };
+  for (const name of FILTER_PARAM_NAMES) {
+    params[name] = undefined;
+    params[excludeParam(name)] = undefined;
+  }
+  return params;
 };
 
 /**

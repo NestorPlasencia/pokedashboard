@@ -87,6 +87,7 @@ export const Main: React.FC = () => {
     setPokemonFormsData,
     seriesSelection,
     collectionFilter,
+    markedCollections,
     pokemonGrouping,
     setPokemonGrouping,
     viewMode,
@@ -140,6 +141,7 @@ export const Main: React.FC = () => {
   // case out is what kept the button on "Add" no matter how much had been downloaded.
   const inventoryRequired =
     collectionFilter.selectedCollections.length > 0 ||
+    markedCollections.length > 0 ||
     (pokemonGrouping.enabled && pokemonGrouping.filterByCollection !== "all") ||
     Boolean(owned.selectedId) ||
     route === 'collections' || route === 'reports';
@@ -244,7 +246,7 @@ export const Main: React.FC = () => {
           copyCounts={collectionCopyCounts}
         />
       )}
-      {route === 'settings' && <SettingsPage printBusy={isLoading} />}
+      {route === 'settings' && <SettingsPage printBusy={isLoading} inventoryStatus={inventoryStatus} />}
       {route === 'pokedex' && <PokedexPage />}
       {route === 'reports' && (
         <Suspense fallback={<div className="main-status-message">Cargando informes…</div>}>

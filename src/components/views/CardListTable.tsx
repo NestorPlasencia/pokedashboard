@@ -7,6 +7,8 @@ import { buildPriceExplorerUrl } from "../../utils/priceExplorer";
 import { SeriesStarter } from "./SeriesStarter";
 import { activeFilterCollectionNames, quantityCollectionNames, quantityForCollections } from "../../utils/collectionQuantity";
 import { useOptionsContext } from "../../context/OptionsContext";
+import { CollectionMarkBadge } from '../ui/CollectionMarkBadge';
+import { collectionMarkClass } from '../../utils/collectionMarks';
 
 const formatCurrency = (value: number | undefined | null) => {
   if (value === undefined || value === null) return '-';
@@ -19,7 +21,7 @@ const escapeCsvValue = (value: string | number | null | undefined): string => {
 };
 
 const CardListTableComponent: React.FC = () => {
-  const { renderCards, collectionFilter, sets, seriesSelection, viewMode } = useCardContext();
+  const { renderCards, collectionFilter, sets, seriesSelection, viewMode, getCollectionMarks } = useCardContext();
   const { collections } = useOptionsContext();
   const [itemsToShow, setItemsToShow] = useState<number>(50);
 
@@ -204,9 +206,10 @@ const CardListTableComponent: React.FC = () => {
             const price = getPrice(card);
             const setSymbol = getSetSymbol(card);
             const priceExplorerUrl = buildPriceExplorerUrl([card.productId]);
+            const marks = getCollectionMarks(card);
 
             return (
-              <tr key={`${card.id}-${index}`} className={card.shadow ? 'shadowed-row' : ''}>
+              <tr key={`${card.id}-${index}`} className={`${card.shadow ? 'shadowed-row' : ''}${collectionMarkClass(marks)}`}>
                 <td>
                   <img
                     src={imageUrl}
@@ -214,7 +217,7 @@ const CardListTableComponent: React.FC = () => {
                     className="card-list-table-image"
                   />
                 </td>
-                <td>{card.name}<WishlistCardButton card={card} /><OwnedCardButton card={card} /></td>
+                <td>{card.name}<CollectionMarkBadge marks={marks} /><WishlistCardButton card={card} /><OwnedCardButton card={card} /></td>
                 <td>{card.setName}</td>
                 <td>
                   {setSymbol && (

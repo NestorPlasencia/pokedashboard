@@ -20,7 +20,9 @@ const CardListComponent: React.FC = () => {
     pokemonFormsData,
     seriesSelection,
     viewOptions,
-    viewMode
+    viewMode,
+    allCards,
+    browseCollections
   } = useCardContext();
   const { collections } = useOptionsContext();
   const selectedCollectionNames = useMemo(() => [...new Set(
@@ -164,7 +166,14 @@ const CardListComponent: React.FC = () => {
             <SeriesStarter />
           </div>
         ) : (
-          <div className="card-list-empty">No cards match your current filters.</div>
+          <div className="card-list-empty">
+            <p>No cards match your current filters.</p>
+            {viewMode.kind === 'collection' && allCards.length > 0 && (
+              <button type="button" className="card-list-empty__reset" onClick={() => browseCollections(viewMode.names)}>
+                Show all cards in this collection
+              </button>
+            )}
+          </div>
         )
       )}
       {isFormsGrouping &&

@@ -1,5 +1,6 @@
 import { TrendingUp } from "lucide-react";
 import { WishlistCardButton } from "../ui/Wishlists";
+import { OwnedCardButton } from "../ui/OwnedCardButton";
 import { useWishlists } from "../../context/WishlistsContext";
 import React, { useMemo } from "react";
 import { useCardContext } from "../../context/CardContext";
@@ -9,12 +10,15 @@ import { getCardPriceBreakdown } from "../../utils/utils";
 import { buildPriceExplorerUrl } from "../../utils/priceExplorer";
 import { ownedCountersForCard } from "../../utils/collectionQuantity";
 import { SuggestedPriceBadge } from "../ui/SuggestedPriceBadge";
+import { CollectionMarkBadge } from '../ui/CollectionMarkBadge';
+import { collectionMarkClass } from '../../utils/collectionMarks';
 
 const formatCurrency = (value: number) => value.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
 const getTimingTone = (score: number | null) => score === null ? "unknown" : score >= 70 ? "good" : score >= 40 ? "fair" : "bad";
 
 const TrendCardViewComponent: React.FC<{ card: Card }> = ({ card }) => {
-  const { collectionFilter, sets, trendByProductId, viewOptions, trendLoading, viewMode } = useCardContext();
+  const { collectionFilter, sets, trendByProductId, viewOptions, trendLoading, viewMode, getCollectionMarks } = useCardContext();
+  const marks = getCollectionMarks(card);
   const { collections } = useOptionsContext();
   const wishlists = useWishlists();
   const showWishlistButton = wishlists.canToggle();
@@ -41,24 +45,34 @@ const TrendCardViewComponent: React.FC<{ card: Card }> = ({ card }) => {
   }, [sets, card.setId, card.setName]);
 
   return (
-    <article className="trend-card-view">
+    <article className={`trend-card-view${collectionMarkClass(marks)}`}>
       <img className={`trend-card-view__image${card.shadow ? " shadow" : ""}`} src={card.image || ""} alt={`${variantName} image of ${card.name}`} loading="lazy" />
 
       <aside className="trend-card-view__info">
-        <span className="trend-card-view__set" title={card.setName}>
-          {setSymbol && <img src={setSymbol} alt="" className="trend-card-view__symbol" onError={event => event.currentTarget.classList.add("is-hidden")} />}
-          <span>{card.setName}</span>
-        </span>
-        <span className="trend-card-view__number">#{card.number}</span>
-        {nearMintPrice !== null && <div className="card-price-container card-price-container--relative trend-card-view__price">
-          {card.productId ? <a href={`https://www.tcgplayer.com/product/${card.productId}?Language=English&Condition=Near+Mint`} target="_blank" rel="noopener noreferrer">{formatCurrency(nearMintPrice)}</a> : <strong>{formatCurrency(nearMintPrice)}</strong>}
-          {priceBreakdown.length > 0 && <div className="card-price-tooltip"><div className="card-price-tooltip-title">{variantName}</div>{priceBreakdown.map((item, index) => <div key={index} className="tooltip-price-line"><span className="tooltip-condition-label">{item.condition}:</span><span className="tooltip-price-value">{item.price}</span></div>)}</div>}
-        </div>}
-        <SuggestedPriceBadge marketPrice={nearMintPrice} />
-        {ownedCounters.length > 0 && <span className="trend-card-view__inventory"><span className="trend-card-view__inventory-label">Owned</span>{ownedCounters.map(({ collection, quantity }) => <span className={`trend-card-view__owned${quantity >= 3 ? " trend-card-view__owned--high" : ""}`} key={collection} title={`${collection}: ${quantity} owned`}>{quantity}</span>)}</span>}
-        {!wishlistTakesMissingSlot && hasOwnershipScope && missingToLimit > 0 && <span className="trend-card-view__missing">Missing {missingToLimit}</span>}
-        {showWishlistButton && <WishlistCardButton card={card} />}
-        {priceExplorerUrl && <a className="trend-card-view__prices" href={priceExplorerUrl} target="_blank" rel="noopener noreferrer"><TrendingUp size={11} aria-hidden="true" /> Prices</a>}
+        <CollectionMarkBadge marks={marks} />
+        <div className="trend-card-view__metadata">
+          <span className="trend-card-view__set" title={card.setName}>
+            {setSymbol && <img src={setSymbol} alt="" className="trend-card-view__symbol" onError={event => event.currentTarget.classList.add("is-hidden")} />}
+            <span>{card.setName}</span>
+          </span>
+          <span className="trend-card-view__number">#{card.number}</span>
+        </div>
+        <div className="trend-card-view__pricing">
+          {nearMintPrice !== null && <div className="card-price-container card-price-container--relative trend-card-view__price">
+            {card.productId ? <a href={`https://www.tcgplayer.com/product/${card.productId}?Language=English&Condition=Near+Mint`} target="_blank" rel="noopener noreferrer">{formatCurrency(nearMintPrice)}</a> : <strong>{formatCurrency(nearMintPrice)}</strong>}
+            {priceBreakdown.length > 0 && <div className="card-price-tooltip"><div className="card-price-tooltip-title">{variantName}</div>{priceBreakdown.map((item, index) => <div key={index} className="tooltip-price-line"><span className="tooltip-condition-label">{item.condition}:</span><span className="tooltip-price-value">{item.price}</span></div>)}</div>}
+          </div>}
+          <SuggestedPriceBadge marketPrice={nearMintPrice} />
+        </div>
+        <div className="trend-card-view__ownership">
+          {ownedCounters.length > 0 && <span className="trend-card-view__inventory"><span className="trend-card-view__inventory-label">Owned</span>{ownedCounters.map(({ collection, quantity }) => <span className={`trend-card-view__owned${quantity >= 3 ? " trend-card-view__owned--high" : ""}`} key={collection} title={`${collection}: ${quantity} owned`}>{quantity}</span>)}</span>}
+          {!wishlistTakesMissingSlot && hasOwnershipScope && missingToLimit > 0 && <span className="trend-card-view__missing">Missing {missingToLimit}</span>}
+        </div>
+        <div className="trend-card-view__actions">
+          {showWishlistButton && <WishlistCardButton card={card} />}
+          <OwnedCardButton card={card} />
+          {priceExplorerUrl && <a className="trend-card-view__prices" href={priceExplorerUrl} target="_blank" rel="noopener noreferrer"><TrendingUp size={11} aria-hidden="true" /> Prices</a>}
+        </div>
       </aside>
 
       <section className="trend-card-view__graph" aria-label={trend ? `${trend.buyTimingLabel}, score ${trend.buyTimingScore ?? "unavailable"}` : "Trend loading"}>

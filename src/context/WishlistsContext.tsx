@@ -35,7 +35,7 @@ const reference = (card: Card): SavedCard => ({
 });
 
 function useWishlistsState() {
-  const { session, isAuthLoading } = useAuth();
+  const { session, isAuthLoading, refreshInventory } = useAuth();
   const { viewMode, setViewMode } = useCardContext();
   const userId = isSupabaseConfigured ? session?.user.id ?? "" : "";
   const [wishlists, setWishlists] = useState<Wishlist[]>([]);
@@ -135,11 +135,11 @@ function useWishlistsState() {
   );
 
   const enqueueRemote = useCallback((operation: () => Promise<void>) => {
-    const pendingWrite = saveQueue.current.catch(() => undefined).then(operation);
+    const pendingWrite = saveQueue.current.catch(() => undefined).then(operation).then(() => refreshInventory());
     saveQueue.current = pendingWrite.then(() => undefined, () => undefined);
     pendingWrite.catch(() => setError("Could not save to Supabase. Check your connection and try again."));
     return pendingWrite;
-  }, []);
+  }, [refreshInventory]);
 
   const commitLocal = useCallback((next: Wishlist[]) => {
     if (blocked) return false;
@@ -210,26 +210,45 @@ function useWishlistsState() {
     const next = wishlists.map((w) => w.id === armedWishlist.id
       ? { ...w, subcollections: w.subcollections.map((s) => s.id === armedSubId ? { ...s, cards: cardsToSave } : s) }
       : w);
-    if (!commitLocal(next)) return 0;
     if (userId) {
-      void enqueueRemote(async () => {
-        for (const card of cardsToPersist.filter((candidate) => newCards.some((saved) => cardKey(saved) === cardKey(reference(candidate))))) {
-          await addRemoteCard(userId, armedSubcollection.id, card);
-        }
-      });
+      let added = 0;
+      try {
+        await enqueueRemote(async () => {
+          for (const card of cardsToPersist.filter((candidate) => newCards.some((saved) => cardKey(saved) === cardKey(reference(candidate))))) {
+            await addRemoteCard(userId, armedSubcollection.id, card);
+            added++;
+            setWishlists(current => current.map(w => w.id === armedWishlist.id
+              ? { ...w, subcollections: w.subcollections.map(s => s.id === armedSubcollection.id
+                ? { ...s, cards: mergeSavedCards(s.cards, [reference(card)]) } : s) } : w));
+          }
+        });
+      } catch {
+        // Keep confirmed writes visible if a bulk addition stops partway through.
+        if (added) refreshInventory();
+      }
+      return added;
     }
+    if (!commitLocal(next)) return 0;
     return newCards.length;
   };
 
-  const remove = (card: Card) => {
-    if (blocked || !armedSubcollection || !armedWishlist) return;
+  const remove = async (card: Card) => {
+    if (blocked || !armedSubcollection || !armedWishlist) return false;
     const key = cardKey(reference(card));
-    const next = wishlists.map((w) => w.id === armedWishlist.id ? {
+    const withoutCard = (current: Wishlist[]) => current.map((w) => w.id === armedWishlist.id ? {
       ...w,
-      subcollections: w.subcollections.map((s) => s.id === armedSubId ? { ...s, cards: s.cards.filter((saved) => cardKey(saved) !== key) } : s),
+      subcollections: w.subcollections.map((s) => s.id === armedSubcollection.id ? { ...s, cards: s.cards.filter((saved) => cardKey(saved) !== key) } : s),
     } : w);
-    if (!commitLocal(next) || !userId) return;
-    void enqueueRemote(() => removeRemoteCard(userId, armedSubcollection.id, card));
+    if (!userId) return commitLocal(withoutCard(wishlists));
+    try {
+      await enqueueRemote(async () => {
+        await removeRemoteCard(userId, armedSubcollection.id, card);
+        setWishlists(withoutCard);
+      });
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const deleteNode = (id: string, subId?: string) => {

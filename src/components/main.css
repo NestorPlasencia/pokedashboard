@@ -25,6 +25,7 @@
   --danger: #c2414b;
   --danger-soft: #fff0f1;
   --warning: #c56b12;
+  --wish-mark: #b21aad;
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
   --shadow-md: 0 10px 30px rgba(15, 23, 42, 0.09);
   color-scheme: light;
@@ -48,6 +49,7 @@
   --danger: #ff858d;
   --danger-soft: #45252e;
   --warning: #f3ad5f;
+  --wish-mark: #ef9aed;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.24);
   --shadow-md: 0 14px 34px rgba(0, 0, 0, 0.3);
   color-scheme: dark;
@@ -503,7 +505,7 @@ th[scope="row"] {
 
 .suggested-price strong { font-size: 12px; }
 .suggested-price small { font-size: 9px; color: #a9ebd1; }
-.trend-card-view__info > .suggested-price { flex-basis: 100%; justify-content: start; }
+.trend-card-view__pricing .suggested-price { justify-content: start; }
 
 .card-group-modal .card {
   margin-bottom: 0;
@@ -1816,9 +1818,15 @@ th[scope="row"] {
   }
 }
 
+.card-action-spinner {
+  flex: 0 0 auto;
+  animation: pokedashboard-spin 0.8s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .main-status-message--loading::before,
-  .collection-progress__spinner {
+  .collection-progress__spinner,
+  .card-action-spinner {
     animation-duration: 2.4s;
   }
 }
@@ -2391,6 +2399,10 @@ th[scope="row"] {
 }
 
 .suggested-price-settings { display: grid; gap: 12px; }
+.report-card-settings { display: grid; gap: 12px; }
+.report-card-settings label { display: grid; gap: 6px; font-size: var(--font-size-sm); }
+.report-card-settings select { width: 100%; min-width: 0; padding: 9px; border: 1px solid var(--border-strong); border-radius: 7px; background: var(--surface-raised); color: var(--text); }
+.report-card-settings p, .report-card-settings small { margin: 0; color: var(--text-muted); font-size: var(--font-size-sm); }
 .suggested-price-settings p { margin: 0; color: var(--text-muted); font-size: var(--font-size-sm); }
 .suggested-price-settings label:not(.view-options-checkbox) { display: grid; gap: 5px; font-size: var(--font-size-sm); }
 .suggested-price-settings input[type="number"] { width: 100%; max-width: 170px; padding: 8px; border: 1px solid var(--border-strong); border-radius: 7px; background: var(--surface-raised); color: var(--text); }
@@ -3032,9 +3044,8 @@ img.binder-pocket__card {
   grid-column: 1;
   grid-row: 2;
   display: flex;
-  align-content: flex-start;
-  align-items: center;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
   gap: 6px;
   min-width: 0;
   padding: 8px;
@@ -3045,7 +3056,11 @@ img.binder-pocket__card {
   font-size: 9px;
 }
 
-.trend-card-view__set { display: inline-flex; align-items: center; gap: 4px; min-width: 0; max-width: 118px; }
+.trend-card-view__metadata { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.trend-card-view__pricing { display: grid; gap: 5px; }
+.trend-card-view__ownership { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.trend-card-view__pricing:empty, .trend-card-view__ownership:empty { display: none; }
+.trend-card-view__set { display: inline-flex; align-items: center; gap: 4px; flex: 1; min-width: 0; }
 .trend-card-view__set > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-view .card-list .trend-card-view__symbol { width: 14px; min-width: 14px; max-width: 14px; height: 14px; min-height: 14px; max-height: 14px; border-radius: 0; object-fit: contain; }
 .trend-card-view__number { margin-left: auto; white-space: nowrap; }
@@ -3055,14 +3070,26 @@ img.binder-pocket__card {
 .trend-card-view__owned { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: #6675c0; color: #fff; font-size: 8px; font-weight: 800; }
 .trend-card-view__owned--high { background: #2f9f68; }
 .trend-card-view__missing { padding: 2px 5px; border-radius: 999px; background: #b83243; color: #fff; font-size: 7px; font-weight: 800; text-transform: uppercase; }
-.trend-card-view__prices { padding: 3px 6px; border: 1px solid rgba(255,255,255,.4); border-radius: 999px; color: #fff; font-size: 8px; font-weight: 700; text-decoration: none; white-space: nowrap; }
+.trend-card-view__prices { display: inline-flex; align-items: center; gap: 4px; min-height: 26px; padding: 5px 7px; border: 1px solid rgba(255,255,255,.4); border-radius: 6px; color: #fff; font-size: 10px; font-weight: 700; line-height: 1; text-decoration: none; white-space: nowrap; }
+.trend-card-view__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; width: 100%; margin-top: 2px; }
+.trend-card-view__actions:empty { display: none; }
+.trend-card-view__actions .owned-card-button,
+.trend-card-view__actions .wishlist-card-button { position: relative; display: inline-flex; align-items: center; gap: 4px; margin: 0; max-width: 100%; min-height: 26px; padding: 5px 7px; border: 1px solid rgba(255,255,255,.4); border-radius: 6px; color: #fff; font-size: 10px; font-weight: 700; line-height: 1; cursor: pointer; }
+.trend-card-view__actions .owned-card-button { background: #2f5c99; }
+.trend-card-view__actions .owned-card-button--held { background: #14684a; }
+.trend-card-view__actions .owned-card-button--failed { flex-wrap: wrap; background: #7a1f2b; }
+.trend-card-view__actions .owned-card-button__error { position: static; flex-basis: 100%; max-width: 100%; }
+.trend-card-view__actions .wishlist-card-button { background: #7145c4; }
+.trend-card-view__actions .wishlist-card-button--saved { background: #14684a; }
+.trend-card-view__actions button:hover { filter: brightness(1.15); }
+.trend-card-view__actions button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .trend-card-view__graph { grid-column: 2; grid-row: 1 / span 2; display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 10px 12px; border: 1px solid rgba(126,231,135,.25); border-radius: 9px; background: linear-gradient(145deg, rgba(10,28,38,.98), rgba(13,20,36,.94)); color: #fff; }
 .trend-card-view__chart-wrap { flex: 1 1 auto; width: 100%; min-height: 220px; overflow: hidden; }
 
 @media (max-width: 760px) {
   .trend-card-view {
     grid-template-columns: 106px minmax(0, 1fr);
-    grid-template-rows: 152px auto;
+    grid-template-rows: minmax(152px, auto) auto;
     gap: 8px;
     padding: 7px;
     border-radius: 10px;
@@ -3686,6 +3713,20 @@ input:focus-visible {
   color: var(--text-muted);
   font-size: var(--font-size-sm);
   font-weight: 600;
+}
+
+.card-list-empty__reset {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.card-list-empty__reset:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .sidebar .theme-selector {
@@ -4950,7 +4991,7 @@ button.mass-entry-btn.sidebar-action-btn:disabled {
 @media (max-width: 1450px) { .wishlist-section__cards--trend { grid-template-columns: minmax(0, 1fr); } }
 
 /* A collection row pairs its checkbox with a way to open it on its own. */
-.collections-row { display: flex; align-items: center; gap: 6px; }
+.collections-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .collections-row .collections-checkbox-label { flex: 1; min-width: 0; }
 /* Subcollections are indented by depth, with a guide line so a long list still reads as a
    tree once the parent has scrolled out of view. */
@@ -4960,6 +5001,27 @@ button.mass-entry-btn.sidebar-action-btn:disabled {
 .section-sidebar .collections-view-btn { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; margin: 0; padding: 4px 7px; border: 0; background: transparent; color: var(--accent); font-size: 11px; white-space: nowrap; cursor: pointer; }
 .section-sidebar .collections-view-btn:hover { background: var(--accent-soft); }
 .section-sidebar .collections-view-btn[aria-pressed="true"] { background: var(--accent-soft); }
+.section-sidebar .collections-mark-btn { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; margin: 0; padding: 4px 7px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--warning); font-size: 11px; white-space: nowrap; cursor: pointer; }
+.section-sidebar .collections-mark-btn--wish { color: var(--wish-mark); }
+.section-sidebar .collections-mark-btn[aria-pressed="true"] { border-color: currentColor; background: var(--surface-muted); }
+.section-sidebar .collections-mark-btn:hover { background: var(--surface-muted); }
+.section-sidebar .collections-mark-btn:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.collections-mark-help { display: block; margin-bottom: 10px; color: var(--text-muted); }
+
+.collection-marked { --collection-mark: var(--warning); }
+.collection-marked--wish { --collection-mark: var(--wish-mark); }
+.card-view-card.collection-marked,
+.trend-card-view.collection-marked,
+.binder-pocket.collection-marked { outline: 2px solid var(--collection-mark); outline-offset: 2px; }
+.card-list-table tr.collection-marked { box-shadow: inset 4px 0 var(--collection-mark); }
+.card-list-table tr.collection-marked td { background: color-mix(in srgb, var(--collection-mark) 10%, var(--surface)); }
+.collection-mark-badge { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; min-width: 0; padding: 3px 6px; border: 1px solid var(--collection-mark, var(--warning)); border-radius: 6px; background: var(--surface); color: var(--collection-mark, var(--warning)); font-size: 10px; font-weight: 700; line-height: 1.2; }
+.collection-mark-badge > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.collection-mark-badge > svg { flex-shrink: 0; }
+.card-view-card > .collection-mark-badge,
+.binder-pocket > .collection-mark-badge { position: absolute; top: 5px; right: 5px; z-index: 2; pointer-events: none; }
+.binder-pocket.collection-marked { position: relative; }
+.card-list-table .collection-mark-badge { display: flex; width: fit-content; margin-top: 4px; }
 /* Filter mode, owned threshold and reset share one row, wrapping only when the panel is narrow. */
 .collections-filter-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
 .collections-filter-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
@@ -5931,7 +5993,8 @@ button.view-mode-badge--collection:hover { filter: brightness(1.12); }
   animation: owned-card-button-shake 0.3s ease;
 }
 
-.owned-card-button__error {
+.owned-card-button__error,
+.wishlist-card-button__error {
   position: absolute;
   top: 100%;
   left: 0;
@@ -5951,6 +6014,24 @@ button.view-mode-badge--collection:hover { filter: brightness(1.12); }
 @keyframes owned-card-button-shake {
   25% { transform: translateX(-2px); }
   75% { transform: translateX(2px); }
+}
+
+.owned-card-button:disabled,
+.wishlist-card-button:disabled {
+  cursor: wait;
+  opacity: 0.8;
+  filter: none;
+}
+
+.trend-card-view__actions .wishlist-card-button--failed {
+  flex-wrap: wrap;
+  background: #7a1f2b;
+}
+
+.trend-card-view__actions .wishlist-card-button__error {
+  position: static;
+  flex-basis: 100%;
+  max-width: 100%;
 }
 
 /* In the table the row already carries the context, so it sits inline. */

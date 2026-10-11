@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, ChevronDown, ChevronRight, Eye, MoreHorizontal, Pencil, PencilOff, Plus, Trash2, X } from 'lucide-react';
+import { useRef, useState, type MouseEvent } from 'react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, ChevronDown, ChevronRight, Eye, LoaderCircle, MoreHorizontal, Pencil, PencilOff, Plus, Trash2, X } from 'lucide-react';
 import { CollapsibleSection } from './CollapsibleSection';
 import { CatalogBreadcrumb } from './CatalogBreadcrumb';
 import { useWishlists } from '../../context/WishlistsContext';
@@ -130,6 +130,9 @@ const DIM_REASONS: Partial<Record<CollectionFilterOptions['mode'], string>> = {
 export function WishlistCardButton({ card }: { card: Card }) {
   const wishlists = useWishlists();
   const { collectionFilter } = useCardContext();
+  const [pending, setPending] = useState<'add' | 'remove' | null>(null);
+  const [failed, setFailed] = useState(false);
+  const saving = useRef(false);
   if (!wishlists.canToggle()) return null;
   const saved = wishlists.contains(card);
   // The armed subcollection, not the selected one: they can differ now, and what the
@@ -144,9 +147,28 @@ export function WishlistCardButton({ card }: { card: Card }) {
   const description = dimReason ? `${action} — ${dimReason}` : action;
   // Only inside the wishlist view does this take over the "Missing" badge slot; in the
   // catalog, Missing keeps its corner and the control sits out of its way.
-  const className = `wishlist-card-button${saved ? ' wishlist-card-button--saved' : ''}${wishlists.viewing ? ' wishlist-card-button--slot' : ''}${dimReason ? ' wishlist-card-button--dimmed' : ''}`;
-  return <button type="button" className={className} title={description} onClick={e => { e.stopPropagation(); if (saved) wishlists.remove(card); else if (wishlists.subcollection) wishlists.add([card]); }} aria-label={description}>
-    {saved ? <><Check size={12} aria-hidden="true" /> Remove</> : <><Plus size={12} aria-hidden="true" /> Add</>}
+  const className = `wishlist-card-button${saved ? ' wishlist-card-button--saved' : ''}${wishlists.viewing ? ' wishlist-card-button--slot' : ''}${dimReason ? ' wishlist-card-button--dimmed' : ''}${failed ? ' wishlist-card-button--failed' : ''}`;
+  const handleClick = async (event: MouseEvent) => {
+    event.stopPropagation();
+    if (saving.current) return;
+    saving.current = true;
+    setPending(saved ? 'remove' : 'add');
+    setFailed(false);
+    try {
+      const ok = saved ? await wishlists.remove(card) : await wishlists.add([card]);
+      if (!ok) setFailed(true);
+    } catch {
+      setFailed(true);
+    } finally {
+      saving.current = false;
+      setPending(null);
+    }
+  };
+  return <button type="button" className={className} title={failed ? (wishlists.error || 'Could not save. Try again.') : description} onClick={handleClick} aria-label={description} aria-pressed={saved} aria-busy={pending !== null} disabled={pending !== null}>
+    {pending
+      ? <><LoaderCircle size={12} className="card-action-spinner" aria-hidden="true" /> {pending === 'add' ? 'Adding…' : 'Removing…'}</>
+      : saved ? <><Check size={12} aria-hidden="true" /> Remove</> : <><Plus size={12} aria-hidden="true" /> Add</>}
+    {failed && <span className="wishlist-card-button__error" role="alert">Could not save. Try again.</span>}
   </button>;
 }
 

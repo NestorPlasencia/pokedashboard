@@ -4,11 +4,13 @@ import { useCardContext } from "../../context/CardContext";
 import type { Card } from "../../types/dashboard";
 import { binderSwipeDirection } from "../../utils/binderSwipe";
 import { SeriesStarter } from "./SeriesStarter";
+import { CollectionMarkBadge } from '../ui/CollectionMarkBadge';
+import { collectionMarkClass } from '../../utils/collectionMarks';
 
 type Turn = { from: number; to: number; direction: "next" | "previous" };
 
 export const BinderView = () => {
-  const { renderCards, seriesSelection, viewMode, viewOptions } = useCardContext();
+  const { renderCards, seriesSelection, viewMode, viewOptions, getCollectionMarks } = useCardContext();
   const cards = useMemo(
     () => renderCards.filter((card): card is Card => !('isPlaceholder' in card)),
     [renderCards]
@@ -84,8 +86,10 @@ export const BinderView = () => {
   const renderPockets = (pageIndex: number, interactive: boolean) =>
     Array.from({ length: pocketsPerPage }, (_, position) => {
       const card = cards[pageIndex * pocketsPerPage + position];
+      const marks = card ? getCollectionMarks(card) : [];
       return (
-        <div className="binder-pocket" key={position}>
+        <div className={`binder-pocket${collectionMarkClass(marks)}`} key={position}>
+          {card && <CollectionMarkBadge marks={marks} compact />}
           {card ? interactive ? (
             <button
               className="binder-pocket__card"

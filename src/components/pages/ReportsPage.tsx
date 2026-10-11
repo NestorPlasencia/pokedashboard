@@ -24,6 +24,10 @@ import { BuyingBadge, BuyingPanel } from '../reports/BuyingPanel';
 import { BuyingCardList } from '../reports/BuyingCardList';
 import { ChartBuyingAnalysis } from '../reports/ChartBuyingAnalysis';
 import './reports.css';
+import { useReportCardSettings } from '../../context/ReportCardSettingsContext';
+import { useOwnedCollections } from '../../context/OwnedCollectionsContext';
+import { useWishlists } from '../../context/WishlistsContext';
+import { reportAddOptions, resolveReportAddTarget } from '../../utils/reportCardSettings';
 
 type Group = 'total' | 'owned' | 'missing';
 const GROUP_LABELS: Record<Group, string> = { total: 'Total', owned: 'Tenemos', missing: 'Faltan' };
@@ -43,6 +47,10 @@ export const ReportsPage = ({ inventory, inventoryStatus, inventoryError }: {
 }) => {
   const { session, refreshInventory, requestSignIn } = useAuth();
   const { collections } = useOptionsContext();
+  const { settings: cardSettings } = useReportCardSettings();
+  const owned = useOwnedCollections();
+  const wishlists = useWishlists();
+  const addTarget = resolveReportAddTarget(cardSettings.addTarget, reportAddOptions(owned.collections, wishlists.wishlists));
   const userId = session?.user.id ?? '';
   const initial = useMemo(() => {
     try { return { state: readReports(userId), error: '' }; }
@@ -415,7 +423,7 @@ export const ReportsPage = ({ inventory, inventoryStatus, inventoryError }: {
       {selectedReports.map(result => <section className="report-panel report-selected" key={result.report.id} id={`report-${result.report.id}`} aria-labelledby={`report-${result.report.id}-title`}>
         <div className="report-section-heading"><h2 id={`report-${result.report.id}-title`}>{result.report.name}</h2><div className="report-actions">
           <button type="button" aria-label={`Editar informe ${result.report.name}`} onClick={() => editReport(result.report)}><Pencil size={15} /> Editar informe</button>
-          <a href={`/${reportQuery({ ...result.report.filters, collections: result.collectionNames }, result.report.condition, collections.map(collection => collection.name))}`} target="_blank" rel="noreferrer"><ExternalLink size={15} /> Abrir cartas</a>
+          <a href={`/${reportQuery({ ...result.report.filters, collections: result.collectionNames }, result.report.condition, collections.map(collection => collection.name), addTarget)}`} target="_blank" rel="noreferrer"><ExternalLink size={15} /> Abrir cartas</a>
         </div></div>
         <p className="report-note">{sharedOwnership ? 'Colecciones comunes' : 'Colecciones'}: {result.collectionNames.length ? result.collectionNames.join(', ') : 'Todo el inventario'}</p>
         <div className="report-detail-charts">{GROUPS.map((key, index) => {

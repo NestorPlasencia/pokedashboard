@@ -1,5 +1,5 @@
-import { Library, LibraryBig } from 'lucide-react';
-import { useState, type MouseEvent } from 'react';
+import { Library, LibraryBig, LoaderCircle } from 'lucide-react';
+import { useRef, useState, type MouseEvent } from 'react';
 import { useOwnedCollections } from '../../context/OwnedCollectionsContext';
 import type { Card } from '../../types/dashboard';
 
@@ -18,6 +18,8 @@ export function OwnedCardButton({ card }: { card: Card }) {
   const owned = useOwnedCollections();
   // Cleared on every click, so a stale failure from a previous card never lingers here.
   const [failed, setFailed] = useState(false);
+  const [pending, setPending] = useState<'add' | 'remove' | null>(null);
+  const saving = useRef(false);
   if (!owned.selected || !owned.canTrack(card)) return null;
 
   const held = owned.has(card);
@@ -31,9 +33,19 @@ export function OwnedCardButton({ card }: { card: Card }) {
   // error anywhere on screen.
   const handleClick = async (event: MouseEvent) => {
     event.stopPropagation();
+    if (saving.current) return;
+    saving.current = true;
+    setPending(held ? 'remove' : 'add');
     setFailed(false);
-    const ok = held ? await owned.removeCard(card) : await owned.add(card);
-    if (!ok) setFailed(true);
+    try {
+      const ok = held ? await owned.removeCard(card) : await owned.add(card);
+      if (!ok) setFailed(true);
+    } catch {
+      setFailed(true);
+    } finally {
+      saving.current = false;
+      setPending(null);
+    }
   };
 
   return (
@@ -43,9 +55,13 @@ export function OwnedCardButton({ card }: { card: Card }) {
       title={failed ? (owned.error || 'Could not save. Try again.') : description}
       aria-label={description}
       aria-pressed={held}
+      aria-busy={pending !== null}
+      disabled={pending !== null}
       onClick={handleClick}
     >
-      {held
+      {pending
+        ? <><LoaderCircle size={12} className="card-action-spinner" aria-hidden="true" /> {pending === 'add' ? 'Adding…' : 'Removing…'}</>
+        : held
         ? <><LibraryBig size={12} aria-hidden="true" /> Remove</>
         : <><Library size={12} aria-hidden="true" /> Add</>}
       {failed && <span className="owned-card-button__error" role="alert">{owned.error || 'Failed'}</span>}

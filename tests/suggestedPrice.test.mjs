@@ -1,47 +1,51 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateSuggestedPrice, DEFAULT_SUGGESTED_PRICE_SETTINGS as defaults, formatSuggestedPrice, normalizeSuggestedPriceSettings, readSuggestedPriceSettings, SUGGESTED_PRICE_STORAGE_KEY } from '../src/utils/suggestedPrice.ts';
+import { calculateSuggestedPrice, DEFAULT_SUGGESTED_PRICE_SETTINGS as defaults, formatSuggestedPrice, normalizeSuggestedPriceSettings, readSuggestedPriceSettings, SUGGESTED_PRICE_STORAGE_KEY, SUGGESTED_PRICE_TIERS } from '../src/utils/suggestedPrice.ts';
 
 test('target prices use six requested discount tiers, including their boundary values', () => {
-  for (const [market, expected] of [[4.56, 4], [4.99, 4], [5, 4], [9.99, 8], [10, 9], [19.99, 17], [20, 15], [49.99, 40], [50, 45], [99.99, 85], [100, 90], [200, 170]]) {
+  for (const [market, expected] of [[2.21, 2], [4.56, 4], [4.99, 4.5], [5, 4.5], [9.99, 8.5], [10, 9], [19.99, 17], [20, 18], [49.99, 42], [50, 42], [99.99, 84], [100, 90], [200, 170]]) {
     assert.equal(calculateSuggestedPrice(market, defaults).price, expected, `market ${market}`);
   }
 });
 
-test('screen and print targets stay deterministic, round and at least 10% below market', () => {
+test('screen and print targets respect each range minimum and rounding deterministically', () => {
   for (let cents = 150; cents < 100000; cents += 73) {
     const market = cents / 100;
     const target = calculateSuggestedPrice(market, defaults);
     assert.deepEqual(target, calculateSuggestedPrice(market, defaults));
     assert.ok(target.price > 0);
-    assert.ok(target.price <= market * .90 + 1e-9);
-    const step = market >= 100 ? 10 : market >= 20 ? 5 : 1;
-    assert.equal(target.price % step, 0);
+    const range = SUGGESTED_PRICE_TIERS.find(({ minimum, maximum }) => market >= minimum && (maximum === null || market < maximum));
+    const tier = defaults.tiers[range.id];
+    assert.ok(target.price <= market * (1 - tier.minimumDiscountPercent / 100) + 1e-9);
+    assert.equal(Math.round(target.price * 100) % Math.round(tier.roundingStep * 100), 0);
   }
 });
 
 test('when no multiple fits the band, the next lower round price keeps the minimum discount', () => {
-  assert.deepEqual(calculateSuggestedPrice(5, defaults), { price: 4, percent: 20 });
-  assert.deepEqual(calculateSuggestedPrice(21, defaults), { price: 15, percent: 29 });
+  assert.deepEqual(calculateSuggestedPrice(1, defaults), { price: .5, percent: 50 });
+  assert.deepEqual(calculateSuggestedPrice(23, defaults), { price: 18, percent: 22 });
   assert.equal(calculateSuggestedPrice(.5, defaults), null);
   assert.equal(calculateSuggestedPrice(.01, defaults), null);
 });
 
 test('custom discount bands and rounding affect each price tier independently', () => {
   const custom = normalizeSuggestedPriceSettings({
-    minimumDiscountPercent: 10,
-    tiers: { under50: { maximumDiscountPercent: 10, roundingStep: .01 } },
+    tiers: { under50: { minimumDiscountPercent: 10, maximumDiscountPercent: 10, roundingStep: .01 } },
   });
   assert.deepEqual(calculateSuggestedPrice(40, custom), { price: 36, percent: 10 });
   assert.deepEqual(calculateSuggestedPrice(45.56, custom), { price: 41, percent: 10 });
-  assert.equal(custom.tiers.under5.roundingStep, 1);
+  assert.equal(custom.tiers.under5.roundingStep, .5);
+  assert.equal(custom.tiers.under5.minimumDiscountPercent, 5);
   assert.equal(custom.tiers.from100.roundingStep, 10);
   const differentRounding = normalizeSuggestedPriceSettings({ tiers: { from100: { maximumDiscountPercent: 20, roundingStep: .01 } } });
   assert.equal(calculateSuggestedPrice(200, differentRounding).price, 170);
+  const higherMinimum = normalizeSuggestedPriceSettings({ tiers: { under5: { minimumDiscountPercent: 10 } } });
+  assert.deepEqual(calculateSuggestedPrice(2.21, higherMinimum), { price: 1.5, percent: 32 });
+  assert.deepEqual(calculateSuggestedPrice(8, higherMinimum), calculateSuggestedPrice(8, defaults));
 });
 
 test('fractional prices only appear when a decimal rounding step is explicitly configured', () => {
-  const settings = normalizeSuggestedPriceSettings({ minimumDiscountPercent: 10, tiers: { under5: { maximumDiscountPercent: 10, roundingStep: .01 } } });
+  const settings = normalizeSuggestedPriceSettings({ tiers: { under5: { minimumDiscountPercent: 10, maximumDiscountPercent: 10, roundingStep: .01 } } });
   assert.deepEqual(calculateSuggestedPrice(4.56, settings), { price: 4.1, percent: 10 });
   assert.deepEqual(calculateSuggestedPrice(.02, settings), { price: .01, percent: 50 });
 });
@@ -59,7 +63,7 @@ test('missing, zero, negative or non-finite market prices have no suggested pric
 });
 
 test('settings survive storage round trips with separate card and print visibility', () => {
-  const settings = normalizeSuggestedPriceSettings({ showOnCards: false, showInWishlistPrint: true, minimumDiscountPercent: 10 });
+  const settings = normalizeSuggestedPriceSettings({ showOnCards: false, showInWishlistPrint: true, tiers: { under5: { minimumDiscountPercent: 6, maximumDiscountPercent: 12, roundingStep: .25 } } });
   const storage = { getItem(key) { assert.equal(key, SUGGESTED_PRICE_STORAGE_KEY); return JSON.stringify(settings); } };
   assert.deepEqual(readSuggestedPriceSettings(storage), settings);
   assert.deepEqual(readSuggestedPriceSettings({ getItem: () => null }), defaults);
@@ -70,20 +74,20 @@ test('malformed or inaccessible storage and invalid numeric settings fall back s
     assert.deepEqual(readSuggestedPriceSettings({ getItem: () => raw }), defaults);
   }
   assert.deepEqual(readSuggestedPriceSettings({ getItem() { throw new Error('denied'); } }), defaults);
-  const invalid = normalizeSuggestedPriceSettings({ minimumDiscountPercent: Infinity, tiers: { under5: { maximumDiscountPercent: -1, roundingStep: 0 } } });
+  const invalid = normalizeSuggestedPriceSettings({ tiers: { under5: { minimumDiscountPercent: Infinity, maximumDiscountPercent: -1, roundingStep: 0 } } });
   assert.deepEqual(invalid, defaults);
-  const reversed = normalizeSuggestedPriceSettings({ minimumDiscountPercent: 50 });
+  const reversed = normalizeSuggestedPriceSettings({ tiers: { from100: { minimumDiscountPercent: 50 } } });
   assert.equal(reversed.tiers.from100.maximumDiscountPercent, 50);
 });
 
 test('each exact boundary chooses the new tier without gaps or overlap', () => {
-  const settings = normalizeSuggestedPriceSettings({ minimumDiscountPercent: 0, tiers: {
-    under5: { maximumDiscountPercent: 10, roundingStep: .01 },
-    under10: { maximumDiscountPercent: 20, roundingStep: .01 },
-    under20: { maximumDiscountPercent: 30, roundingStep: .01 },
-    under50: { maximumDiscountPercent: 40, roundingStep: .01 },
-    under100: { maximumDiscountPercent: 50, roundingStep: .01 },
-    from100: { maximumDiscountPercent: 60, roundingStep: .01 },
+  const settings = normalizeSuggestedPriceSettings({ tiers: {
+    under5: { minimumDiscountPercent: 0, maximumDiscountPercent: 10, roundingStep: .01 },
+    under10: { minimumDiscountPercent: 0, maximumDiscountPercent: 20, roundingStep: .01 },
+    under20: { minimumDiscountPercent: 0, maximumDiscountPercent: 30, roundingStep: .01 },
+    under50: { minimumDiscountPercent: 0, maximumDiscountPercent: 40, roundingStep: .01 },
+    under100: { minimumDiscountPercent: 0, maximumDiscountPercent: 50, roundingStep: .01 },
+    from100: { minimumDiscountPercent: 0, maximumDiscountPercent: 60, roundingStep: .01 },
   } });
   for (const [market, expected] of [[4, 3.8], [5, 4.5], [10, 8.5], [20, 16], [50, 37.5], [100, 70]]) {
     assert.equal(calculateSuggestedPrice(market, settings).price, expected);
@@ -105,6 +109,34 @@ test('legacy three-tier preferences adopt the new percentages and preserve visib
 });
 
 test('new saved percentages take precedence over legacy preferences', () => {
-  const customized = normalizeSuggestedPriceSettings({ minimumDiscountPercent: 12, tiers: { under5: { maximumDiscountPercent: 16, roundingStep: 1 } } });
+  const customized = normalizeSuggestedPriceSettings({ tiers: { under5: { minimumDiscountPercent: 12, maximumDiscountPercent: 16, roundingStep: 1 } } });
   assert.deepEqual(readSuggestedPriceSettings({ getItem: key => key === SUGGESTED_PRICE_STORAGE_KEY ? JSON.stringify(customized) : '{}' }), customized);
+});
+
+const previousDefaults = {
+  showOnCards: true, showInWishlistPrint: true, minimumDiscountPercent: 10,
+  tiers: {
+    under5: { maximumDiscountPercent: 15, roundingStep: 1 },
+    under10: { maximumDiscountPercent: 18, roundingStep: 1 },
+    under20: { maximumDiscountPercent: 20, roundingStep: 1 },
+    under50: { maximumDiscountPercent: 25, roundingStep: 5 },
+    under100: { maximumDiscountPercent: 20, roundingStep: 5 },
+    from100: { maximumDiscountPercent: 18, roundingStep: 10 },
+  },
+};
+
+test('saved v2 defaults upgrade automatically to the requested per-range values', () => {
+  const migrated = readSuggestedPriceSettings({ getItem: key => key.endsWith(':v2') ? JSON.stringify(previousDefaults) : null });
+  assert.deepEqual(migrated, defaults);
+  assert.deepEqual(calculateSuggestedPrice(2.21, migrated), { price: 2, percent: 10 });
+  assert.deepEqual(normalizeSuggestedPriceSettings(migrated), migrated);
+});
+
+test('v2 migration preserves custom minimums, discounts, steps and visibility', () => {
+  const previous = { ...previousDefaults, showOnCards: false, minimumDiscountPercent: 12, tiers: { ...previousDefaults.tiers, under5: { maximumDiscountPercent: 16, roundingStep: .25 } } };
+  const migrated = normalizeSuggestedPriceSettings(previous);
+  assert.equal(migrated.showOnCards, false);
+  assert.deepEqual(migrated.tiers.under5, { minimumDiscountPercent: 12, maximumDiscountPercent: 16, roundingStep: .25 });
+  assert.equal(migrated.tiers.under50.minimumDiscountPercent, 12);
+  assert.equal(migrated.tiers.under50.roundingStep, 3);
 });

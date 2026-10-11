@@ -3,6 +3,7 @@ import { excludeCardsByProperty, filterCardsByProperty } from './filters.ts';
 import { countCopies } from './copyCount.ts';
 import { collectionScopeNames } from './collectionTree.ts';
 import { FILTER_PARAM_NAMES, excludeParam, type FilterParams } from './urlParams.ts';
+import type { ReportAddTarget } from './reportCardSettings';
 
 export const REPORT_CONDITIONS: ConditionKey[] = ['Near Mint', 'Lightly Played', 'Moderately Played', 'Heavily Played', 'Damaged'];
 export const REPORT_FIELDS = [
@@ -69,7 +70,7 @@ export const reportValue = (cards: Card[], condition: ConditionKey) => cards.red
 }, { value: 0, unpriced: 0 });
 
 /** Open the report's cards as trends, hiding the cards already owned. */
-export const reportQuery = (filters: FilterParams, condition: ConditionKey, allCollectionNames: string[] = []): string => {
+export const reportQuery = (filters: FilterParams, condition: ConditionKey, allCollectionNames: string[] = [], addTarget: ReportAddTarget | null = null): string => {
   const params = new URLSearchParams();
   // The catalog needs an explicit scope to apply Hide owned. Reports with an empty
   // scope use all inventory, so expand that choice to every available collection.
@@ -81,5 +82,6 @@ export const reportQuery = (filters: FilterParams, condition: ConditionKey, allC
   params.set('conditions', condition.replace(/ /g, '_'));
   params.set('viewCollectionOption', 'hideOwned');
   params.set('showTrendPoints', 'true');
+  if (addTarget) params.set(addTarget.kind === 'collection' ? 'addCollection' : 'addWishlist', addTarget.id);
   return `?${params}`;
 };

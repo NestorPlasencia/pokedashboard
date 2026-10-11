@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Eye } from "lucide-react";
+import { BookmarkCheck, Eye } from "lucide-react";
 import { useOptionsContext } from "../../context/OptionsContext";
 import { useCardContext } from "../../context/CardContext";
 import { CollapsibleSection } from "../ui/CollapsibleSection";
@@ -27,7 +27,7 @@ const MODE_LABELS: Record<CollectionFilterOptions["mode"], string> = {
 
 export const Collections = () => {
   const { collections } = useOptionsContext();
-  const { allCards, sortedCards, collectionFilter, setCollectionFilter, viewMode, setViewMode } = useCardContext();
+  const { allCards, sortedCards, collectionFilter, setCollectionFilter, viewMode, setViewMode, browseCollections, markedCollections, setMarkedCollections } = useCardContext();
   const { session, isAuthLoading } = useAuth();
   const [conditionMode, setConditionMode] = useState<'include' | 'exclude'>('include');
   const [conditionSearchVisible, setConditionSearchVisible] = useState(false);
@@ -84,7 +84,8 @@ export const Collections = () => {
       selectedCollections: [],
       conditionsFilter: ["All"],
     }));
-  }, [isAuthLoading, session, setCollectionFilter]);
+    setMarkedCollections([]);
+  }, [isAuthLoading, session, setCollectionFilter, setMarkedCollections]);
 
   // Sync URL when collection filter changes
   useEffect(() => {
@@ -153,6 +154,7 @@ export const Collections = () => {
 
   // Shown while the panel is collapsed, so an active filter is never invisible.
   const summaryParts: string[] = [];
+  if (markedCollections.length) summaryParts.push(`Marked: ${markedCollections.join(', ')}`);
   if (collectionFilter.selectedCollections.length > 0) {
     const selected = collectionFilter.selectedCollections;
     summaryParts.push(
@@ -199,10 +201,28 @@ export const Collections = () => {
             className="collections-view-btn"
             title={isViewed ? "Stop viewing this collection" : "Add this collection to the view"}
             aria-label={`${isViewed ? "Stop viewing" : "View"} cards in ${collection.name}`}
-            onClick={() => setViewMode(toggleViewedCollection(viewMode, collection.name))}
+            onClick={() => {
+              const next = toggleViewedCollection(viewMode, collection.name);
+              if (!isViewed && next.kind === 'collection') browseCollections(next.names);
+              else setViewMode(next);
+            }}
             aria-pressed={isViewed}
           >
             <Eye size={13} aria-hidden="true" /> View
+          </button>
+          <button
+            type="button"
+            className={`collections-mark-btn${collection.kind === 'wishlist' ? ' collections-mark-btn--wish' : ''}`}
+            title="Highlight cards in this collection without filtering the results"
+            aria-label={`Mark cards in ${collection.name}`}
+            aria-pressed={markedCollections.includes(collection.name)}
+            onClick={() => {
+              if (!requireSession()) return;
+              setMarkedCollections(current => current.includes(collection.name)
+                ? current.filter(name => name !== collection.name) : [...current, collection.name]);
+            }}
+          >
+            <BookmarkCheck size={13} aria-hidden="true" /> Marcar
           </button>
         </div>
         {children.map((child) => renderCollectionRow(child, depth + 1))}
@@ -227,6 +247,12 @@ export const Collections = () => {
           )}
         >
           <p>Select collections:</p>
+          <small className="collections-mark-help">Marcar resalta sus cartas sin cambiar los filtros. Incluye las subcolecciones.</small>
+          {markedCollections.length > 0 && (
+            <button type="button" className="collections-reset-btn" onClick={() => setMarkedCollections([])}>
+              Limpiar marcas
+            </button>
+          )}
           {collections.length === 0 && (
             <span>No collections available</span>
           )}

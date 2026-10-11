@@ -6,10 +6,13 @@ import { CachePanel } from "../ui/CachePanel";
 import { ThemeSelector } from "../ui/ThemeSelector";
 import { AccountPasswordForm } from "../ui/AccountPasswordForm";
 import { SuggestedPriceSettings } from "../inputs/SuggestedPriceSettings";
+import { ReportCardSettings } from "../inputs/ReportCardSettings";
+import type { InventoryStatus } from "../../hooks/useLoadCards";
 
 type SettingsPageProps = {
   /** Whether the catalog is still loading its cards - Print waits on the same thing it did in the sidebar. */
   printBusy: boolean;
+  inventoryStatus: InventoryStatus;
 };
 
 /**
@@ -17,7 +20,7 @@ type SettingsPageProps = {
  * shows: view settings, the export tools, offline storage and appearance.
  * Kept off the catalog's own sidebar so that one stays about filtering and browsing cards.
  */
-export const SettingsPage = ({ printBusy }: SettingsPageProps) => (
+export const SettingsPage = ({ printBusy, inventoryStatus }: SettingsPageProps) => (
   <div className="collections-page">
     <main className="collections-page__body">
       <div className="collections-page__intro">
@@ -25,6 +28,7 @@ export const SettingsPage = ({ printBusy }: SettingsPageProps) => (
         <p>Table printing, trends, binder pages, export tools, offline storage and appearance.</p>
       </div>
       <AccountPasswordForm />
+      <ReportCardSettings inventoryStatus={inventoryStatus} />
       <SuggestedPriceSettings />
       <ViewOptionsComponent />
       <div className="section-sidebar">

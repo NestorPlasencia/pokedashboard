@@ -272,9 +272,10 @@ export const Filters = () => {
   // leaves out keeps its current selection.
   useEffect(() => {
     if (!catalogSelectionRequest) return;
-    const { series, sets } = catalogSelectionRequest;
+    const { series, sets, clearFilters } = catalogSelectionRequest;
     setFilters((prev) =>
       prev.map((f) => {
+        if (clearFilters) return { ...f, includedValues: [], excludedValues: [] };
         if (f.property === 'setSeries' && series) {
           return { ...f, includedValues: series.included, excludedValues: series.excluded };
         }
@@ -302,6 +303,9 @@ export const Filters = () => {
       return { includedValues: filter?.includedValues ?? [], excludedValues: filter?.excludedValues ?? [] };
     });
     const restored = selectionsByScope.current[selectionScope];
+    // Browse explicitly requests all saved cards; a previous collection selection must
+    // not replace that reset when entering the collection scope in the same render.
+    if (catalogSelectionRequest?.clearFilters) return;
     setFilters((prev) =>
       prev.map((f) => {
         const index = scoped.indexOf(f.property as (typeof scoped)[number]);
