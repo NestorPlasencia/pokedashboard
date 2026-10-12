@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Card } from '../types/dashboard';
 import {
   AppCollectionsUnavailableError,
@@ -19,6 +19,7 @@ import { isSupabaseConfigured } from '../services/supabase';
 import { useAuth } from './AuthContext';
 import { useOptionsContext } from './OptionsContext';
 import { parseUrlParams, updateUrlParams } from '../utils/urlParams';
+import { collectionGroupIds, ownedCollectionAddTargets } from '../utils/collectionTree';
 
 /**
  * The collections you can edit, and where the next card you add goes.
@@ -47,9 +48,10 @@ function useOwnedCollectionsState() {
   const [remoteUnavailable, setRemoteUnavailable] = useState(false);
   const writeQueue = useRef<Promise<void>>(Promise.resolve());
 
-  // Only what the app wrote can be edited; Collectr's mirror is rebuilt by its extension.
+  // Groups remain manageable, but only editable leaves can receive cards.
+  const groupIds = useMemo(() => collectionGroupIds(collections), [collections]);
   const editable = useMemo(
-    () => collections.filter((collection) => collection.editable && collection.kind === 'owned'),
+    () => ownedCollectionAddTargets(collections),
     [collections]
   );
 
@@ -61,6 +63,11 @@ function useOwnedCollectionsState() {
   // Resolved against the loaded collections, so an id left in the URL for a collection
   // that is gone - or one belonging to another account - simply disarms.
   const selected = editable.find((collection) => collection.id === selectedId);
+
+  // Also disarm old links and a leaf that has just acquired its first child.
+  useEffect(() => {
+    if (selectedId && groupIds.has(selectedId)) setSelectedId('');
+  }, [selectedId, groupIds, setSelectedId]);
 
   /**
    * Runs a write, keeping a burst of edits in order.

@@ -1,6 +1,7 @@
 import { useReportCardSettings } from '../../context/ReportCardSettingsContext';
 import { useOwnedCollections } from '../../context/OwnedCollectionsContext';
 import { useWishlists } from '../../context/WishlistsContext';
+import { useOptionsContext } from '../../context/OptionsContext';
 import { reportAddOptions, resolveReportAddTarget } from '../../utils/reportCardSettings';
 import type { InventoryStatus } from '../../hooks/useLoadCards';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
@@ -9,7 +10,8 @@ export function ReportCardSettings({ inventoryStatus }: { inventoryStatus: Inven
   const { settings, setSettings, persistenceError } = useReportCardSettings();
   const owned = useOwnedCollections();
   const wishlists = useWishlists();
-  const options = reportAddOptions(owned.collections, wishlists.wishlists);
+  const { collections } = useOptionsContext();
+  const options = reportAddOptions(collections, wishlists.wishlists);
   const target = resolveReportAddTarget(settings.addTarget, options);
   const loading = owned.loading || wishlists.loading || inventoryStatus === 'loading';
   return <div className="section-sidebar">

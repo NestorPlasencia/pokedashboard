@@ -1,5 +1,6 @@
 import type { OptionsCollection } from '../types/dashboard';
 import type { Wishlist } from '../services/wishlists';
+import { collectionGroupIds, ownedCollectionAddTargets } from './collectionTree.ts';
 
 export type ReportAddTarget = { kind: 'collection' | 'wishlist'; id: string };
 export type ReportAddOption = ReportAddTarget & { label: string };
@@ -19,10 +20,11 @@ export function readReportCardSettings(userId: string, storage: Pick<Storage, 'g
 
 /** Only destinations supported by the existing Add controls are offered. */
 export function reportAddOptions(collections: OptionsCollection[], wishlists: Wishlist[]): ReportAddOption[] {
+  const groups = collectionGroupIds(collections);
   return [
-    ...collections.filter(collection => collection.editable && collection.kind === 'owned' && collection.id)
+    ...ownedCollectionAddTargets(collections)
       .map(collection => ({ kind: 'collection' as const, id: collection.id, label: collection.name })),
-    ...wishlists.flatMap(wishlist => wishlist.subcollections.map(sub => ({ kind: 'wishlist' as const, id: sub.id, label: `${wishlist.name} / ${sub.name}` }))),
+    ...wishlists.flatMap(wishlist => wishlist.subcollections.filter(sub => !groups.has(sub.id)).map(sub => ({ kind: 'wishlist' as const, id: sub.id, label: `${wishlist.name} / ${sub.name}` }))),
   ].sort((left, right) => left.label.localeCompare(right.label));
 }
 

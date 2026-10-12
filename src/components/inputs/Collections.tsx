@@ -240,7 +240,9 @@ export const Collections = () => {
             >
               <BookmarkCheck size={16} aria-hidden="true" />
             </button>
-            <CollectionAddButton collection={collection} />
+            {children.length === 0 && !(collection.kind === "wishlist" && !collection.parentId) && (
+              <CollectionAddButton collection={collection} />
+            )}
           </div>
         </div>
         {children.map((child) => renderCollectionRow(child, depth + 1))}

@@ -116,6 +116,7 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
   };
 
   const startAdding = (id: string) => {
+    if (!owned.collections.some(collection => collection.id === id)) return;
     startAction();
     owned.setSelectedId(id);
     setViewMode(CATALOG_VIEW);
@@ -300,7 +301,7 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
   };
 
   const renderRow = (collection: OptionsCollection, ancestors: string[] = []) => {
-    const isTarget = owned.selectedId === collection.id;
+    const isTarget = owned.selected?.id === collection.id;
     const isBusy = busyId === collection.id;
     const isRenaming = renaming?.id === collection.id;
     const isConfirming = confirmingDelete === collection.id;
@@ -318,6 +319,7 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
     // Wishlists panel then refuses to show.
     const canTagWish = collection.editable && collection.parentId === null;
     const children = collection.id ? childrenOf.get(collection.id) ?? [] : [];
+    const canAddCards = canManage && children.length === 0;
     const rowId = collection.id || collection.name;
     const detailsId = `collection-details-${encodeURIComponent(rowId)}`;
     const manageId = `collection-manage-${encodeURIComponent(rowId)}`;
@@ -388,7 +390,7 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
             ) : !isRenaming && (
             <>
             <div className="collections-page__actions collections-page__actions--primary">
-              {canManage && (
+              {canAddCards && (
                 <button
                   type="button"
                   className="collections-page__btn collections-page__btn--primary"

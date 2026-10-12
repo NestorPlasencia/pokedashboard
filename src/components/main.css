@@ -4999,7 +4999,7 @@ button.mass-entry-btn.sidebar-action-btn:disabled {
 .collections-row__printings { display: flex; align-items: center; gap: 2px; flex: 0 0 auto; }
 .collections-row__printings .collection-printing-icon { min-width: 16px; height: 20px; padding: 0; border: 0; border-radius: 0; background: transparent; }
 .collections-row__printing-more { color: var(--text-muted); font-size: 10px; white-space: nowrap; }
-.collections-row__actions { display: flex; align-items: center; flex: 0 0 auto; }
+.collections-row__actions { display: flex; align-items: center; flex: 0 0 auto; min-width: 78px; }
 /* Subcollections are indented by depth, with a guide line so a long list still reads as a
    tree once the parent has scrolled out of view. */
 .collections-row--nested { border-left: 1px solid var(--border); }

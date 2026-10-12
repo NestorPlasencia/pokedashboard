@@ -85,13 +85,13 @@ export function Wishlists({ busy }: { busy: boolean }) {
                       {sub.cards.length > 0 && <button className="wishlist-tree-view" type="button" title="View subcollection" aria-label={`View cards in ${sub.name}`} onClick={() => { wishlists.select(collection.id, sub.id, true); setMenu(null); }}><Eye size={16} aria-hidden="true" /></button>}
                       {/* Arming is its own act. Selecting a subcollection to look at it no
                           longer puts an Add button on every card in the catalog. */}
-                      <button className={`wishlist-tree-arm${armed === sub.id ? ' is-armed' : ''}`} type="button"
+                      {!wishlists.groupIds.has(sub.id) && <button className={`wishlist-tree-arm${armed === sub.id ? ' is-armed' : ''}`} type="button"
                         aria-pressed={armed === sub.id}
                         title={armed === sub.id ? `Stop adding cards to ${sub.name}` : `Add cards to ${sub.name}`}
                         aria-label={armed === sub.id ? `Stop adding cards to ${sub.name}` : `Add cards to ${sub.name}`}
                         onClick={() => { wishlists.setArmedSubId(armed === sub.id ? '' : sub.id); setMenu(null); setNotice(''); }}>
                         {armed === sub.id ? <PencilOff size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
-                      </button>
+                      </button>}
                       <button className="wishlist-tree-more" type="button" aria-label={`Actions for ${sub.name}`} aria-expanded={menu === sub.id} onClick={() => setMenu(menu === sub.id ? null : sub.id)}><MoreHorizontal size={16} aria-hidden="true" /></button>
                     </div>
                     {menu === sub.id && <div className="wishlist-tree-actions">

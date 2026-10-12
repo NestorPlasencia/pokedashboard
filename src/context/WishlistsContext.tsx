@@ -24,6 +24,8 @@ import {
 import { isSupabaseConfigured } from "../services/supabase";
 import { useAuth } from "./AuthContext";
 import { useCardContext } from "./CardContext";
+import { useOptionsContext } from "./OptionsContext";
+import { collectionGroupIds } from "../utils/collectionTree";
 import { CATALOG_VIEW } from "../utils/viewMode";
 import { parseUrlParams, updateUrlParams } from "../utils/urlParams";
 
@@ -37,6 +39,8 @@ const reference = (card: Card): SavedCard => ({
 function useWishlistsState() {
   const { session, isAuthLoading, refreshInventory } = useAuth();
   const { viewMode, setViewMode } = useCardContext();
+  const { collections } = useOptionsContext();
+  const groupIds = useMemo(() => collectionGroupIds(collections), [collections]);
   const userId = isSupabaseConfigured ? session?.user.id ?? "" : "";
   const [wishlists, setWishlists] = useState<Wishlist[]>([]);
   const [error, setError] = useState("");
@@ -123,9 +127,15 @@ function useWishlistsState() {
     updateUrlParams({ addWishlist: subId || undefined });
   }, []);
 
+  useEffect(() => {
+    if (armedSubId && groupIds.has(armedSubId)) setArmedSubId("");
+  }, [armedSubId, groupIds, setArmedSubId]);
+
   const wishlist = wishlists.find((w) => w.id === wishlistId);
   const subcollection = wishlist?.subcollections.find((s) => s.id === subcollectionId);
-  const armedWishlist = armedSubId ? wishlists.find((w) => w.subcollections.some((s) => s.id === armedSubId)) : undefined;
+  const canArm = armedSubId && !groupIds.has(armedSubId)
+    && (!userId || collections.some(collection => collection.id === armedSubId && collection.editable));
+  const armedWishlist = canArm ? wishlists.find((w) => w.subcollections.some((s) => s.id === armedSubId)) : undefined;
   const armedSubcollection = armedWishlist?.subcollections.find((s) => s.id === armedSubId);
   const entries = useMemo(() => subcollection?.cards ?? wishlist?.subcollections.flatMap((s) => s.cards) ?? [], [wishlist, subcollection]);
   const keys = useMemo(() => new Set(entries.map(cardKey)), [entries]);
@@ -294,7 +304,7 @@ function useWishlistsState() {
   return {
     wishlists, wishlist, subcollection, viewing, setViewing, select, create, add, remove, contains,
     canToggle, groupCards, keys, seriesSelection, error, deleted, deleteNode, undoDelete, moveSubcollection,
-    loading, synced: Boolean(userId), armedSubId, setArmedSubId, armedWishlist, armedSubcollection,
+    loading, synced: Boolean(userId), armedSubId, setArmedSubId, armedWishlist, armedSubcollection, groupIds,
   };
 }
 

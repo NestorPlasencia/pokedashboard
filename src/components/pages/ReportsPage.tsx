@@ -25,7 +25,6 @@ import { BuyingCardList } from '../reports/BuyingCardList';
 import { ChartBuyingAnalysis } from '../reports/ChartBuyingAnalysis';
 import './reports.css';
 import { useReportCardSettings } from '../../context/ReportCardSettingsContext';
-import { useOwnedCollections } from '../../context/OwnedCollectionsContext';
 import { useWishlists } from '../../context/WishlistsContext';
 import { reportAddOptions, resolveReportAddTarget } from '../../utils/reportCardSettings';
 
@@ -48,9 +47,8 @@ export const ReportsPage = ({ inventory, inventoryStatus, inventoryError }: {
   const { session, refreshInventory, requestSignIn } = useAuth();
   const { collections } = useOptionsContext();
   const { settings: cardSettings } = useReportCardSettings();
-  const owned = useOwnedCollections();
   const wishlists = useWishlists();
-  const addTarget = resolveReportAddTarget(cardSettings.addTarget, reportAddOptions(owned.collections, wishlists.wishlists));
+  const addTarget = resolveReportAddTarget(cardSettings.addTarget, reportAddOptions(collections, wishlists.wishlists));
   const userId = session?.user.id ?? '';
   const initial = useMemo(() => {
     try { return { state: readReports(userId), error: '' }; }

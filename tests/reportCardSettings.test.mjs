@@ -14,15 +14,26 @@ const collections = [
 ];
 const wishlists = [{ id: 'wish', name: 'Wishlist root', subcollections: [{ id: 'wishlist-child', name: 'Por comprar', cards: [] }] }];
 
-test('report destinations include editable collections and wishlist subcollections, and disarm unavailable targets', () => {
+test('report destinations include editable leaves and wishlist subcollections, and disarm unavailable targets', () => {
   const options = reportAddOptions(collections, wishlists);
-  assert.deepEqual(options.map(option => option.id), ['owned', 'child', 'wishlist-child']);
+  assert.deepEqual(options.map(option => option.id), ['child', 'wishlist-child']);
+  assert.equal(resolveReportAddTarget({ kind: 'collection', id: 'owned' }, options), null);
   assert.equal(resolveReportAddTarget({ kind: 'collection', id: 'sync' }, options), null);
   assert.equal(resolveReportAddTarget({ kind: 'wishlist', id: 'wish' }, options), null);
   assert.equal(resolveReportAddTarget({ kind: 'collection', id: 'deleted' }, options), null);
   assert.equal(resolveReportAddTarget({ kind: 'collection', id: 'wishlist-child' }, options), null);
   assert.equal(resolveReportAddTarget({ kind: 'wishlist', id: 'wishlist-child' }, options).label, 'Wishlist root / Por comprar');
   assert.equal(resolveReportAddTarget(null, options), null);
+});
+
+test('a grouped wishlist subcollection is unavailable as a report destination', () => {
+  const grouped = [...collections,
+    { id: 'wishlist-child', name: 'Por comprar', kind: 'wishlist', editable: true, parentId: 'wish' },
+    { id: 'wish-leaf', name: 'Promos', kind: 'wishlist', editable: true, parentId: 'wishlist-child' },
+  ];
+  const options = reportAddOptions(grouped, wishlists);
+  assert.deepEqual(options.map(option => option.id), ['child']);
+  assert.equal(resolveReportAddTarget({ kind: 'wishlist', id: 'wishlist-child' }, options), null);
 });
 
 test('report add preferences are isolated by account and handle missing, malformed or inaccessible storage', () => {

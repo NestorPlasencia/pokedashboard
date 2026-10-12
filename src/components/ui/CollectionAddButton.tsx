@@ -10,7 +10,7 @@ export function CollectionAddButton({ collection }: { collection: OptionsCollect
   const wishlists = useWishlists();
   const { session, isAuthLoading } = useAuth();
   const canAddOwned = Boolean(collection.id) && owned.collections.some(candidate => candidate.id === collection.id);
-  const canAddWishlist = Boolean(collection.id) && collection.editable && wishlists.wishlists.some(wishlist =>
+  const canAddWishlist = Boolean(collection.id) && collection.editable && !wishlists.groupIds.has(collection.id) && wishlists.wishlists.some(wishlist =>
     wishlist.subcollections.some(subcollection => subcollection.id === collection.id)
   );
   const canAdd = canAddOwned || canAddWishlist;

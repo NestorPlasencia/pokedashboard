@@ -6,6 +6,16 @@
  */
 type TreeNode = { id: string; name: string; parentId: string | null };
 
+/** A node with children is a group, regardless of who manages those children. */
+export const collectionGroupIds = (collections: { parentId?: string | null }[]): Set<string> =>
+  new Set(collections.flatMap(collection => collection.parentId ? [collection.parentId] : []));
+
+/** Cards are added to an editable owned leaf, never to a group. */
+export const ownedCollectionAddTargets = <T extends { id: string; parentId?: string | null; editable: boolean; kind: string }>(collections: T[]): T[] => {
+  const groups = collectionGroupIds(collections);
+  return collections.filter(collection => collection.id && collection.editable && collection.kind === 'owned' && !groups.has(collection.id));
+};
+
 /** Direct children of each collection, by parent id, in the order given. */
 export const childrenByParent = <T extends TreeNode>(collections: T[]): Map<string, T[]> => {
   const children = new Map<string, T[]>();
