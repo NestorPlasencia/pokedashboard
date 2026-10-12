@@ -9,7 +9,7 @@ import { useOwnedCollections } from "../../context/OwnedCollectionsContext";
 import type { InventoryStatus } from "../../hooks/useLoadCards";
 import type { OptionsCollection } from "../../types/dashboard";
 import { CATALOG_VIEW } from "../../utils/viewMode";
-import { navigate, pathForPublicCollection } from "../../utils/route";
+import { openCardsView, pathForPublicCollection } from "../../utils/route";
 import { childrenByParent, collectionSubtree } from "../../utils/collectionTree";
 import { byTag } from "../../utils/collectionTags";
 
@@ -112,7 +112,7 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
   // remains available through the catalog filter.
   const browse = (name: string) => {
     browseCollections([name]);
-    navigate("catalog");
+    openCardsView();
   };
 
   const startAdding = (id: string) => {
@@ -120,7 +120,7 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
     startAction();
     owned.setSelectedId(id);
     setViewMode(CATALOG_VIEW);
-    navigate("catalog");
+    openCardsView();
   };
 
   const toggleExpanded = (id: string) => {
@@ -617,7 +617,7 @@ export const CollectionsPage = ({ inventoryStatus, inventoryUpdatedAt, cardCount
         {owned.selected && (
           <div className="collections-page__notice collections-page__notice--armed" role="status">
             <span>Cards you add in the catalog go to <strong>{owned.selected.name}</strong>.</span>
-            <button type="button" className="collections-page__btn" onClick={() => navigate("catalog")}>
+            <button type="button" className="collections-page__btn" onClick={openCardsView}>
               Go to catalog
             </button>
             <button type="button" className="collections-page__btn" onClick={() => owned.setSelectedId("")}>

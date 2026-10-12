@@ -9,7 +9,7 @@ import { updateUrlParams } from "../../utils/urlParams";
 import type { CollectionFilterOptions, ConditionKey } from "../../types/dashboard";
 import { useAuth } from "../../context/AuthContext";
 import { toggleViewedCollection } from "../../utils/viewMode";
-import { navigate } from "../../utils/route";
+import { navigate, openCardsView } from "../../utils/route";
 import { childrenByParent, collectionScopeNames } from "../../utils/collectionTree";
 import { groupByTag } from "../../utils/collectionTags";
 import { countCopies } from "../../utils/copyCount";
@@ -221,6 +221,7 @@ export const Collections = () => {
                 const next = toggleViewedCollection(viewMode, collection.name);
                 if (!isViewed && next.kind === 'collection') browseCollections(next.names);
                 else setViewMode(next);
+                openCardsView();
               }}
               aria-pressed={isViewed}
             >

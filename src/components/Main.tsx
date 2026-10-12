@@ -19,7 +19,7 @@ import { PokedexPage } from "./pages/PokedexPage";
 import { useTrendPoints } from "../hooks/useTrendPoints";
 import { useOfflineStatus } from "../hooks/useOfflineStatus";
 import { useRoute } from "../hooks/useRoute";
-import { navigate } from "../utils/route";
+import { navigate, openCardsView, subscribeToCardsView } from "../utils/route";
 import { assertNeverViewMode } from "../utils/viewMode";
 import { collectionScopeNames } from "../utils/collectionTree";
 import { updateUrlParams } from "../utils/urlParams";
@@ -54,6 +54,12 @@ export const Main: React.FC = () => {
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(true);
 
+  useEffect(() => subscribeToCardsView(() => {
+    setMobilePanel('cards');
+    setLeftCollapsed(true);
+    setRightCollapsed(true);
+  }), []);
+
   // A fresh desktop session starts with Filters open and Summary tucked away; resizing
   // up from mobile lands on the same defaults rather than whatever mobile last implied.
   useEffect(() => {
@@ -74,11 +80,6 @@ export const Main: React.FC = () => {
   const toggleRightAside = () => {
     navigate('catalog');
     setRightCollapsed((prev) => !prev);
-  };
-  const showOnlyCards = () => {
-    navigate('catalog');
-    setLeftCollapsed(true);
-    setRightCollapsed(true);
   };
   const {
     setAllCards,
@@ -264,7 +265,10 @@ export const Main: React.FC = () => {
               type="button"
               className={isActive ? 'is-active' : ''}
               aria-pressed={isActive}
-              onClick={() => { setMobilePanel(id); navigate('catalog'); }}
+              onClick={() => {
+                if (id === 'cards') openCardsView();
+                else { setMobilePanel(id); navigate('catalog'); }
+              }}
             >
               <Icon className="mobile-panel-nav__icon" size={20} aria-hidden="true" />
               <span>{label}</span>
@@ -322,7 +326,7 @@ export const Main: React.FC = () => {
           type="button"
           className={route === 'catalog' && leftCollapsed && rightCollapsed ? 'is-active' : ''}
           aria-pressed={route === 'catalog' && leftCollapsed && rightCollapsed}
-          onClick={showOnlyCards}
+          onClick={openCardsView}
         >
           <LayoutGrid size={16} aria-hidden="true" />
           <span>Cards</span>

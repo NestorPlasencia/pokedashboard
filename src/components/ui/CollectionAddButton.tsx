@@ -2,13 +2,16 @@ import { PencilOff, Plus } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useOwnedCollections } from "../../context/OwnedCollectionsContext";
 import { useWishlists } from "../../context/WishlistsContext";
+import { useCardContext } from "../../context/CardContext";
 import type { OptionsCollection } from "../../types/dashboard";
-import { navigate } from "../../utils/route";
+import { navigate, openCardsView } from "../../utils/route";
+import { CATALOG_VIEW } from "../../utils/viewMode";
 
 export function CollectionAddButton({ collection }: { collection: OptionsCollection }) {
   const owned = useOwnedCollections();
   const wishlists = useWishlists();
   const { session, isAuthLoading } = useAuth();
+  const { setViewMode } = useCardContext();
   const canAddOwned = Boolean(collection.id) && owned.collections.some(candidate => candidate.id === collection.id);
   const canAddWishlist = Boolean(collection.id) && collection.editable && !wishlists.groupIds.has(collection.id) && wishlists.wishlists.some(wishlist =>
     wishlist.subcollections.some(subcollection => subcollection.id === collection.id)
@@ -39,6 +42,10 @@ export function CollectionAddButton({ collection }: { collection: OptionsCollect
         }
         if (canAddOwned) owned.setSelectedId(isAdding ? "" : collection.id);
         else if (canAddWishlist) wishlists.setArmedSubId(isAdding ? "" : collection.id);
+        if (!isAdding) {
+          setViewMode(CATALOG_VIEW);
+          openCardsView();
+        }
       }}
     >
       {isAdding ? <PencilOff size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}

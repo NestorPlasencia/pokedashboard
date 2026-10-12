@@ -59,6 +59,7 @@ export const pathForRoute = (route: Route): string => PATHS[route];
 export const currentRoute = (): Route => routeFromPath(window.location.pathname);
 
 const listeners = new Set<() => void>();
+const cardsViewListeners = new Set<() => void>();
 /** The query string as last written, whichever history entry is showing. */
 let liveSearch: string | null = null;
 
@@ -101,4 +102,16 @@ export const navigate = (route: Route): void => {
   window.history.pushState(null, '', `${pathForRoute(route)}${window.location.search}`);
   rememberUrl();
   notify();
+};
+
+/** Panel changes are needed even when the catalog path is already open. */
+export const subscribeToCardsView = (listener: () => void): (() => void) => {
+  cardsViewListeners.add(listener);
+  return () => { cardsViewListeners.delete(listener); };
+};
+
+/** Open the catalog and focus its cards, preserving the current filters and targets. */
+export const openCardsView = (): void => {
+  navigate('catalog');
+  cardsViewListeners.forEach(listener => listener());
 };

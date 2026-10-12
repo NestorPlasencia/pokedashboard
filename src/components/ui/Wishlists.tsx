@@ -7,10 +7,11 @@ import { useCardContext } from '../../context/CardContext';
 import { CATALOG_VIEW, assertNeverViewMode } from '../../utils/viewMode';
 import type { Card, CollectionFilterOptions } from '../../types/dashboard';
 import { cardKey } from '../../services/wishlists';
+import { openCardsView } from '../../utils/route';
 
 export function Wishlists({ busy }: { busy: boolean }) {
   const wishlists = useWishlists();
-  const { renderCards, trendLoading } = useCardContext();
+  const { renderCards, trendLoading, setViewMode } = useCardContext();
   const [draft, setDraft] = useState<{ parentId: string | null; name: string } | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -67,7 +68,7 @@ export function Wishlists({ busy }: { busy: boolean }) {
                 }}>{open ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}</button>
                 <button className="wishlist-tree-name" type="button" aria-pressed={active && !wishlists.subcollection} onClick={() => select(collection.id)} title={collection.name}>{collection.name}</button>
                 <span className="wishlist-tree-count">{count}</span>
-                {count > 0 && <button className="wishlist-tree-view" type="button" title="View wishlist" aria-label={`View cards in ${collection.name}`} onClick={() => { wishlists.select(collection.id, '', true); setMenu(null); }}><Eye size={16} aria-hidden="true" /></button>}
+                {count > 0 && <button className="wishlist-tree-view" type="button" title="View wishlist" aria-label={`View cards in ${collection.name}`} onClick={() => { wishlists.select(collection.id, '', true); setMenu(null); openCardsView(); }}><Eye size={16} aria-hidden="true" /></button>}
                 <button className="wishlist-tree-more" type="button" aria-label={`Actions for ${collection.name}`} aria-expanded={menu === collection.id} onClick={() => setMenu(menu === collection.id ? null : collection.id)}><MoreHorizontal size={16} aria-hidden="true" /></button>
               </div>
               {menu === collection.id && <div className="wishlist-tree-actions">
@@ -82,14 +83,19 @@ export function Wishlists({ busy }: { busy: boolean }) {
                       <span className="wishlist-tree-leaf" aria-hidden="true">&#8722;</span>
                       <button className="wishlist-tree-name" type="button" aria-pressed={selected} onClick={() => select(collection.id, sub.id)} title={sub.name}>{sub.name}</button>
                       <span className="wishlist-tree-count">{sub.cards.length}</span>
-                      {sub.cards.length > 0 && <button className="wishlist-tree-view" type="button" title="View subcollection" aria-label={`View cards in ${sub.name}`} onClick={() => { wishlists.select(collection.id, sub.id, true); setMenu(null); }}><Eye size={16} aria-hidden="true" /></button>}
+                      {sub.cards.length > 0 && <button className="wishlist-tree-view" type="button" title="View subcollection" aria-label={`View cards in ${sub.name}`} onClick={() => { wishlists.select(collection.id, sub.id, true); setMenu(null); openCardsView(); }}><Eye size={16} aria-hidden="true" /></button>}
                       {/* Arming is its own act. Selecting a subcollection to look at it no
                           longer puts an Add button on every card in the catalog. */}
                       {!wishlists.groupIds.has(sub.id) && <button className={`wishlist-tree-arm${armed === sub.id ? ' is-armed' : ''}`} type="button"
                         aria-pressed={armed === sub.id}
                         title={armed === sub.id ? `Stop adding cards to ${sub.name}` : `Add cards to ${sub.name}`}
                         aria-label={armed === sub.id ? `Stop adding cards to ${sub.name}` : `Add cards to ${sub.name}`}
-                        onClick={() => { wishlists.setArmedSubId(armed === sub.id ? '' : sub.id); setMenu(null); setNotice(''); }}>
+                        onClick={() => {
+                          wishlists.setArmedSubId(armed === sub.id ? '' : sub.id);
+                          setMenu(null);
+                          setNotice('');
+                          if (armed !== sub.id) { setViewMode(CATALOG_VIEW); openCardsView(); }
+                        }}>
                         {armed === sub.id ? <PencilOff size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
                       </button>}
                       <button className="wishlist-tree-more" type="button" aria-label={`Actions for ${sub.name}`} aria-expanded={menu === sub.id} onClick={() => setMenu(menu === sub.id ? null : sub.id)}><MoreHorizontal size={16} aria-hidden="true" /></button>
@@ -108,10 +114,10 @@ export function Wishlists({ busy }: { busy: boolean }) {
         </ul>
         {draft?.parentId === null ? creationForm(null) : <button className="wishlist-tree-new" onClick={() => startCreate(null)}><Plus size={12} aria-hidden="true" /> Wishlist</button>}
         {wishlists.wishlist && <div className="wishlist-tree-context">
-          {wishlists.viewing ? <button onClick={() => wishlists.setViewing(false)}><ArrowLeft size={13} aria-hidden="true" /> Back to catalog</button> : <>
+          {wishlists.viewing ? <button onClick={() => { wishlists.setViewing(false); openCardsView(); }}><ArrowLeft size={13} aria-hidden="true" /> Back to catalog</button> : <>
             {wishlists.armedSubcollection && !busy && !trendLoading && additions.length > 0 && <button className="wishlist-tree-add" onClick={async () => { const added = await wishlists.add(cards); if (added) setNotice(`${added} cards added to ${wishlists.armedSubcollection!.name}.`); }}><Plus size={12} aria-hidden="true" /> Add everything shown ({additions.length})</button>}
             {wishlists.armedSubcollection && <small>{busy || trendLoading ? 'Loading results…' : !cards.length ? 'Search for cards to add them here.' : !additions.length ? 'Every card shown is already saved.' : `Adding to: ${wishlists.armedSubcollection.name}`}</small>}
-            {wishlists.keys.size > 0 && <button className="wishlist-tree-new" onClick={() => wishlists.setViewing(true)}>View saved cards <ArrowRight size={13} aria-hidden="true" /></button>}
+            {wishlists.keys.size > 0 && <button className="wishlist-tree-new" onClick={() => { wishlists.setViewing(true); openCardsView(); }}>View saved cards <ArrowRight size={13} aria-hidden="true" /></button>}
           </>}
         </div>}
         {notice && <small role="status">{notice}</small>}

@@ -51,3 +51,45 @@ test('a shared link is not one of the navigable pages', () => {
   // `Route` is concerned this address is just an unknown one.
   assert.equal(routeFromPath(`/c/${SHARED_ID}`), 'catalog');
 });
+
+test('opening cards from catalog filters notifies the panel even when the path stays the same', async () => {
+  const { openCardsView, subscribeToCardsView } = await import('../src/utils/route.ts');
+  const previousWindow = globalThis.window;
+  let activePanel = 'filters';
+  let calls = 0;
+  const search = '?addCollection=leaf&markedCollections=Proyectos';
+  const unsubscribe = subscribeToCardsView(() => { activePanel = 'cards'; calls++; });
+  try {
+    globalThis.window = { location: { pathname: '/', search } };
+    openCardsView();
+    assert.equal(activePanel, 'cards');
+    assert.equal(window.location.search, search);
+    assert.equal(calls, 1);
+    activePanel = 'filters';
+    openCardsView();
+    assert.equal(activePanel, 'cards');
+    assert.equal(calls, 2);
+    unsubscribe();
+    openCardsView();
+    assert.equal(calls, 2);
+  } finally { unsubscribe(); globalThis.window = previousWindow; }
+});
+
+test('opening cards from Collections preserves the chosen view and Add destination', async () => {
+  const { openCardsView, subscribeToCardsView } = await import('../src/utils/route.ts');
+  const previousWindow = globalThis.window;
+  const location = { pathname: '/collections', search: '?viewMode=collection&viewedCollection=Binder&addCollection=leaf' };
+  let opened = false;
+  const unsubscribe = subscribeToCardsView(() => { opened = true; });
+  try {
+    globalThis.window = { location, history: { pushState(_state, _title, url) {
+      const destination = new URL(url, 'https://dashboard.test');
+      location.pathname = destination.pathname;
+      location.search = destination.search;
+    } } };
+    openCardsView();
+    assert.equal(location.pathname, '/');
+    assert.equal(opened, true);
+    assert.equal(location.search, '?viewMode=collection&viewedCollection=Binder&addCollection=leaf');
+  } finally { unsubscribe(); globalThis.window = previousWindow; }
+});
