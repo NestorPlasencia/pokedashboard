@@ -5805,6 +5805,165 @@ button.view-mode-badge--collection:hover { filter: brightness(1.12); }
   font-size: var(--font-size-sm);
 }
 
+.public-collection__toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(160px, 220px);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.public-collection__search,
+.public-collection__order {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 44px;
+  padding-left: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+.public-collection__search:focus-within,
+.public-collection__order:focus-within {
+  border-color: var(--accent);
+}
+
+.public-collection__search input {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px 10px 8px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+}
+
+.public-collection__search input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+.public-collection__search svg,
+.public-collection__order svg {
+  flex-shrink: 0;
+}
+
+.public-collection__search button {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  min-height: 40px;
+  padding: 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.public-collection__filter-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.public-collection__filter-toggle.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.public-collection__order select {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px 6px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.public-collection__filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.public-collection__filters[hidden] {
+  display: none;
+}
+
+.public-collection__filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.public-collection__filters select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.public-collection__results {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 16px;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.public-collection__results button {
+  padding: 5px 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  .public-collection__toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .public-collection__search {
+    grid-column: 1 / -1;
+  }
+
+  .public-collection__toolbar input,
+  .public-collection__toolbar select,
+  .public-collection__filters select {
+    font-size: 16px;
+  }
+}
+
 .public-collection__notice {
   margin: 16px 0;
   padding: 14px 16px;
@@ -5892,21 +6051,19 @@ button.view-mode-badge--collection:hover { filter: brightness(1.12); }
   line-height: 1.3;
 }
 
-/* Over the art rather than beside it, now that the art fills the column. */
+/* Explicit quantities, including one copy, sit below the art. */
 .public-collection__quantity {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  min-width: 26px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  align-self: flex-start;
+  margin-top: 4px;
   padding: 3px 8px;
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  border-radius: 999px;
-  background: rgba(13, 20, 36, 0.86);
-  color: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  color: var(--text-muted);
   font-size: var(--font-size-xs);
-  font-weight: 700;
-  text-align: center;
-  box-shadow: var(--shadow-sm);
 }
 
 .collections-page__empty {
