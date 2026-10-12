@@ -4,7 +4,7 @@ import { useOwnedCollections } from '../../context/OwnedCollectionsContext';
 import type { Card } from '../../types/dashboard';
 
 /**
- * Records a card as owned in the collection armed on the Collections page.
+ * Records a card as owned in the collection armed from the list or Collections page.
  *
  * Shown only while a collection is armed, the same way the wishlist control waits for a
  * subcollection: with nothing armed there is no question of where the card would go, and a

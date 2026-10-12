@@ -1,5 +1,5 @@
 import { useRef, useState, type MouseEvent } from 'react';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, ChevronDown, ChevronRight, Eye, LoaderCircle, MoreHorizontal, Pencil, PencilOff, Plus, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, ChevronDown, ChevronRight, Eye, LoaderCircle, MoreHorizontal, PencilOff, Plus, Trash2, X } from 'lucide-react';
 import { CollapsibleSection } from './CollapsibleSection';
 import { CatalogBreadcrumb } from './CatalogBreadcrumb';
 import { useWishlists } from '../../context/WishlistsContext';
@@ -67,7 +67,7 @@ export function Wishlists({ busy }: { busy: boolean }) {
                 }}>{open ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}</button>
                 <button className="wishlist-tree-name" type="button" aria-pressed={active && !wishlists.subcollection} onClick={() => select(collection.id)} title={collection.name}>{collection.name}</button>
                 <span className="wishlist-tree-count">{count}</span>
-                {count > 0 && <button className="wishlist-tree-view" type="button" title="View wishlist" aria-label={`View cards in ${collection.name}`} onClick={() => { wishlists.select(collection.id, '', true); setMenu(null); }}><Eye size={13} aria-hidden="true" /> View</button>}
+                {count > 0 && <button className="wishlist-tree-view" type="button" title="View wishlist" aria-label={`View cards in ${collection.name}`} onClick={() => { wishlists.select(collection.id, '', true); setMenu(null); }}><Eye size={16} aria-hidden="true" /></button>}
                 <button className="wishlist-tree-more" type="button" aria-label={`Actions for ${collection.name}`} aria-expanded={menu === collection.id} onClick={() => setMenu(menu === collection.id ? null : collection.id)}><MoreHorizontal size={16} aria-hidden="true" /></button>
               </div>
               {menu === collection.id && <div className="wishlist-tree-actions">
@@ -82,7 +82,7 @@ export function Wishlists({ busy }: { busy: boolean }) {
                       <span className="wishlist-tree-leaf" aria-hidden="true">&#8722;</span>
                       <button className="wishlist-tree-name" type="button" aria-pressed={selected} onClick={() => select(collection.id, sub.id)} title={sub.name}>{sub.name}</button>
                       <span className="wishlist-tree-count">{sub.cards.length}</span>
-                      {sub.cards.length > 0 && <button className="wishlist-tree-view" type="button" title="View subcollection" aria-label={`View cards in ${sub.name}`} onClick={() => { wishlists.select(collection.id, sub.id, true); setMenu(null); }}><Eye size={13} aria-hidden="true" /> View</button>}
+                      {sub.cards.length > 0 && <button className="wishlist-tree-view" type="button" title="View subcollection" aria-label={`View cards in ${sub.name}`} onClick={() => { wishlists.select(collection.id, sub.id, true); setMenu(null); }}><Eye size={16} aria-hidden="true" /></button>}
                       {/* Arming is its own act. Selecting a subcollection to look at it no
                           longer puts an Add button on every card in the catalog. */}
                       <button className={`wishlist-tree-arm${armed === sub.id ? ' is-armed' : ''}`} type="button"
@@ -90,7 +90,7 @@ export function Wishlists({ busy }: { busy: boolean }) {
                         title={armed === sub.id ? `Stop adding cards to ${sub.name}` : `Add cards to ${sub.name}`}
                         aria-label={armed === sub.id ? `Stop adding cards to ${sub.name}` : `Add cards to ${sub.name}`}
                         onClick={() => { wishlists.setArmedSubId(armed === sub.id ? '' : sub.id); setMenu(null); setNotice(''); }}>
-                        {armed === sub.id ? <><PencilOff size={13} aria-hidden="true" /> Adding</> : <><Pencil size={13} aria-hidden="true" /> Add</>}
+                        {armed === sub.id ? <PencilOff size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
                       </button>
                       <button className="wishlist-tree-more" type="button" aria-label={`Actions for ${sub.name}`} aria-expanded={menu === sub.id} onClick={() => setMenu(menu === sub.id ? null : sub.id)}><MoreHorizontal size={16} aria-hidden="true" /></button>
                     </div>

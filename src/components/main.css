@@ -4940,7 +4940,7 @@ button.mass-entry-btn.sidebar-action-btn:disabled {
 :root[data-theme="dark"] .wishlists, :root[data-theme="dark"] .card-view { --wishlist: #b49bf0; --wishlist-soft: #2a2350; }
 
 /* Icon + label controls: keep the glyph optically centered against the text.
-   The tree name button is deliberately excluded so its ellipsis truncation still works. */
+   The tree name button keeps its own text alignment and truncation. */
 .wishlist-tree-toggle, .wishlist-tree-view, .wishlist-tree-more, .wishlist-tree-new, .wishlist-tree-add,
 .wishlist-tree-actions button, .wishlist-tree-context button, .wishlist-tree-create button,
 .card .wishlist-card-button,
@@ -4991,21 +4991,43 @@ button.mass-entry-btn.sidebar-action-btn:disabled {
 @media (max-width: 1450px) { .wishlist-section__cards--trend { grid-template-columns: minmax(0, 1fr); } }
 
 /* A collection row pairs its checkbox with a way to open it on its own. */
-.collections-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.collections-row .collections-checkbox-label { flex: 1; min-width: 0; }
+.collections-row { display: flex; align-items: center; gap: 4px; padding-block: 2px; }
+.collections-row__main { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; }
+.section-sidebar .collections-row .collections-checkbox-label { flex: 1; min-width: 20px; margin: 0; gap: 4px; line-height: 1.4; }
+.collections-row .collections-checkbox-label input { flex: 0 0 16px; margin: 0; }
+.collections-checkbox-label > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.collections-row__printings { display: flex; align-items: center; gap: 2px; flex: 0 0 auto; }
+.collections-row__printings .collection-printing-icon { min-width: 16px; height: 20px; padding: 0; border: 0; border-radius: 0; background: transparent; }
+.collections-row__printing-more { color: var(--text-muted); font-size: 10px; white-space: nowrap; }
+.collections-row__actions { display: flex; align-items: center; flex: 0 0 auto; }
 /* Subcollections are indented by depth, with a guide line so a long list still reads as a
    tree once the parent has scrolled out of view. */
 .collections-row--nested { border-left: 1px solid var(--border); }
 /* The collection's printing, as a quiet tag beside its name. */
 .collection-printing-tag { flex: 0 0 auto; padding: 1px 7px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-muted); color: var(--text-muted); font-size: var(--font-size-xs); white-space: nowrap; }
-.section-sidebar .collections-view-btn { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; margin: 0; padding: 4px 7px; border: 0; background: transparent; color: var(--accent); font-size: 11px; white-space: nowrap; cursor: pointer; }
+.collection-printing-icon { display: inline-flex; align-items: center; justify-content: center; gap: 2px; flex: 0 0 auto; min-width: 24px; height: 24px; box-sizing: border-box; padding: 3px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-muted); color: var(--text-muted); }
+.collection-printing-icon svg { flex: 0 0 auto; }
+.collection-printing-icon__edition { font-size: 10px; font-weight: 700; line-height: 1; }
+.collections-printing-legend { margin-bottom: 10px; color: var(--text-muted); font-size: var(--font-size-xs); }
+.collections-printing-legend summary { width: fit-content; cursor: pointer; padding-block: 4px; }
+.collections-printing-legend summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.collections-printing-legend__items { display: grid; gap: 6px; padding-top: 6px; }
+.collections-printing-legend__items > div { display: flex; align-items: center; gap: 8px; }
+.section-sidebar .collections-view-btn { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 36px; width: 36px; height: 36px; box-sizing: border-box; margin: 0; padding: 0; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--accent); cursor: pointer; }
 .section-sidebar .collections-view-btn:hover { background: var(--accent-soft); }
-.section-sidebar .collections-view-btn[aria-pressed="true"] { background: var(--accent-soft); }
-.section-sidebar .collections-mark-btn { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; margin: 0; padding: 4px 7px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--warning); font-size: 11px; white-space: nowrap; cursor: pointer; }
+.section-sidebar .collections-view-btn[aria-pressed="true"] { border-color: currentColor; background: var(--accent-soft); }
+.section-sidebar .collections-view-btn:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.section-sidebar .collections-mark-btn { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 36px; width: 36px; height: 36px; box-sizing: border-box; margin: 0; padding: 0; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--warning); cursor: pointer; }
 .section-sidebar .collections-mark-btn--wish { color: var(--wish-mark); }
 .section-sidebar .collections-mark-btn[aria-pressed="true"] { border-color: currentColor; background: var(--surface-muted); }
 .section-sidebar .collections-mark-btn:hover { background: var(--surface-muted); }
 .section-sidebar .collections-mark-btn:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.section-sidebar .collections-add-btn { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 36px; width: 36px; height: 36px; box-sizing: border-box; margin: 0; padding: 0; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer; }
+.section-sidebar .collections-add-btn:hover:not(:disabled):not(.is-armed) { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.section-sidebar .collections-add-btn.is-armed { border-color: var(--warning); background: color-mix(in srgb, var(--warning) 18%, transparent); color: var(--warning); }
+.section-sidebar .collections-add-btn:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.section-sidebar .collections-add-btn:disabled { opacity: .4; cursor: not-allowed; }
+.section-sidebar .collections-row__actions button { flex-basis: 26px; width: 26px; height: 30px; }
 .collections-mark-help { display: block; margin-bottom: 10px; color: var(--text-muted); }
 
 .collection-marked { --collection-mark: var(--warning); }
@@ -5054,7 +5076,7 @@ button.view-mode-badge--collection:hover { filter: brightness(1.12); }
 .wishlist-tree-row:hover { background: var(--surface-muted); }
 .wishlist-tree-row.is-selected { background: var(--wishlist-soft); color: var(--wishlist); }
 .wishlists .wishlist-tree-row button { border: 0; background: transparent; margin: 0; padding: 5px; color: inherit; }
-.wishlists .wishlist-tree-name { flex: 1; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wishlists .wishlist-tree-name { flex: 1; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.4; }
 .wishlist-tree-toggle, .wishlist-tree-leaf { width: 22px; flex: 0 0 22px; text-align: center; color: var(--text-muted); }
 .wishlist-tree-count { color: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 .wishlists .wishlist-tree-more { visibility: hidden; font-size: 18px; line-height: 1; }
@@ -6095,6 +6117,9 @@ button.view-mode-badge--collection:hover { filter: brightness(1.12); }
   background: color-mix(in srgb, var(--warning) 18%, transparent);
   color: var(--warning);
 }
+
+.wishlists .wishlist-tree-row .wishlist-tree-view,
+.wishlists .wishlist-tree-row .wishlist-tree-arm { justify-content: center; flex: 0 0 26px; width: 26px; height: 30px; box-sizing: border-box; padding: 0; }
 
 .collections-own__name {
   display: flex;

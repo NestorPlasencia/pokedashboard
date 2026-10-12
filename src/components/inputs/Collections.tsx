@@ -3,6 +3,8 @@ import { BookmarkCheck, Eye } from "lucide-react";
 import { useOptionsContext } from "../../context/OptionsContext";
 import { useCardContext } from "../../context/CardContext";
 import { CollapsibleSection } from "../ui/CollapsibleSection";
+import { CollectionPrintingBadge } from "../ui/CollectionPrintingBadge";
+import { CollectionAddButton } from "../ui/CollectionAddButton";
 import { updateUrlParams } from "../../utils/urlParams";
 import type { CollectionFilterOptions, ConditionKey } from "../../types/dashboard";
 import { useAuth } from "../../context/AuthContext";
@@ -38,6 +40,7 @@ export const Collections = () => {
   const isViewingCollection = viewMode.kind === 'collection';
 
   const childrenOf = useMemo(() => childrenByParent(collections), [collections]);
+  const printingTypes = useMemo(() => [...new Set(collections.flatMap(collection => collection.printings))], [collections]);
   // A collection whose parent is not in the list - a name the snapshot reported before the
   // row itself arrived - would otherwise be drawn nowhere, so it surfaces at the root
   // rather than disappearing from the filter entirely.
@@ -181,49 +184,64 @@ export const Collections = () => {
           className={`collections-row${depth > 0 ? ' collections-row--nested' : ''}`}
           style={depth > 0 ? { marginLeft: depth * 10, paddingLeft: 6 } : undefined}
         >
-          <label className="collections-checkbox-label">
-            <input
-              type="checkbox"
-              value={collection.name}
-              checked={collectionFilter.selectedCollections.includes(collection.name)}
-              onChange={() => handleCollectionsChange(collection.name)}
-              aria-label={`Select collection ${collection.name}`}
-            />
-            <span>{collection.name}</span>
-          </label>
-          {/* The printings behind the collection, so its type is readable without
-              opening it - a hand-kept collection simply has none. */}
-          {collection.printings.map((printing) => (
-            <span key={printing} className="collection-printing-tag">{printing}</span>
-          ))}
-          <button
-            type="button"
-            className="collections-view-btn"
-            title={isViewed ? "Stop viewing this collection" : "Add this collection to the view"}
-            aria-label={`${isViewed ? "Stop viewing" : "View"} cards in ${collection.name}`}
-            onClick={() => {
-              const next = toggleViewedCollection(viewMode, collection.name);
-              if (!isViewed && next.kind === 'collection') browseCollections(next.names);
-              else setViewMode(next);
-            }}
-            aria-pressed={isViewed}
-          >
-            <Eye size={13} aria-hidden="true" /> View
-          </button>
-          <button
-            type="button"
-            className={`collections-mark-btn${collection.kind === 'wishlist' ? ' collections-mark-btn--wish' : ''}`}
-            title="Highlight cards in this collection without filtering the results"
-            aria-label={`Mark cards in ${collection.name}`}
-            aria-pressed={markedCollections.includes(collection.name)}
-            onClick={() => {
-              if (!requireSession()) return;
-              setMarkedCollections(current => current.includes(collection.name)
-                ? current.filter(name => name !== collection.name) : [...current, collection.name]);
-            }}
-          >
-            <BookmarkCheck size={13} aria-hidden="true" /> Marcar
-          </button>
+          <div className="collections-row__main">
+            <label className="collections-checkbox-label">
+              <input
+                type="checkbox"
+                value={collection.name}
+                checked={collectionFilter.selectedCollections.includes(collection.name)}
+                onChange={() => handleCollectionsChange(collection.name)}
+                aria-label={`Select collection ${collection.name}`}
+              />
+              <span title={collection.name}>{collection.name}</span>
+            </label>
+            {collection.printings.length > 0 && (
+              <div className="collections-row__printings">
+                {collection.printings.slice(0, 2).map((printing) => <CollectionPrintingBadge key={printing} printing={printing} />)}
+                {collection.printings.length > 2 && (
+                  <span
+                    className="collections-row__printing-more"
+                    role="img"
+                    aria-label={`More printings: ${collection.printings.slice(2).join(", ")}`}
+                    title={collection.printings.slice(2).join(", ")}
+                  >
+                    +{collection.printings.length - 2}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="collections-row__actions">
+            <button
+              type="button"
+              className="collections-view-btn"
+              title={isViewed ? "Stop viewing this collection" : "Add this collection to the view"}
+              aria-label={`${isViewed ? "Stop viewing" : "View"} cards in ${collection.name}`}
+              onClick={() => {
+                const next = toggleViewedCollection(viewMode, collection.name);
+                if (!isViewed && next.kind === 'collection') browseCollections(next.names);
+                else setViewMode(next);
+              }}
+              aria-pressed={isViewed}
+            >
+              <Eye size={16} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className={`collections-mark-btn${collection.kind === 'wishlist' ? ' collections-mark-btn--wish' : ''}`}
+              title="Highlight cards in this collection without filtering the results"
+              aria-label={`Mark cards in ${collection.name}`}
+              aria-pressed={markedCollections.includes(collection.name)}
+              onClick={() => {
+                if (!requireSession()) return;
+                setMarkedCollections(current => current.includes(collection.name)
+                  ? current.filter(name => name !== collection.name) : [...current, collection.name]);
+              }}
+            >
+              <BookmarkCheck size={16} aria-hidden="true" />
+            </button>
+            <CollectionAddButton collection={collection} />
+          </div>
         </div>
         {children.map((child) => renderCollectionRow(child, depth + 1))}
       </div>
@@ -248,6 +266,19 @@ export const Collections = () => {
         >
           <p>Select collections:</p>
           <small className="collections-mark-help">Marcar resalta sus cartas sin cambiar los filtros. Incluye las subcolecciones.</small>
+          {printingTypes.length > 0 && (
+            <details className="collections-printing-legend">
+              <summary>Tipos de impresión</summary>
+              <div className="collections-printing-legend__items">
+                {printingTypes.map(printing => (
+                  <div key={printing}>
+                    <CollectionPrintingBadge printing={printing} />
+                    <span>{printing}</span>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
           {markedCollections.length > 0 && (
             <button type="button" className="collections-reset-btn" onClick={() => setMarkedCollections([])}>
               Limpiar marcas
