@@ -1,4 +1,4 @@
-import { BookOpen, ChartNoAxesCombined, LayoutGrid, Library, Settings, Sigma, SlidersHorizontal, type LucideIcon } from "lucide-react";
+import { LayoutGrid, Sigma, SlidersHorizontal, type LucideIcon } from "lucide-react";
 import { useWishlists } from "../context/WishlistsContext";
 import { useOwnedCollections } from "../context/OwnedCollectionsContext";
 import React, { Suspense, lazy, useEffect, useMemo, useState } from "react";
@@ -13,6 +13,7 @@ import { Collections } from "./inputs/Collections";
 import { useLoadCards } from "../hooks/useLoadCards";
 import { useCardFilters } from "../hooks/useCardFilters";
 import { Summary } from "./ui/Summary";
+import { SectionsMenu } from "./ui/SectionsMenu";
 import { CollectionsPage } from "./pages/CollectionsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { PokedexPage } from "./pages/PokedexPage";
@@ -36,9 +37,9 @@ const ReportsPage = lazy(() => import("./pages/ReportsPage").then(module => ({ d
 type MobilePanel = 'filters' | 'cards' | 'summary';
 
 const MOBILE_NAVIGATION: { id: MobilePanel; label: string; Icon: LucideIcon }[] = [
-  { id: 'filters', label: 'Filters', Icon: SlidersHorizontal },
-  { id: 'cards', label: 'Cards', Icon: LayoutGrid },
-  { id: 'summary', label: 'Summary', Icon: Sigma },
+  { id: 'filters', label: 'Filtros', Icon: SlidersHorizontal },
+  { id: 'cards', label: 'Cartas', Icon: LayoutGrid },
+  { id: 'summary', label: 'Resumen', Icon: Sigma },
 ];
 
 export const Main: React.FC = () => {
@@ -256,7 +257,7 @@ export const Main: React.FC = () => {
       )}
       {/* Outside the catalog so it stays on every page. A panel button from another page
           returns to the catalog with that panel open. */}
-      <nav className="mobile-panel-nav" aria-label="Mobile sections">
+      <nav className="mobile-panel-nav" aria-label="Paneles principales en móvil">
         {MOBILE_NAVIGATION.map(({ id, label, Icon }) => {
           const isActive = route === 'catalog' && mobilePanel === id;
           return (
@@ -275,44 +276,12 @@ export const Main: React.FC = () => {
             </button>
           );
         })}
-        {/* A page rather than a panel, but on a phone this bar is where the thumb looks. */}
-        <button
-          type="button"
-          className={route === 'collections' ? 'is-active' : ''}
-          aria-current={route === 'collections' ? 'page' : undefined}
-          onClick={() => navigate('collections')}
-        >
-          <Library className="mobile-panel-nav__icon" size={20} aria-hidden="true" />
-          <span>Collections</span>
-        </button>
-        <button
-          type="button"
-          className={route === 'pokedex' ? 'is-active' : ''}
-          aria-current={route === 'pokedex' ? 'page' : undefined}
-          onClick={() => navigate('pokedex')}
-        >
-          <BookOpen className="mobile-panel-nav__icon" size={20} aria-hidden="true" />
-          <span>Pokédex</span>
-        </button>
-        <button type="button" className={route === 'reports' ? 'is-active' : ''}
-          aria-current={route === 'reports' ? 'page' : undefined} onClick={() => navigate('reports')}>
-          <ChartNoAxesCombined className="mobile-panel-nav__icon" size={20} aria-hidden="true" />
-          <span>Informes</span>
-        </button>
-        <button
-          type="button"
-          className={route === 'settings' ? 'is-active' : ''}
-          aria-current={route === 'settings' ? 'page' : undefined}
-          onClick={() => navigate('settings')}
-        >
-          <Settings className="mobile-panel-nav__icon" size={20} aria-hidden="true" />
-          <span>Settings</span>
-        </button>
+        <SectionsMenu route={route} />
       </nav>
       {/* Desktop's counterpart to the bar above: the same destinations, driving the two
           asides instead of swapping the whole screen. Filters and Summary each toggle
           their own aside - both can be open together - while Cards clears both at once. */}
-      <nav className="desktop-dock" aria-label="Quick panels">
+      <nav className="desktop-dock" aria-label="Paneles principales">
         <button
           type="button"
           className={route === 'catalog' && !leftCollapsed ? 'is-active' : ''}
@@ -320,7 +289,7 @@ export const Main: React.FC = () => {
           onClick={toggleLeftAside}
         >
           <SlidersHorizontal size={16} aria-hidden="true" />
-          <span>Filters</span>
+          <span>Filtros</span>
         </button>
         <button
           type="button"
@@ -329,7 +298,7 @@ export const Main: React.FC = () => {
           onClick={openCardsView}
         >
           <LayoutGrid size={16} aria-hidden="true" />
-          <span>Cards</span>
+          <span>Cartas</span>
         </button>
         <button
           type="button"
@@ -338,40 +307,9 @@ export const Main: React.FC = () => {
           onClick={toggleRightAside}
         >
           <Sigma size={16} aria-hidden="true" />
-          <span>Summary</span>
+          <span>Resumen</span>
         </button>
-        <button
-          type="button"
-          className={route === 'collections' ? 'is-active' : ''}
-          aria-current={route === 'collections' ? 'page' : undefined}
-          onClick={() => navigate('collections')}
-        >
-          <Library size={16} aria-hidden="true" />
-          <span>Collections</span>
-        </button>
-        <button
-          type="button"
-          className={route === 'pokedex' ? 'is-active' : ''}
-          aria-current={route === 'pokedex' ? 'page' : undefined}
-          onClick={() => navigate('pokedex')}
-        >
-          <BookOpen size={16} aria-hidden="true" />
-          <span>Pokédex</span>
-        </button>
-        <button type="button" className={route === 'reports' ? 'is-active' : ''}
-          aria-current={route === 'reports' ? 'page' : undefined} onClick={() => navigate('reports')}>
-          <ChartNoAxesCombined size={16} aria-hidden="true" />
-          <span>Informes</span>
-        </button>
-        <button
-          type="button"
-          className={route === 'settings' ? 'is-active' : ''}
-          aria-current={route === 'settings' ? 'page' : undefined}
-          onClick={() => navigate('settings')}
-        >
-          <Settings size={16} aria-hidden="true" />
-          <span>Settings</span>
-        </button>
+        <SectionsMenu route={route} />
       </nav>
     </>
   );
