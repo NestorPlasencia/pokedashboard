@@ -2,28 +2,17 @@ import type { PublicCollectionCard } from '../services/publicCollection';
 import { DEFAULT_RARITIES_ORDER } from '../constants/constants.ts';
 
 export const PUBLIC_COLLECTION_FACETS = [
-  { key: 'set_name', label: 'Set' },
-  { key: 'rarity', label: 'Rareza' },
-  { key: 'printing', label: 'Impresión' },
-  { key: 'condition', label: 'Condición' },
-  { key: 'language', label: 'Idioma' },
+  { key: 'set_name' }, { key: 'rarity' }, { key: 'printing' }, { key: 'condition' }, { key: 'language' },
 ] as const;
-type Facet = typeof PUBLIC_COLLECTION_FACETS[number]['key'];
-export type PublicCollectionFilters = Record<Facet, string> & {
-  quantity: 'all' | 'single' | 'duplicates';
-};
+export type PublicCollectionFacet = typeof PUBLIC_COLLECTION_FACETS[number]['key'];
+type Facet = PublicCollectionFacet;
+export type PublicCollectionFilters = Record<Facet, string>;
 export const EMPTY_PUBLIC_COLLECTION_FILTERS: PublicCollectionFilters = {
-  set_name: '', rarity: '', printing: '', condition: '', language: '', quantity: 'all',
+  set_name: '', rarity: '', printing: '', condition: '', language: '',
 };
 export const PUBLIC_COLLECTION_ORDERS = [
-  { value: 'name-asc', label: 'Nombre A–Z' },
-  { value: 'name-desc', label: 'Nombre Z–A' },
-  { value: 'number-asc', label: 'Número ↑' },
-  { value: 'number-desc', label: 'Número ↓' },
-  { value: 'set-number', label: 'Set y número' },
-  { value: 'rarity', label: 'Rareza' },
-  { value: 'quantity-asc', label: 'Quantity ↑' },
-  { value: 'quantity-desc', label: 'Quantity ↓' },
+  { value: 'name-asc' }, { value: 'name-desc' }, { value: 'number-asc' }, { value: 'number-desc' },
+  { value: 'set-number' }, { value: 'rarity' }, { value: 'price-asc' }, { value: 'price-desc' },
 ] as const;
 export type PublicCollectionOrder = typeof PUBLIC_COLLECTION_ORDERS[number]['value'];
 
@@ -42,9 +31,9 @@ const compareOptional = (a: string | null, b: string | null, direction = 1) => {
   return direction * collator.compare(a, b);
 };
 
-export function publicCollectionFilterOptions(cards: PublicCollectionCard[], printingOrder: readonly string[]) {
+export function publicCollectionFilterOptions(cards: PublicCollectionCard[], printingOrder: readonly string[], missingLabel = 'Not specified') {
   return Object.fromEntries(PUBLIC_COLLECTION_FACETS.map(({ key }) => {
-    const values = new Map(cards.map(card => [facetId(card[key]), card[key]?.trim() || 'Sin especificar']));
+    const values = new Map(cards.map(card => [facetId(card[key]), card[key]?.trim() || missingLabel]));
     const options = [...values].map(([value, label]) => ({ value, label }));
     options.sort((a, b) => {
       if (a.value === 'missing') return b.value === 'missing' ? 0 : 1;
@@ -65,12 +54,11 @@ export function publicCollectionFilterOptions(cards: PublicCollectionCard[], pri
 
 /** All exploration stays inside the already-public RPC result. */
 export function publicCollectionResults(
-  cards: PublicCollectionCard[], search: string, filters: PublicCollectionFilters, order: PublicCollectionOrder
+  cards: PublicCollectionCard[], search: string, filters: PublicCollectionFilters, order: PublicCollectionOrder,
+  prices: ReadonlyMap<PublicCollectionCard, number> = new Map(),
 ) {
   const words = normalize(search).trim().split(/\s+/).filter(Boolean);
   const result = cards.filter(card => {
-    if (filters.quantity === 'single' && card.quantity !== 1) return false;
-    if (filters.quantity === 'duplicates' && card.quantity <= 1) return false;
     if (PUBLIC_COLLECTION_FACETS.some(({ key }) => filters[key] && filters[key] !== facetId(card[key]))) return false;
     const text = normalize([card.name, card.set_name, card.number, card.number && `#${card.number}`,
       card.rarity, card.printing, card.condition, card.language].filter(Boolean).join(' '));
@@ -88,8 +76,14 @@ export function publicCollectionResults(
       case 'number-desc': comparison = compareOptional(a.number, b.number, -1); break;
       case 'set-number': comparison = compareOptional(a.set_name, b.set_name) || compareOptional(a.number, b.number); break;
       case 'rarity': comparison = rarityRank(a.rarity) - rarityRank(b.rarity) || compareOptional(a.rarity, b.rarity); break;
-      case 'quantity-asc': comparison = a.quantity - b.quantity; break;
-      case 'quantity-desc': comparison = b.quantity - a.quantity; break;
+      case 'price-asc':
+      case 'price-desc': {
+        const left = prices.get(a), right = prices.get(b);
+        if (left === undefined) return right === undefined ? tieBreak(a, b) : 1;
+        if (right === undefined) return -1;
+        comparison = order === 'price-asc' ? left - right : right - left;
+        break;
+      }
     }
     return comparison || tieBreak(a, b);
   });

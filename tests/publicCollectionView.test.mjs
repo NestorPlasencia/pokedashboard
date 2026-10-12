@@ -18,16 +18,16 @@ test('search combines words across names, accented set names and collector numbe
   assert.equal(results(cards, 'pikachu Set A', empty, 'name-asc').length, 0);
 });
 
-test('facets, duplicates and search intersect without changing copy quantities', () => {
+test('facets and search intersect without filtering or changing copy quantities', () => {
   const cards = [
     card(1, { name: 'Absol', printing: 'Reverse Holofoil', rarity: 'Rare', quantity: 3 }),
     card(2, { name: 'Absol', printing: 'Normal', rarity: 'Rare', quantity: 2 }),
     card(3, { name: 'Absol', printing: 'Reverse Holofoil', rarity: 'Rare', quantity: 1 }),
   ];
-  const filters = { ...empty, set_name: 'value:Set A', rarity: 'value:Rare', printing: 'value:Reverse Holofoil', quantity: 'duplicates' };
-  const selected = results(cards, 'absol', filters, 'quantity-desc');
-  assert.deepEqual(selected.map(c => [c.product_id, c.quantity]), [[1, 3]]);
-  assert.equal(results(cards, '', { ...empty, quantity: 'single' }, 'name-asc')[0].product_id, 3);
+  const filters = { ...empty, set_name: 'value:Set A', rarity: 'value:Rare', printing: 'value:Reverse Holofoil' };
+  const selected = results(cards, 'absol', filters, 'name-asc');
+  assert.deepEqual(selected.map(c => [c.product_id, c.quantity]), [[1, 3], [3, 1]]);
+  assert.equal('quantity' in empty, false);
   assert.equal(cards.length, 3);
   assert.equal(cards[0].quantity, 3);
 });
@@ -41,7 +41,7 @@ test('missing metadata is filterable and distinct from a real label called missi
 test('printing options preserve the canonical order, unknown labels and missing values', () => {
   const cards = ['Normal', 'Custom', null, 'Reverse Holofoil', 'Holofoil', 'Normal'].map((printing, i) => card(i, { printing }));
   assert.deepEqual(options(cards, ['Holofoil', 'Reverse Holofoil', 'Normal']).printing.map(o => o.label),
-    ['Holofoil', 'Reverse Holofoil', 'Normal', 'Custom', 'Sin especificar']);
+    ['Holofoil', 'Reverse Holofoil', 'Normal', 'Custom', 'Not specified']);
 });
 
 test('collector numbers sort naturally, including prefixes, with missing values last in both directions', () => {
@@ -49,12 +49,6 @@ test('collector numbers sort naturally, including prefixes, with missing values 
   assert.deepEqual(results(cards, '', empty, 'number-asc').map(c => c.product_id), [2, 1, 5, 4, 3]);
   assert.deepEqual(results(cards, '', empty, 'number-desc').map(c => c.product_id), [4, 5, 1, 2, 3]);
   assert.equal(cards[0].product_id, 1, 'the original RPC result is not reordered');
-});
-
-test('quantity sorting uses copy counts rather than catalog or product IDs', () => {
-  const cards = [card(100, { quantity: 2 }), card(1, { quantity: 9 }), card(200, { quantity: 1 })];
-  assert.deepEqual(results(cards, '', empty, 'quantity-desc').map(c => c.quantity), [9, 2, 1]);
-  assert.deepEqual(results(cards, '', empty, 'quantity-asc').map(c => c.quantity), [1, 2, 9]);
 });
 
 test('set, name and rarity ordering use public fields, with unknown rarities after known ones', () => {

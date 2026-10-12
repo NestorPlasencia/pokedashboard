@@ -5795,6 +5795,46 @@ button.view-mode-badge--collection:hover { filter: brightness(1.12); }
   margin: 0 0 6px;
 }
 
+.public-collection__title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Outside the header (loading, missing) the picker still sits on the right. */
+.public-collection > .public-collection__locale {
+  margin: 0 0 16px auto;
+}
+
+.public-collection__locale {
+  display: flex;
+  flex-shrink: 0;
+  width: fit-content;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.public-collection__locale button {
+  padding: 4px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.public-collection__locale button + button {
+  border-left: 1px solid var(--border);
+}
+
+.public-collection__locale button[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 .public-collection__meta {
   display: flex;
   flex-wrap: wrap;
@@ -5930,6 +5970,14 @@ button.view-mode-badge--collection:hover { filter: brightness(1.12); }
   color: var(--text);
 }
 
+.public-collection__value strong {
+  color: var(--success);
+}
+
+.public-collection__results:empty {
+  display: none;
+}
+
 .public-collection__results {
   display: flex;
   align-items: center;
@@ -5946,6 +5994,51 @@ button.view-mode-badge--collection:hover { filter: brightness(1.12); }
   background: transparent;
   color: var(--accent);
   cursor: pointer;
+}
+
+.public-collection__price-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin: -4px 0 16px;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.public-collection__price-status button {
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.public-collection__market-price {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-top: 4px;
+  /* Label, price and link share one line in either language. */
+  white-space: nowrap;
+}
+
+.public-collection__market-price strong {
+  color: var(--success);
+}
+
+.public-collection__tcgplayer {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.public-collection__tcgplayer:hover,
+.public-collection__tcgplayer:focus-visible {
+  text-decoration: underline;
 }
 
 @media (max-width: 600px) {
@@ -6049,6 +6142,14 @@ button.view-mode-badge--collection:hover { filter: brightness(1.12); }
   color: var(--text);
   font-size: var(--font-size-sm);
   line-height: 1.3;
+}
+
+/* One line each, so every card's details take the same height; the title shows the rest. */
+.public-collection__card-line {
+  min-height: 1.3em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Explicit quantities, including one copy, sit below the art. */
