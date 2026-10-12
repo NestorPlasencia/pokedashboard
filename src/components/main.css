@@ -6167,6 +6167,34 @@ button.view-mode-badge--collection:hover { filter: brightness(1.12); }
   font-size: var(--font-size-xs);
 }
 
+/* Placed after the base card rules so these overrides win. */
+@media (max-width: 600px) {
+  .public-collection {
+    padding: 16px 12px 40px;
+  }
+
+  .public-collection__header h1 {
+    font-size: 1.5rem;
+  }
+
+  /* Two cards per row down to the narrowest phones; the minimum would leave only one. */
+  .public-collection__cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 10px;
+  }
+
+  /* Too narrow for price and link side by side, so every card moves the link below. */
+  .public-collection__market-price {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+
+  .public-collection__tcgplayer {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+}
+
 .collections-page__empty {
   margin: 0;
   padding: 16px;
