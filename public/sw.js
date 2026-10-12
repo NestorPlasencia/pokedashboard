@@ -6,7 +6,8 @@
  *   - Images. Card art is loaded by <img src>, which nothing in the app can intercept, so
  *     it is cached here: cache-first, since a card image never changes once published.
  *   - The app shell. The built HTML/JS/CSS is cached so the dashboard still starts with no
- *     connection, using stale-while-revalidate so an update lands on the next visit.
+ *     connection. Navigations prefer the network so a reload opens the current build;
+ *     content-hashed assets can use their cached copy.
  *
  * Everything else - the JSON APIs - is deliberately left alone. src/services/offlineCache.ts
  * caches those with TTLs and stale-fallback semantics that a blanket rule here would break.
@@ -55,6 +56,16 @@ self.addEventListener('activate', event => {
         .map(name => caches.delete(name))
     );
     await self.clients.claim();
+    // Shared pages are read-only. Refresh them when this worker takes over so visitors
+    // with the old cache-first worker see the update without clearing browser storage.
+    // Other pages may contain unfinished inventory edits and must stay in place.
+    if (CACHE_APP_SHELL && self.clients.matchAll) {
+      const clients = await self.clients.matchAll({ type: 'window' });
+      await Promise.all(clients.filter(client => {
+        const url = new URL(client.url);
+        return url.origin === self.location.origin && url.pathname.startsWith('/c/');
+      }).map(client => client.navigate(client.url).catch(() => {})));
+    }
   })());
 });
 
@@ -98,7 +109,7 @@ const handleImage = async request => {
   }
 };
 
-/** Stale-while-revalidate: instant from cache, refreshed in the background for next time. */
+/** Fresh HTML online; cached HTML offline. Built assets have content-hashed URLs. */
 const handleAppShell = async request => {
   const cache = await caches.open(APP_CACHE);
   // A navigation's cache key is its whole URL, query string included - and this app keeps
@@ -108,14 +119,20 @@ const handleAppShell = async request => {
   // failed outright rather than starting the app. They all share the shell entry instead.
   const key = request.mode === 'navigate' ? SHELL_KEY : request;
   const hit = await cache.match(key);
-  const network = fetch(request)
-    .then(response => {
-      if (response.ok) cache.put(key, response.clone());
+  if (hit && request.mode !== 'navigate') return hit;
+  const network = fetch(request, { cache: 'no-cache' })
+    .then(async response => {
+      if (response.ok) {
+        try { await cache.put(key, response.clone()); } catch {
+          // A full cache must not hide a successful online update.
+        }
+      }
       return response;
     })
     .catch(() => null);
-  if (hit) return hit;
   const response = await network;
+  if (response?.ok) return response;
+  if (hit) return hit;
   if (response) return response;
   return Response.error();
 };

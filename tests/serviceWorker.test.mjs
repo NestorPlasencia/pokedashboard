@@ -25,13 +25,13 @@ let fetchCount;
 const imageCache = () => cacheMap.get('pokedashboard-images-v1') ?? new FakeCache();
 
 /** Loads public/sw.js into a fake worker scope registered with the given `shell` flag. */
-const loadWorker = (shell, caches, into) => {
+const loadWorker = (shell, caches, into, clients = { claim: async () => {} }) => {
   const context = {
     self: {
       location: { origin: 'https://app.example', href: `https://app.example/sw.js?shell=${shell}` },
       addEventListener: (type, handler) => { into[type] = handler; },
       skipWaiting: () => {},
-      clients: { claim: async () => {} },
+      clients,
     },
     caches,
     fetch: async (request) => {
@@ -128,6 +128,42 @@ test('a saved link opens with no connection, whatever its query string', async (
   fetchMode = 'fail';
   const savedLink = request('https://app.example/collections?series=Base&collections=Hits', { mode: 'navigate' });
   assert.equal((await dispatch(savedLink)).__from, 'network', 'served from the stored shell');
+});
+
+test('reloading a shared link returns fresh HTML even when the old shell is cached', async () => {
+  const appCache = cacheMap.get('pokedashboard-app-v1') ?? new FakeCache();
+  cacheMap.set('pokedashboard-app-v1', appCache);
+  appCache.store.set('/index.html', { ok: true, __from: 'older-shell' });
+  const navigation = request('https://app.example/c/shared-id', { mode: 'navigate' });
+  assert.equal((await dispatch(navigation)).__from, 'network');
+  assert.equal(appCache.store.get('/index.html').__from, 'network');
+  fetchMode = 'fail';
+  assert.equal((await dispatch(navigation)).__from, 'network', 'the refreshed shell still opens offline');
+});
+
+test('worker activation refreshes shared pages but leaves unfinished private views alone', async () => {
+  const refreshed = [];
+  const clients = ['https://app.example/c/public-id', 'https://app.example/collections', 'https://app.example/?addCollection=leaf'];
+  const handlers = {};
+  loadWorker('1', { keys: async () => [], delete: async () => true }, handlers, {
+    claim: async () => {},
+    matchAll: async () => clients.map(url => ({ url, navigate: async destination => refreshed.push(destination) })),
+  });
+  let finished;
+  handlers.activate({ waitUntil: promise => { finished = promise; } });
+  await finished;
+  assert.deepEqual(refreshed, ['https://app.example/c/public-id']);
+});
+
+test('a full cache does not hide a successful online update', async () => {
+  const fullCache = new FakeCache();
+  fullCache.store.set('/index.html', { ok: true, __from: 'older-shell' });
+  fullCache.put = async () => { throw new Error('Quota exceeded'); };
+  const previous = cacheMap.get('pokedashboard-app-v1');
+  cacheMap.set('pokedashboard-app-v1', fullCache);
+  try {
+    assert.equal((await dispatch(request('https://app.example/c/shared-id', { mode: 'navigate' }))).__from, 'network');
+  } finally { cacheMap.set('pokedashboard-app-v1', previous); }
 });
 
 test('activating drops old versions but never the app data caches', async () => {

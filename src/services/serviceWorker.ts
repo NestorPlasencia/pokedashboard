@@ -16,7 +16,7 @@ export const registerServiceWorker = (): void => {
   if (!('serviceWorker' in navigator)) return;
   // Registering during load would compete with the first paint for bandwidth.
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register(workerUrl).catch(error => {
+    navigator.serviceWorker.register(workerUrl, { updateViaCache: 'none' }).catch(error => {
       // No worker means no offline images. The dashboard itself still works.
       console.warn('[cache] Service worker registration failed', error);
     });
