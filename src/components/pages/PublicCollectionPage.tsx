@@ -8,7 +8,7 @@ import {
 import { pathForPublicCollection } from "../../utils/route";
 import { COLLECTION_PRINTING_ORDER } from "../../services/inventory";
 import { loadHierarchy } from "../../services/cards";
-import { loadPublicCatalogImages, loadPublicMarketPrices, publicCollectionValue, publicMarketQuote, publicTcgplayerUrl, type PublicMarketSnapshot } from "../../utils/publicMarketPrices";
+import { loadPublicCatalog, loadPublicMarketPrices, publicCollectionValue, publicMarketQuote, publicTcgplayerUrl, type PublicMarketSnapshot } from "../../utils/publicMarketPrices";
 import {
   EMPTY_PUBLIC_COLLECTION_FILTERS,
   PUBLIC_COLLECTION_FACETS,
@@ -138,6 +138,7 @@ const PublicCollectionExplorer = ({ collection, locale, text, picker }: {
   const [priceState, setPriceState] = useState<{ kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; snapshot: PublicMarketSnapshot }>({ kind: 'loading' });
   const [priceAttempt, setPriceAttempt] = useState(0);
   const [catalogImages, setCatalogImages] = useState(() => new Map<PublicCollection['cards'][number], string>());
+  const [pokedex, setPokedex] = useState(() => new Map<PublicCollection['cards'][number], number>());
   useEffect(() => {
     if (!collection.cards.length) return;
     const controller = new AbortController();
@@ -148,8 +149,8 @@ const PublicCollectionExplorer = ({ collection, locale, text, picker }: {
       loadPublicMarketPrices(collection.cards, hierarchy, controller.signal)
         .then(snapshot => { if (!cancelled) setPriceState({ kind: 'ready', snapshot }); })
         .catch(() => { if (!cancelled) setPriceState({ kind: 'error' }); }),
-      loadPublicCatalogImages(collection.cards, hierarchy, controller.signal)
-        .then(images => { if (!cancelled) setCatalogImages(images); })
+      loadPublicCatalog(collection.cards, hierarchy, controller.signal)
+        .then(catalog => { if (cancelled) return; setCatalogImages(catalog.images); setPokedex(catalog.pokedex); })
         .catch(() => {}),
     ]))
       .catch(() => { if (!cancelled) setPriceState({ kind: 'error' }); })
@@ -161,7 +162,7 @@ const PublicCollectionExplorer = ({ collection, locale, text, picker }: {
   const filterOptions = useMemo(() => publicCollectionFilterOptions(collection.cards, COLLECTION_PRINTING_ORDER, text.notSpecified), [collection.cards, text]);
   const formatNumber = (value: number) => value.toLocaleString(text.intl);
   const marketMoney = useMemo(() => new Intl.NumberFormat(text.intl, { style: 'currency', currency: 'USD' }), [text]);
-  const cards = useMemo(() => publicCollectionResults(collection.cards, search, filters, order, prices), [collection.cards, search, filters, order, prices]);
+  const cards = useMemo(() => publicCollectionResults(collection.cards, search, filters, order, prices, pokedex), [collection.cards, search, filters, order, prices, pokedex]);
   const activeFilters = PUBLIC_COLLECTION_FACETS.filter(({ key }) => filters[key]).length;
   const totalCopies = collection.cards.reduce((sum, card) => sum + card.quantity, 0);
   const shownCopies = cards.reduce((sum, card) => sum + card.quantity, 0);
@@ -226,7 +227,8 @@ const PublicCollectionExplorer = ({ collection, locale, text, picker }: {
           <label className="public-collection__order">
             <ArrowUpDown size={18} aria-hidden="true" />
             <select aria-label={text.orderLabel} value={order} onChange={event => setOrder(event.target.value as PublicCollectionOrder)}>
-              {PUBLIC_COLLECTION_ORDERS.map(option => <option key={option.value} value={option.value}>{text.orders[option.value]}</option>)}
+              {/* Pokédex order appears once the catalog has supplied the numbers. */}
+              {PUBLIC_COLLECTION_ORDERS.filter(option => option.value !== 'pokedex' || pokedex.size > 0).map(option => <option key={option.value} value={option.value}>{text.orders[option.value]}</option>)}
             </select>
           </label>
         </div>

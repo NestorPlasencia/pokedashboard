@@ -73,11 +73,24 @@ export function publicCatalogImage(card: PublicCollectionCard, source: readonly 
   return images.length === 1 ? images[0] : null;
 }
 
-export async function loadPublicCatalogImages(
+/** Lowest National Pokédex number among the product's Pokémon; none for Trainers and Energy. */
+export function publicPokedexNumber(source: readonly SourceCard[]): number | null {
+  const numbers = source.flatMap(candidate => (candidate.pokemonForms ?? []).map(form => form?.pokemonForm?.number))
+    .filter((value): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value > 0);
+  return numbers.length ? Math.min(...numbers) : null;
+}
+
+export type PublicCatalog = {
+  images: Map<PublicCollectionCard, string>;
+  pokedex: Map<PublicCollectionCard, number>;
+};
+
+/** Catalog artwork and Pokédex numbers, read from the same public per-series card lists. */
+export async function loadPublicCatalog(
   cards: readonly PublicCollectionCard[], hierarchy: readonly HierarchySerie[], signal?: AbortSignal,
   request: typeof fetch = fetch,
-): Promise<Map<PublicCollectionCard, string>> {
-  const result = new Map<PublicCollectionCard, string>();
+): Promise<PublicCatalog> {
+  const result: PublicCatalog = { images: new Map(), pokedex: new Map() };
   for (const id of publicPriceSeries(cards, hierarchy)) {
     signal?.throwIfAborted();
     try {
@@ -93,8 +106,11 @@ export async function loadPublicCatalogImages(
         byProduct.set(candidate.tcgPlayerProductId, group);
       }
       for (const card of cards) {
-        const image = publicCatalogImage(card, byProduct.get(card.product_id) ?? []);
-        if (image) result.set(card, image);
+        const source = byProduct.get(card.product_id) ?? [];
+        const image = publicCatalogImage(card, source);
+        if (image) result.images.set(card, image);
+        const pokedex = publicPokedexNumber(source);
+        if (pokedex !== null) result.pokedex.set(card, pokedex);
       }
     } catch (error) { if (signal?.aborted) throw error; }
   }

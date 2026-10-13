@@ -11,8 +11,7 @@ export const EMPTY_PUBLIC_COLLECTION_FILTERS: PublicCollectionFilters = {
   set_name: '', rarity: '', printing: '', condition: '', language: '',
 };
 export const PUBLIC_COLLECTION_ORDERS = [
-  { value: 'name-asc' }, { value: 'name-desc' }, { value: 'number-asc' }, { value: 'number-desc' },
-  { value: 'set-number' }, { value: 'rarity' }, { value: 'price-asc' }, { value: 'price-desc' },
+  { value: 'name-asc' }, { value: 'name-desc' }, { value: 'pokedex' }, { value: 'set-number' }, { value: 'rarity' }, { value: 'price-asc' }, { value: 'price-desc' },
 ] as const;
 export type PublicCollectionOrder = typeof PUBLIC_COLLECTION_ORDERS[number]['value'];
 
@@ -56,6 +55,7 @@ export function publicCollectionFilterOptions(cards: PublicCollectionCard[], pri
 export function publicCollectionResults(
   cards: PublicCollectionCard[], search: string, filters: PublicCollectionFilters, order: PublicCollectionOrder,
   prices: ReadonlyMap<PublicCollectionCard, number> = new Map(),
+  pokedex: ReadonlyMap<PublicCollectionCard, number> = new Map(),
 ) {
   const words = normalize(search).trim().split(/\s+/).filter(Boolean);
   const result = cards.filter(card => {
@@ -72,8 +72,14 @@ export function publicCollectionResults(
     switch (order) {
       case 'name-asc': comparison = collator.compare(a.name, b.name); break;
       case 'name-desc': comparison = collator.compare(b.name, a.name); break;
-      case 'number-asc': comparison = compareOptional(a.number, b.number); break;
-      case 'number-desc': comparison = compareOptional(a.number, b.number, -1); break;
+      case 'pokedex': {
+        // Trainers and Energy have no Pokédex number and follow every Pokémon.
+        const left = pokedex.get(a), right = pokedex.get(b);
+        if (left === undefined) return right === undefined ? tieBreak(a, b) : 1;
+        if (right === undefined) return -1;
+        comparison = left - right;
+        break;
+      }
       case 'set-number': comparison = compareOptional(a.set_name, b.set_name) || compareOptional(a.number, b.number); break;
       case 'rarity': comparison = rarityRank(a.rarity) - rarityRank(b.rarity) || compareOptional(a.rarity, b.rarity); break;
       case 'price-asc':

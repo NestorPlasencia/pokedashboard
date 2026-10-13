@@ -61,7 +61,7 @@ const en = {
   viewOnTcgplayer: (name: string) => `View ${name} on TCGplayer`,
   facets: { set_name: 'Set', rarity: 'Rarity', printing: 'Printing', condition: 'Condition', language: 'Language' } satisfies Record<PublicCollectionFacet, string>,
   orders: {
-    'name-asc': 'Name A–Z', 'name-desc': 'Name Z–A', 'number-asc': 'Number ↑', 'number-desc': 'Number ↓',
+    'name-asc': 'Name A–Z', 'name-desc': 'Name Z–A', pokedex: 'Pokédex',
     'set-number': 'Set and number', rarity: 'Rarity', 'price-asc': 'Price ↑', 'price-desc': 'Price ↓',
   } satisfies Record<PublicCollectionOrder, string>,
 };
@@ -104,7 +104,7 @@ const es: PublicCollectionText = {
   viewOnTcgplayer: name => `Ver ${name} en TCGplayer`,
   facets: { set_name: 'Set', rarity: 'Rareza', printing: 'Impresión', condition: 'Condición', language: 'Idioma' },
   orders: {
-    'name-asc': 'Nombre A–Z', 'name-desc': 'Nombre Z–A', 'number-asc': 'Número ↑', 'number-desc': 'Número ↓',
+    'name-asc': 'Nombre A–Z', 'name-desc': 'Nombre Z–A', pokedex: 'Pokédex',
     'set-number': 'Set y número', rarity: 'Rareza', 'price-asc': 'Precio ↑', 'price-desc': 'Precio ↓',
   },
 };

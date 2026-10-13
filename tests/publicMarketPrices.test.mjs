@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { publicPriceSeries, publicMarketQuote, loadPublicMarketPrices, publicCatalogImage, loadPublicCatalogImages } from '../src/utils/publicMarketPrices.ts';
+import { publicPriceSeries, publicMarketQuote, loadPublicMarketPrices, publicCatalogImage, loadPublicCatalog, publicPokedexNumber } from '../src/utils/publicMarketPrices.ts';
 import { publicCollectionResults, EMPTY_PUBLIC_COLLECTION_FILTERS } from '../src/utils/publicCollectionView.ts';
 
 const card = fields => ({ product_id: 1, name: 'Pikachu', set_name: 'Pokémon GO', number: '001', rarity: 'Common', image_url: null, printing: 'Reverse Holofoil', condition: null, language: null, quantity: 3, ...fields });
@@ -66,12 +66,13 @@ test('catalog artwork belongs to the same product and printing, with no ambiguou
 
 test('catalog images are fetched without credentials and preserve the original on missing data', async () => {
   const original = card({ image_url: 'https://original.example/card.png' });
-  const images = await loadPublicCatalogImages([original], hierarchy, undefined, async (url, init) => {
+  const { images, pokedex } = await loadPublicCatalog([original], hierarchy, undefined, async (url, init) => {
     assert.equal(url, '/api/poke-db/cards?seriesId=14');
     assert.equal(init.credentials, 'omit');
     return Response.json({ items: [{ tcgPlayerProductId: 999, image: 'https://images.example/other.png' }] });
   });
   assert.equal(images.size, 0);
+  assert.equal(pokedex.size, 0);
   assert.equal(original.image_url, 'https://original.example/card.png');
 });
 
@@ -89,4 +90,13 @@ test('collection value multiplies quotes by copies and counts unpriced rows', as
   const { publicCollectionValue } = await import('../src/utils/publicMarketPrices.ts');
   const a = card({ quantity: 3 }), b = card({ quantity: 2 }), c = card({ quantity: 5 });
   assert.deepEqual(publicCollectionValue([a, b, c], new Map([[a, 1.5], [b, 0]])), { amount: 4.5, unpriced: 1 });
+});
+
+test('Pokédex numbers come from the product forms, lowest first, none for Trainers', async () => {
+  assert.equal(publicPokedexNumber([{ pokemonForms: [{ pokemonForm: { number: 150 } }, { pokemonForm: { number: 25 } }] }]), 25);
+  assert.equal(publicPokedexNumber([{ pokemonForms: null }, { pokemonForms: [] }]), null);
+  const pikachu = card({});
+  const { pokedex } = await loadPublicCatalog([pikachu], hierarchy, undefined, async () =>
+    Response.json({ items: [{ tcgPlayerProductId: 1, image: 'https://images.example/p.png', pokemonForms: [{ pokemonForm: { number: 25 } }] }] }));
+  assert.equal(pokedex.get(pikachu), 25);
 });

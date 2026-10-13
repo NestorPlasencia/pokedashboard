@@ -44,11 +44,16 @@ test('printing options preserve the canonical order, unknown labels and missing 
     ['Holofoil', 'Reverse Holofoil', 'Normal', 'Custom', 'Not specified']);
 });
 
-test('collector numbers sort naturally, including prefixes, with missing values last in both directions', () => {
-  const cards = [card(1, { number: '100/200' }), card(2, { number: '9/200' }), card(3, { number: null }), card(4, { number: 'TG10/TG30' }), card(5, { number: 'TG2/TG30' })];
-  assert.deepEqual(results(cards, '', empty, 'number-asc').map(c => c.product_id), [2, 1, 5, 4, 3]);
-  assert.deepEqual(results(cards, '', empty, 'number-desc').map(c => c.product_id), [4, 5, 1, 2, 3]);
+test('Pokédex order sorts by number with Trainers and Energy last', () => {
+  const cards = [card(1, { name: 'Pikachu' }), card(2, { name: 'Professor' }), card(3, { name: 'Bulbasaur' }), card(4, { name: 'Energy' })];
+  const pokedex = new Map([[cards[0], 25], [cards[2], 1]]);
+  assert.deepEqual(results(cards, '', empty, 'pokedex', new Map(), pokedex).map(c => c.product_id), [3, 1, 4, 2]);
   assert.equal(cards[0].product_id, 1, 'the original RPC result is not reordered');
+});
+
+test('collector numbers still sort naturally within a set', () => {
+  const cards = [card(1, { number: '100/200' }), card(2, { number: '9/200' }), card(3, { number: null }), card(4, { number: 'TG10/TG30' }), card(5, { number: 'TG2/TG30' })];
+  assert.deepEqual(results(cards, '', empty, 'set-number').map(c => c.product_id), [2, 1, 5, 4, 3]);
 });
 
 test('set, name and rarity ordering use public fields, with unknown rarities after known ones', () => {
