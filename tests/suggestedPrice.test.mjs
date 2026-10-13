@@ -127,7 +127,7 @@ const previousDefaults = {
 
 test('saved v2 defaults upgrade automatically to the requested per-range values', () => {
   const migrated = readSuggestedPriceSettings({ getItem: key => key.endsWith(':v2') ? JSON.stringify(previousDefaults) : null });
-  assert.deepEqual(migrated, defaults);
+  assert.deepEqual(migrated, { ...defaults, showOnCards: true }, 'a saved visibility choice is kept');
   assert.deepEqual(calculateSuggestedPrice(2.21, migrated), { price: 2, percent: 10 });
   assert.deepEqual(normalizeSuggestedPriceSettings(migrated), migrated);
 });

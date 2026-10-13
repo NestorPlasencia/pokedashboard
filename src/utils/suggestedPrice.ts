@@ -28,7 +28,7 @@ const PREVIOUS_TIERS = {
 };
 
 export const DEFAULT_SUGGESTED_PRICE_SETTINGS: SuggestedPriceSettings = {
-  showOnCards: true,
+  showOnCards: false,
   showInWishlistPrint: true,
   tiers: {
     under5: { minimumDiscountPercent: 5, maximumDiscountPercent: 10, roundingStep: 0.5 },
