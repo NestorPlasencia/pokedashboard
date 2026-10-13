@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ArrowUpDown, ExternalLink, Lock, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowUpDown, ExternalLink, Loader2, Lock, Search, SlidersHorizontal, X } from "lucide-react";
 import {
   PublicCollectionNotFound,
   loadPublicCollection,
@@ -166,8 +166,10 @@ const PublicCollectionExplorer = ({ collection, locale, text, picker }: {
   const totalCopies = collection.cards.reduce((sum, card) => sum + card.quantity, 0);
   const shownCopies = cards.reduce((sum, card) => sum + card.quantity, 0);
   const filtering = Boolean(search.trim()) || activeFilters > 0;
+  // The status line announces loading; these placeholders only show where prices will go.
+  const pricePlaceholder = <span className="public-collection__price-skeleton" aria-hidden="true" />;
   const formatValue = (shown: readonly PublicCollection['cards'][number][]) => {
-    if (priceState.kind === 'loading') return '…';
+    if (priceState.kind === 'loading') return pricePlaceholder;
     if (priceState.kind === 'error') return text.notAvailable;
     const { amount, unpriced } = publicCollectionValue(shown, prices);
     return unpriced ? `${marketMoney.format(amount)} (${text.unpriced(formatNumber(unpriced))})` : marketMoney.format(amount);
@@ -247,7 +249,7 @@ const PublicCollectionExplorer = ({ collection, locale, text, picker }: {
           </>}
         </div>
         <div className="public-collection__price-status" role="status">
-          {priceState.kind === 'loading' && text.pricesLoading}
+          {priceState.kind === 'loading' && <span className="public-collection__price-loading"><Loader2 size={14} className="card-action-spinner" aria-hidden="true" />{text.pricesLoading}</span>}
           {priceState.kind === 'error' && <><span>{text.pricesError}</span><button type="button" onClick={() => setPriceAttempt(current => current + 1)}>{text.pricesRetry}</button></>}
           {priceState.kind === 'ready' && <>
             <span>{text.pricesSource} <time dateTime={priceState.snapshot.generatedAt}>{new Date(priceState.snapshot.generatedAt).toLocaleString(text.intl)}</time> · {text.pricesCache}</span>
@@ -280,7 +282,7 @@ const PublicCollectionExplorer = ({ collection, locale, text, picker }: {
                 <span className="public-collection__card-line" title={variant}>{variant}</span>
                 <span className="public-collection__quantity">{text.quantity}: <strong>{formatNumber(card.quantity)}</strong></span>
                 <span className="public-collection__market-price" title={quote ? text.marketTitle(quote.condition) : undefined}>
-                  {text.market}: <strong>{quote ? marketMoney.format(quote.amount) : priceState.kind === 'loading' ? '…' : text.notAvailable}</strong>
+                  {text.market}: <strong>{quote ? marketMoney.format(quote.amount) : priceState.kind === 'loading' ? pricePlaceholder : text.notAvailable}</strong>
                   {tcgplayerUrl && (
                     <a className="public-collection__tcgplayer" href={tcgplayerUrl} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer"
                       aria-label={text.viewOnTcgplayer(`${card.name}${card.printing ? ` (${card.printing})` : ''}`)}>
