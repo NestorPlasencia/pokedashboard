@@ -196,17 +196,18 @@ export function automaticScanMatch(matches: ScanMatch[]): { key: string; card: C
 export function createScanGate() {
   let candidate = '';
   let count = 0;
-  let latched = '';
+  let latched = new Set<string>();
   return {
     observe(key: string | null): boolean {
-      if (!key || key === latched) { candidate = ''; count = 0; return false; }
+      if (!key || latched.has(key)) { candidate = ''; count = 0; return false; }
       count = key === candidate ? count + 1 : 1;
       candidate = key;
       return count >= 2;
     },
-    commit(key: string) { latched = key; candidate = ''; count = 0; },
-    isLatched(key: string) { return key === latched; },
-    rearm() { latched = ''; candidate = ''; count = 0; },
+    /** Extra keys latch other readings of the same card, such as its same-art reprints. */
+    commit(key: string, ...aliases: string[]) { latched = new Set([key, ...aliases]); candidate = ''; count = 0; },
+    isLatched(key: string) { return latched.has(key); },
+    rearm() { latched = new Set(); candidate = ''; count = 0; },
   };
 }
 

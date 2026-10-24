@@ -132,20 +132,26 @@ key, database password, or connection string in this app.
 
 ### Continuous card scanner
 
-Open **Menú → Escanear cartas** (`/scanner`). Before starting, choose the eras,
-sets, rarities, top-level and specific variants, optional collector-number range,
-printing, condition (Near Mint by default), and optional destination collection.
-Import filters from a catalog link or use the **Base + Gym** preset: the seven
-original sets, Common/Uncommon/Rare, and Standard. Start the video and hold each
-card inside the guide until it says **Enviada a revisión**, then pass the next one.
+Open **Menú → Escanear cartas** (`/scanner`). The scanner searches the catalog's
+current results (eras, sets, filters, search) and lists what it inherited; change
+them in the catalog. Choose the batch printing ("Normal" also covers sets that call
+their regular print "Unlimited"), condition and destination, start the video and
+hold each card inside the guide until it says **Enviada a revisión**.
 
-Tesseract.js runs in a browser worker with local English/Spanish language models.
-Only the name and collector-number regions are read. The selected printing is a
-hard catalog filter, not a prediction. Two stable reads create a draft; no
-collection mutation runs during capture. A clear name+number match preselects
-the suggested card, while ambiguous readings require choosing among candidates.
-OCR does not translate names, so localized names that differ from the catalog
-may need a narrower scope or a manual correction in review.
+Cards are identified by their image. A pretrained model (DINOv2-small, about 24 MB,
+downloaded once from Hugging Face and cached by the browser) turns the camera crop
+into a vector that is compared with precomputed vectors of the catalog images in
+`public/card-vectors/v1/`. Same-art reprints (Base Set, Base Set 2, Legendary
+Collection) look alike, so Tesseract.js only reads the collector number to choose
+among them and among other cards with the same name. Series without vectors fall
+back to OCR of the name and number. Card images live on other domains that do not
+allow pages to read their pixels, so the vectors are made with
+`node scripts/build-card-vectors.mjs Base Gym` (any series names); re-run it when
+a series gains sets. Nothing is trained and no image is stored.
+
+Two stable reads create a draft; no collection mutation runs during capture. A
+clear match preselects the card, a lone candidate is selected automatically, and
+ambiguous readings require choosing among candidates.
 
 Drafts are backed up in localStorage separately per account and for guests. Pause
 the video to correct the card/printing, condition and destination, select reviewed
@@ -153,7 +159,7 @@ entries, and explicitly confirm their addition to the collection. Restoring the
 page clears review selections, preserving the drafts. Guest drafts can be imported
 explicitly after signing in. A malformed backup is reported without overwriting it.
 
-On phones and tablets up to 900px wide, the scanner has separate **Configurar**,
+On phones and tablets up to 900px wide, the scanner has separate **Catálogo**,
 **Escanear**, and **Revisar** panes. Starting a scan brings the camera and its
 controls into view; opening another pane pauses the video. The preview scales
 with the available screen height, including a compact horizontal layout and
@@ -162,9 +168,10 @@ expandable editing and a save bar above the app navigation. Touch controls are
 at least 44px high and form text stays at 16px to avoid mobile input zoom.
 
 A held card is latched even if a subsequent frame is blurry. A different card
-releases that latch; for identical consecutive copies, use **Otra copia igual**.
-Pausing and resuming keeps the latch. Each draft has a stable copy UUID so
-retrying a confirmed save after a lost response cannot insert the copy twice.
+releases that latch; for identical consecutive copies, press **+1 copia de la
+última** or set the quantity in review. Pausing and resuming keeps the latch. Each
+copy has a stable UUID so retrying a confirmed save after a lost response cannot
+insert it twice.
 Successful saves leave the review queue; failed ones stay available for retry.
 Collection writes use the existing authenticated Supabase client and require a connection. No card photos
 leave the device. Leaving the app pauses the video and releases its camera tracks.
@@ -174,7 +181,7 @@ WASM cores and language data from npm into generated `public/ocr/v7/` assets.
 They are served by the app's own origin and downloaded only when scanning starts.
 The production service worker caches the requested OCR assets; this does not
 make collection writes work offline. No schema migration or recognition server
-is required.
+is required. The camera opens the main rear lens at 1x when the phone exposes it.
 
 For a browser smoke test without a camera or live database writes, run `npm run dev`
 and open `/tests/scanner-browser.html`. It checks real browser OCR against a

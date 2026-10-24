@@ -7,6 +7,8 @@
 .scanner-catalog__sync { display: inline-flex; align-items: center; gap: 4px; color: var(--success); font-size: 12px; }
 .scanner-catalog .scanner-catalog__count { margin: 16px 0 4px; color: var(--text); font-size: 1.4rem; font-weight: 700; }
 .scanner-catalog > p { font-size: 13px; }
+.scanner-catalog .scanner-catalog__visual { display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; }
+.scanner-catalog__visual svg { flex: none; margin-top: 2px; color: var(--accent); }
 .scanner-catalog__chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
 .scanner-catalog__chips > span { max-width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--accent-soft); color: var(--text); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 .scanner-catalog > .collections-page__btn { margin-top: 8px; }

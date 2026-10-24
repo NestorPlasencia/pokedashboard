@@ -108,7 +108,9 @@ export function cardProjection([p0, p1, p2, p3]: CardQuad) {
   };
 }
 
-export function locateAndCropCard(image: HTMLCanvasElement): { canvas: HTMLCanvasElement; detected: boolean } {
+export type LocatedCard = { canvas: HTMLCanvasElement; detected: boolean };
+
+export function locateAndCropCard(image: HTMLCanvasElement): LocatedCard {
   if (image.width < 2 || image.height < 2) return { canvas: image, detected: false };
   const preview = document.createElement('canvas');
   preview.width = Math.min(360, image.width);

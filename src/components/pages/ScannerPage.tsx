@@ -1,13 +1,16 @@
-import { BookOpen, Check, ListChecks, Pause, Play, ScanLine } from 'lucide-react';
+import { BookOpen, Check, Image as ImageIcon, ListChecks, Pause, Play, ScanLine } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useCardContext } from '../../context/CardContext';
 import { useOwnedCollections } from '../../context/OwnedCollectionsContext';
 import { createCardOcr } from '../../services/cardOcr';
+import { createCardEmbedder, loadCardVectors } from '../../services/cardVectors';
 import { COLLECTION_PRINTING_ORDER } from '../../services/inventory';
 import { readScannerReview, saveScannerReview } from '../../services/scannerReview';
-import type { ConditionKey } from '../../types/dashboard';
+import type { Card, ConditionKey } from '../../types/dashboard';
+import { locateAndCropCard } from '../../utils/cardDetection';
 import { automaticScanMatch, createScanGate, defaultDraftCardId, draftQuantity, groupScanCards, rankScanMatches, scanPrinting, withDraftQuantity, type ScanDraft } from '../../utils/cardScanner';
+import { rankVisualMatches, vectorSimilarity, type CardVectorIndex, type VisualMatch } from '../../utils/visualMatch';
 import { scannerCatalogCards } from '../../utils/scannerCatalog';
 import { navigate, openCardsView } from '../../utils/route';
 import { parseUrlParams } from '../../utils/urlParams';
@@ -43,6 +46,8 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
   });
   const [lastText, setLastText] = useState('');
   const ocrRef = useRef<ReturnType<typeof createCardOcr> | null>(null);
+  const embedderRef = useRef<ReturnType<typeof createCardEmbedder> | null>(null);
+  const [vectors, setVectors] = useState<{ key: string; index: CardVectorIndex | null } | null>(null);
   const gate = useRef(createScanGate());
   const mounted = useRef(false);
   const processing = useRef(false);
@@ -63,6 +68,7 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
     return () => {
       mounted.current = false; active.current = false;
       ocrRef.current?.dispose(); ocrRef.current = null;
+      embedderRef.current?.dispose(); embedderRef.current = null;
     };
   }, []);
 
@@ -84,6 +90,14 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
   }, [scopedCards]);
   const scanCards = useMemo(() => printing ? scopedCards.filter(card => scanPrinting(card) === printing) : scopedCards, [scopedCards, printing]);
   const count = useMemo(() => groupScanCards(scanCards).length, [scanCards]);
+  const seriesKey = useMemo(() => JSON.stringify([...new Set(scopedCards.flatMap(card => card.setSeriesNames?.length ? card.setSeriesNames : [card.setSeries]).filter(Boolean))].sort()), [scopedCards]);
+  useEffect(() => {
+    let cancelled = false;
+    loadCardVectors(JSON.parse(seriesKey)).then(index => { if (!cancelled) setVectors({ key: seriesKey, index }); });
+    return () => { cancelled = true; };
+  }, [seriesKey]);
+  const vectorIndex = vectors?.key === seriesKey ? vectors.index : null;
+  const visualCount = useMemo(() => vectorIndex ? groupScanCards(scanCards).filter(group => group.cards.some(card => vectorIndex.rows.has(card.image))).length : 0, [scanCards, vectorIndex]);
   const catalogSignature = useMemo(() => JSON.stringify(scopedCards.map(card => [card.id, card.printing || card.variant]).sort()), [scopedCards]);
   const locked = running || working || reviewSaving;
   const canStart = Boolean(count && !catalogLoading && !catalogError && !reviewSaving);
@@ -145,45 +159,72 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
     const current = generation.current;
     processing.current = true; setWorking(true);
     try {
-      ocrRef.current ??= createCardOcr(message => { if (mounted.current && active.current) setProgress(message); });
-      const text = await ocrRef.current.recognize(image);
-      if (!mounted.current || !active.current || current !== generation.current) return;
-      setLastText(`${text.name}\n${text.number}`.trim());
+      const isStale = () => !mounted.current || !active.current || current !== generation.current;
+      const report = (message: string) => { if (mounted.current && active.current) setProgress(message); };
+      ocrRef.current ??= createCardOcr(report);
+      const located = locateAndCropCard(image);
+      let text = { name: '', number: '', detected: located.detected };
+      let visual: VisualMatch | null = null;
+      if (vectorIndex && visualCount) {
+        // The image identifies the card; OCR only has to read its collector number.
+        embedderRef.current ??= createCardEmbedder(vectorIndex.model, report);
+        const query = await embedderRef.current.embed(located.detected ? located.canvas : image);
+        if (isStale()) return;
+        const similarity = (card: Card) => { const row = vectorIndex.rows.get(card.image); return row ? vectorSimilarity(query, row) : undefined; };
+        if (rankVisualMatches(scanCards, similarity, '')) {
+          text = await ocrRef.current.recognize(image, { located, numberOnly: true });
+          visual = rankVisualMatches(scanCards, similarity, text.number);
+        }
+      }
+      // Cards without image data, or a frame the image model does not recognise, fall back to OCR.
+      if (!visual && visualCount < count) text = await ocrRef.current.recognize(image, { located });
+      if (isStale()) return;
       setProgress('');
+
+      const stage = (gateKey: string, latchKeys: string[], name: string, keys: Set<string>, preferredId: string | undefined, note: string) => {
+        const stable = gate.current.observe(gateKey);
+        if (gate.current.isLatched(gateKey)) { setStatus(`${name} enviada a revisión. Pasa la siguiente carta.`); return; }
+        if (!stable) { setStatus(`${name} detectada. Mantenla quieta para confirmar la lectura…`); return; }
+        const candidates = groupScanCards(scopedCards).filter(group => keys.has(group.key)).flatMap(group => group.cards);
+        const draft: ScanDraft = {
+          id: crypto.randomUUID(), candidates, cardId: defaultDraftCardId(candidates, preferredId), condition,
+          collectionId: owned.selected?.id ?? '', approved: false, note, createdAt: new Date().toISOString(),
+        };
+        gate.current.commit(gateKey, ...latchKeys);
+        setDrafts(entries => [draft, ...entries]);
+        if (active.current) setStatus(`${name} enviada a revisión. Pasa la siguiente carta.`);
+        if (active.current) navigator.vibrate?.(80);
+      };
+
+      if (visual) {
+        const top = visual.resolved ?? visual.shortlist[0];
+        setLastText(`Imagen: ${visual.shortlist.map(group => `${group.cards[0].name} · ${group.cards[0].setName} ${Math.round(group.similarity * 100)}%`).join(', ')}\n${text.number}`.trim());
+        // Preselect only when the number leaves exactly one product in the batch printing.
+        const products = new Map((visual.resolved?.cards ?? []).map(card => [JSON.stringify([card.productId, card.printing || card.variant]), card]));
+        stage(visual.gateKey, visual.latchKeys, top.cards[0].name, new Set([...visual.shortlist, ...visual.related].map(group => group.key)),
+          products.size === 1 ? [...products.values()][0].id : undefined,
+          visual.resolved ? 'La imagen y el número coinciden. Pendiente de revisión.'
+            : 'La ilustración coincide con varios sets y no se leyó el número: elige el correcto.');
+        return;
+      }
+
+      setLastText(`${text.name}\n${text.number}`.trim());
       const matches = rankScanMatches(scanCards, text.name, text.number);
       const certain = automaticScanMatch(matches);
       const match = matches[0];
       if (!match) {
         gate.current.observe(null);
-        setStatus(text.detected ? `Leyendo carta entre las ${count} del catálogo… Mantén el nombre y el número enfocados.` : 'Acerca la carta y deja visibles sus cuatro bordes. Evita los reflejos.');
+        setStatus(text.detected ? `Leyendo carta entre las ${count} del catálogo… Mantén la carta quieta y enfocada.` : 'Acerca la carta y deja visibles sus cuatro bordes. Evita los reflejos.');
         return;
       }
-      const stable = gate.current.observe(match.key);
-      if (gate.current.isLatched(match.key)) {
-        setStatus(`${match.cards[0].name} enviada a revisión. Pasa la siguiente carta.`);
-        return;
-      }
-      if (!stable) {
-        setStatus(`${match.cards[0].name} detectada. Mantenla quieta para confirmar la lectura…`);
-        return;
-      }
-      const keys = new Set(matches.slice(0, 6).map(candidate => candidate.key));
-      const candidates = groupScanCards(scopedCards).filter(group => keys.has(group.key)).flatMap(group => group.cards);
-      const draft: ScanDraft = {
-        id: crypto.randomUUID(), candidates, cardId: defaultDraftCardId(candidates, certain?.card.id), condition,
-        collectionId: owned.selected?.id ?? '', approved: false,
-        note: certain ? 'Nombre y número coinciden. Pendiente de revisión.' : 'Lectura dudosa: elige la carta y la impresión correctas.',
-        createdAt: new Date().toISOString(),
-      };
-      gate.current.commit(match.key);
-      setDrafts(entries => [draft, ...entries]);
-      if (active.current) setStatus(`${match.cards[0].name} enviada a revisión. Pasa la siguiente carta.`);
-      if (active.current) navigator.vibrate?.(80);
+      stage(match.key, [], match.cards[0].name, new Set(matches.slice(0, 6).map(candidate => candidate.key)), certain?.card.id,
+        certain ? 'Nombre y número coinciden. Pendiente de revisión.' : 'Lectura dudosa: elige la carta y la impresión correctas.');
     } catch {
       if (mounted.current && active.current && current === generation.current) {
-        setError('No se pudo completar el OCR. Revisa la conexión para cargar el motor e inténtalo otra vez.');
+        setError('No se pudo leer la carta. Revisa la conexión para descargar el reconocimiento (sólo la primera vez) e inténtalo otra vez.');
         pause('Sesión pausada por un error de lectura.');
         ocrRef.current?.dispose(); ocrRef.current = null;
+        embedderRef.current?.dispose(); embedderRef.current = null;
       }
     } finally {
       processing.current = false;
@@ -207,6 +248,12 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
         <div className="scanner-catalog__heading"><h2><BookOpen size={20} aria-hidden="true" /> Selección del catálogo</h2><span className="scanner-catalog__sync"><Check size={14} aria-hidden="true" /> Sincronizada</span></div>
         <p className="scanner-catalog__count" role="status">{catalogLoading ? 'Cargando selección…' : `${groupScanCards(scopedCards).length} cartas para identificar`}</p>
         <p>El escáner busca entre las mismas cartas que ves en el catálogo.</p>
+        {!catalogLoading && count > 0 && <p className="scanner-catalog__visual" role="status"><ImageIcon size={16} aria-hidden="true" />{
+          !vectors || vectors.key !== seriesKey ? 'Comprobando reconocimiento por imagen…'
+            : visualCount === count ? `Reconocimiento por imagen para las ${count} cartas. El OCR sólo lee el número para distinguir reimpresiones.`
+              : visualCount ? `Reconocimiento por imagen para ${visualCount} de ${count} cartas; el resto se identifica por OCR del nombre y el número.`
+                : 'Esta selección aún no tiene reconocimiento por imagen: se identifica por OCR del nombre y el número.'
+        }</p>}
         <div className="scanner-catalog__chips" aria-label="Filtros heredados del catálogo">
           {sourceChips.map((label, index) => <span key={`${index}-${label}`}>{label}</span>)}
           {!sourceChips.length && <span>Todos los resultados del catálogo</span>}
