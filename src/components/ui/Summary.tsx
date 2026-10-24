@@ -1,12 +1,13 @@
 import { useMemo, type ClipboardEvent, type CSSProperties } from "react";
 import { useCardContext } from "../../context/CardContext";
-import type { Card } from "../../types/dashboard";
+import type { Card, QuantityKey } from "../../types/dashboard";
 import { calculatePriceSummary } from "../../utils/utils";
 import { shouldIncludePokemonForm } from "../../utils/filters";
 import { POKEDEX_REGIONS } from "../../constants/constants";
 import { formBelongsToRegions } from "../../utils/pokedexRegions";
 import { useOptionsContext } from "../../context/OptionsContext";
 import { activeFilterCollectionNames, quantityCollectionNames } from "../../utils/collectionQuantity";
+import { ownedConditionPrices } from "../../utils/collectionValue";
 
 interface RegionPokemonStats {
   regionName: string;
@@ -83,6 +84,23 @@ export const Summary = () => {
     summaryCollectionNames,
     hasCollectionScope,
   ]);
+
+  // The collection's value split by the condition of its copies, each at that condition's price.
+  const conditionRows = useMemo(() => {
+    if (!hasCollectionScope) return [];
+    const rows = new Map<QuantityKey, { condition: QuantityKey; copies: number; value: number }>();
+    // The same variant filter the totals above apply, so the rows add up to them.
+    const cards = variantsFilter.includes("All") ? filteredCards : filteredCards.filter((card) => card.variant && variantsFilter.includes(card.variant));
+    for (const card of cards) {
+      for (const item of ownedConditionPrices(card, summaryCollectionNames, collectionFilter.conditionsFilter)) {
+        const row = rows.get(item.condition) ?? { condition: item.condition, copies: 0, value: 0 };
+        row.copies += item.copies;
+        row.value += (item.price ?? 0) * item.copies;
+        rows.set(item.condition, row);
+      }
+    }
+    return [...rows.values()];
+  }, [hasCollectionScope, filteredCards, variantsFilter, summaryCollectionNames, collectionFilter.conditionsFilter]);
 
   const ownershipSummary = useMemo(() => calculatePriceSummary(
     filteredCards,
@@ -378,6 +396,13 @@ export const Summary = () => {
             <td><strong>{summary.isCollectionView ? summary.totalCopies : summary.totalCards}</strong></td>
             <td><strong>{formatPrice(summary.total)}</strong></td>
           </tr>
+          {conditionRows.length > 1 && conditionRows.map((row) => (
+            <tr key={row.condition} className="secondary-row">
+              <td>↳ {row.condition === "Unknown" ? "No condition" : row.condition}</td>
+              <td>{row.copies}</td>
+              <td>{formatPrice(row.value)}</td>
+            </tr>
+          ))}
           {showsOwnership && collectionFilter.limit > 1 && (
             <tr className="secondary-row">
               <td>📋 Cards in search ({collectionFilter.limit})</td>

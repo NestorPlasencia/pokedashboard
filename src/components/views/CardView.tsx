@@ -9,7 +9,13 @@ import { useCardContext } from "../../context/CardContext";
 import { useOptionsContext } from "../../context/OptionsContext";
 import { getCardPriceBreakdown } from "../../utils/utils";
 import { buildPriceExplorerUrl } from "../../utils/priceExplorer";
-import { ownedCountersForCard } from "../../utils/collectionQuantity";
+import { ownedCountersForCard, quantityCollectionNames } from "../../utils/collectionQuantity";
+import { CONDITION_ABBREVIATIONS, ownedConditionPrices } from "../../utils/collectionValue";
+import type { QuantityKey } from "../../types/dashboard";
+
+/** TCGplayer's listing filter for a condition; a copy without one opens Near Mint. */
+const tcgplayerCondition = (condition: QuantityKey) =>
+  (condition === "Unknown" ? "Near Mint" : condition).replace(/ /g, "+");
 import { SuggestedPriceBadge } from "../ui/SuggestedPriceBadge";
 import { CollectionMarkBadge } from '../ui/CollectionMarkBadge';
 import { collectionMarkClass } from '../../utils/collectionMarks';
@@ -41,6 +47,15 @@ const CardViewComponent: React.FC<{
     () => ownedCountersForCard(card, viewMode, collections, collectionFilter.selectedCollections, collectionFilter.conditionsFilter),
     [card, viewMode, collections, collectionFilter.selectedCollections, collectionFilter.conditionsFilter]
   );
+
+  const ownedPrices = useMemo(
+    () => hasOwnershipScope
+      ? ownedConditionPrices(card, quantityCollectionNames(viewMode, collections, collectionFilter.selectedCollections), collectionFilter.conditionsFilter)
+      : [],
+    [hasOwnershipScope, card, viewMode, collections, collectionFilter.selectedCollections, collectionFilter.conditionsFilter]
+  );
+  // Near Mint copies (or ones without a condition) keep the usual single Near Mint price.
+  const showsOwnedPrices = ownedPrices.some((item) => item.condition !== "Near Mint" && item.condition !== "Unknown");
 
   const ownedSum = useMemo(
     () => ownedCounters.reduce((sum, item) => sum + item.quantity, 0),
@@ -137,7 +152,28 @@ const CardViewComponent: React.FC<{
       {nearMintPrice !== null && (
         <div className="prices">
           <div className="card-price-container card-price-container--relative">
-            {card.productId ? (
+            {showsOwnedPrices ? (
+              // Owned copies are worth their own condition's price, one line per condition.
+              <span className="card-owned-prices" aria-label="Price of your copies by condition">
+                {ownedPrices.filter((item) => item.price !== null).map((item) => {
+                  const label = `${CONDITION_ABBREVIATIONS[item.condition]} ${formatCurrency(item.price as number)}`.trim();
+                  const title = `${item.copies} ${item.condition === 'Unknown' ? 'without condition' : item.condition}`;
+                  return card.productId ? (
+                    <a
+                      key={item.condition}
+                      href={`https://www.tcgplayer.com/product/${card.productId}?Language=English&Condition=${tcgplayerCondition(item.condition)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="card-price-link"
+                      title={title}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {label}
+                    </a>
+                  ) : <span key={item.condition} className="card-price-value" title={title}>{label}</span>;
+                })}
+              </span>
+            ) : card.productId ? (
               <a
                 href={`https://www.tcgplayer.com/product/${card.productId}?Language=English&Condition=Near+Mint`}
                 target="_blank"

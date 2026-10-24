@@ -6747,3 +6747,14 @@ button.catalog-breadcrumb__step--collection:hover {
   .copy-editor__row { grid-template-columns: minmax(0, 1fr) 32px 22px 32px; min-height: 34px; }
   .copy-editor button { min-height: 32px; }
 }
+
+/* A collection's copies in several conditions show one price per condition, stacked. */
+.card-owned-prices {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.card .prices:has(.card-owned-prices) { top: auto; bottom: 24%; }
+.card .prices:has(.card-owned-prices):has(.suggested-price) { bottom: 18%; }

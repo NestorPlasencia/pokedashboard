@@ -1,4 +1,4 @@
-import type { Card, ConditionKey } from "../types/dashboard";
+import type { Card, ConditionKey, QuantityKey } from "../types/dashboard";
 
 const PRICE_CONDITIONS: ConditionKey[] = [
   "Near Mint",
@@ -14,6 +14,48 @@ const getBestAvailablePrice = (card: Card): number | null => {
     if (price !== null && price !== undefined) return price;
   }
   return null;
+};
+
+const OWNED_CONDITION_ORDER: QuantityKey[] = [...PRICE_CONDITIONS.filter((condition) => condition !== "Damaged"), "Damaged", "Unknown"];
+
+export const CONDITION_ABBREVIATIONS: Record<QuantityKey, string> = {
+  "Near Mint": "NM",
+  "Lightly Played": "LP",
+  "Moderately Played": "MP",
+  "Heavily Played": "HP",
+  "Damaged": "DMG",
+  "Unknown": "",
+};
+
+export type OwnedConditionPrice = { condition: QuantityKey; copies: number; price: number | null };
+
+/**
+ * The conditions of the copies held in these collections, each with the price a copy in
+ * that condition is valued at - the same price `getCollectionPriceTotal` adds up. A copy
+ * with no recorded condition is valued at the best price available.
+ */
+export const ownedConditionPrices = (
+  card: Card,
+  collectionsToFilter: string[],
+  conditionsFilter: string[] = ["All"]
+): OwnedConditionPrice[] => {
+  const includeAllConditions = conditionsFilter.includes("All");
+  const copies = new Map<QuantityKey, number>();
+  for (const collection of card.collections || []) {
+    if (!collectionsToFilter.includes(collection.name)) continue;
+    for (const [condition, rawQuantity] of Object.entries(collection.quantity || {})) {
+      if (!includeAllConditions && !conditionsFilter.includes(condition)) continue;
+      copies.set(condition as QuantityKey, (copies.get(condition as QuantityKey) ?? 0) + (rawQuantity || 0));
+    }
+  }
+  const fallbackPrice = getBestAvailablePrice(card);
+  return OWNED_CONDITION_ORDER
+    .filter((condition) => (copies.get(condition) ?? 0) > 0)
+    .map((condition) => ({
+      condition,
+      copies: copies.get(condition) ?? 0,
+      price: condition === "Unknown" ? fallbackPrice : card.prices?.[condition] ?? fallbackPrice,
+    }));
 };
 
 /** Count the physical copies held in the selected collections. */
