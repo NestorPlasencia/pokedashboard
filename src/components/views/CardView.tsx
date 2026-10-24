@@ -54,8 +54,8 @@ const CardViewComponent: React.FC<{
       : [],
     [hasOwnershipScope, card, viewMode, collections, collectionFilter.selectedCollections, collectionFilter.conditionsFilter]
   );
-  // Near Mint copies (or ones without a condition) keep the usual single Near Mint price.
-  const showsOwnedPrices = ownedPrices.some((item) => item.condition !== "Near Mint" && item.condition !== "Unknown");
+  // Where copies are counted, the price says how many copies are in each condition.
+  const showsOwnedPrices = ownedPrices.length > 0;
 
   const ownedSum = useMemo(
     () => ownedCounters.reduce((sum, item) => sum + item.quantity, 0),
@@ -154,10 +154,10 @@ const CardViewComponent: React.FC<{
           <div className="card-price-container card-price-container--relative">
             {showsOwnedPrices ? (
               // Owned copies are worth their own condition's price, one line per condition.
-              <span className="card-owned-prices" aria-label="Price of your copies by condition">
-                {ownedPrices.filter((item) => item.price !== null).map((item) => {
-                  const label = `${CONDITION_ABBREVIATIONS[item.condition]} ${formatCurrency(item.price as number)}`.trim();
-                  const title = `${item.copies} ${item.condition === 'Unknown' ? 'without condition' : item.condition}`;
+              <span className="card-owned-prices" aria-label="Your copies by condition and their price">
+                {ownedPrices.map((item) => {
+                  const label = [`${item.copies}×`, CONDITION_ABBREVIATIONS[item.condition], item.price === null ? '—' : formatCurrency(item.price)].filter(Boolean).join(' ');
+                  const title = `${item.copies} ${item.copies === 1 ? 'copy' : 'copies'} ${item.condition === 'Unknown' ? 'without condition' : item.condition}${item.price === null ? '' : `, ${formatCurrency(item.price)} each`}`;
                   return card.productId ? (
                     <a
                       key={item.condition}
@@ -216,19 +216,6 @@ const CardViewComponent: React.FC<{
         ))}
       </div>}
       <CopyEditor card={card} />
-      {priceExplorerUrl && (
-        <a
-          className="card-price-explorer-link"
-          href={priceExplorerUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          title={`Explore price history for ${card.name}`}
-          aria-label={`Explore price history for ${card.name}`}
-          onClick={(event) => event.stopPropagation()}
-        >
-          <TrendingUp size={12} aria-hidden="true" /> Prices
-        </a>
-      )}
       {viewOptions.displayMode.includes('trend') && <div className="card-trend" aria-label={trend ? `${trend.buyTimingLabel}, score ${trend.buyTimingScore ?? 'unavailable'}` : 'Trend loading'}>
         <div className="card-trend__header"><span><strong>{card.name}</strong> · {variantName}</span><span className={`card-trend__score card-trend__score--${getTimingTone(trend?.buyTimingScore ?? null)}`}>{trend?.buyTimingScore ?? '—'}/100</span></div>
         <div className={`card-trend__label card-trend__label--${getTimingTone(trend?.buyTimingScore ?? null)}`}>{trendLoading && !trend ? 'Loading trend…' : trend?.buyTimingLabel || 'No trend data'}</div>

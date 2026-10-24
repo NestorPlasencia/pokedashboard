@@ -488,27 +488,6 @@ th[scope="row"] {
   z-index: 11;
 }
 
-.card-price-explorer-link {
-  position: absolute;
-  bottom: 8px;
-  left: 6px;
-  z-index: 12;
-  padding: 4px 7px;
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  border-radius: 999px;
-  background: rgba(13, 20, 36, 0.86);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1;
-  text-decoration: none;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
-}
-
-.card-price-explorer-link:hover {
-  background: var(--accent);
-}
-
 .missing-box__label {
   font-size: 8px;
   font-weight: 800;
@@ -2996,8 +2975,7 @@ img.binder-pocket__card {
 .card-list--trend .card-view-card--trend > .card-tags,
 .card-list--trend .card-view-card--trend > .prices,
 .card-list--trend .card-view-card--trend > .counters,
-.card-list--trend .card-view-card--trend > .missing-box,
-.card-list--trend .card-view-card--trend > .card-price-explorer-link { display: none; }
+.card-list--trend .card-view-card--trend > .missing-box { display: none; }
 .card-trend-card-info { grid-column: 1; grid-row: 2; display: flex; align-content: flex-start; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; padding: 8px; border: 1px solid rgba(148,163,184,.25); border-radius: 8px; background: rgba(13,20,36,.72); color: rgba(255,255,255,.72); font-size: 9px; }
 .card-trend-card-info__set { display: inline-flex; align-items: center; gap: 4px; min-width: 0; max-width: 150px; }
 .card-trend-card-info__set span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -5031,14 +5009,14 @@ button.mass-entry-btn.sidebar-action-btn:disabled {
 .wishlist-tree-toggle, .wishlist-tree-view, .wishlist-tree-more, .wishlist-tree-new, .wishlist-tree-add,
 .wishlist-tree-actions button, .wishlist-tree-context button, .wishlist-tree-create button,
 .card .wishlist-card-button,
-.card-price-explorer-link, .card-trend-card-info__prices-link, .trend-card-view__prices {
+.card-trend-card-info__prices-link, .trend-card-view__prices {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
 }
 .wishlists svg, .card .wishlist-card-button svg,
-.card-price-explorer-link svg, .card-trend-card-info__prices-link svg, .trend-card-view__prices svg { flex: 0 0 auto; }
+.card-trend-card-info__prices-link svg, .trend-card-view__prices svg { flex: 0 0 auto; }
 
 .wishlists-controls { display: grid; gap: 8px; }
 .wishlists-controls > small { color: var(--text-muted); line-height: 1.5; }
@@ -6805,5 +6783,5 @@ button.catalog-breadcrumb__step--collection:hover {
   gap: 2px;
 }
 
-.card .prices:has(.card-owned-prices) { top: auto; bottom: 24%; }
-.card .prices:has(.card-owned-prices):has(.suggested-price) { bottom: 18%; }
+.card .prices:has(.card-owned-prices) { top: auto; bottom: 10px; }
+.card:has(.missing-box) .prices:has(.card-owned-prices) { bottom: 44px; }
