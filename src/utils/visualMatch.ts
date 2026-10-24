@@ -57,6 +57,8 @@ export type VisualMatch = {
   related: ScanMatch[];
   /** The one card the collector number picks out of the shortlist and its reprints, if any. */
   resolved: ScanMatch | null;
+  /** Whether the collector number chose it, or one clear art was enough. */
+  resolvedBy: 'number' | 'image' | null;
   /** Stable while the same card is held, even when the number is read on some frames only. */
   gateKey: string;
   /** Every key a later frame of this card can produce. */
@@ -85,10 +87,11 @@ export function rankVisualMatches(cards: Card[], similarityOf: (card: Card) => n
     resolved = pool.find(group => group.key === byNumber[0].key) ?? null;
   }
   // One clear art is enough without the number; its reprints stay available in review.
+  const resolvedBy = resolved ? 'number' : shortlist.length === 1 ? 'image' : null;
   if (!resolved && shortlist.length === 1) resolved = shortlist[0];
   const keys = pool.map(group => group.key);
   return {
-    best, shortlist, related, resolved,
+    best, shortlist, related, resolved, resolvedBy,
     gateKey: resolved?.key ?? `art:${shortlist.map(group => group.key).sort()[0]}`,
     latchKeys: keys.flatMap(key => [key, `art:${key}`]),
   };

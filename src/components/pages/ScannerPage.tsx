@@ -9,7 +9,7 @@ import { COLLECTION_PRINTING_ORDER } from '../../services/inventory';
 import { readScannerReview, saveScannerReview } from '../../services/scannerReview';
 import type { Card, ConditionKey } from '../../types/dashboard';
 import { locateAndCropCard } from '../../utils/cardDetection';
-import { automaticScanMatch, createScanGate, defaultDraftCardId, draftQuantity, groupScanCards, rankScanMatches, scanPrinting, withDraftQuantity, type ScanDraft } from '../../utils/cardScanner';
+import { automaticScanMatch, createScanGate, defaultDraftCardId, draftQuantity, groupScanCards, proposedScanCard, rankScanMatches, scanPrinting, withDraftQuantity, type ScanDraft } from '../../utils/cardScanner';
 import { rankVisualMatches, vectorSimilarity, type CardVectorIndex, type VisualMatch } from '../../utils/visualMatch';
 import { scannerCatalogCards } from '../../utils/scannerCatalog';
 import { navigate, openCardsView } from '../../utils/route';
@@ -181,11 +181,13 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
       if (isStale()) return;
       setProgress('');
 
-      const stage = (gateKey: string, latchKeys: string[], name: string, keys: Set<string>, preferredId: string | undefined, note: string) => {
+      /** `keys` are in order of likelihood; review lists the candidates the same way. */
+      const stage = (gateKey: string, latchKeys: string[], name: string, keys: string[], preferredId: string | undefined, note: string) => {
         const stable = gate.current.observe(gateKey);
         if (gate.current.isLatched(gateKey)) { setStatus(`${name} enviada a revisión. Pasa la siguiente carta.`); return; }
         if (!stable) { setStatus(`${name} detectada. Mantenla quieta para confirmar la lectura…`); return; }
-        const candidates = groupScanCards(scopedCards).filter(group => keys.has(group.key)).flatMap(group => group.cards);
+        const groups = new Map(groupScanCards(scopedCards).map(group => [group.key, group.cards]));
+        const candidates = [...new Set(keys)].flatMap(key => groups.get(key) ?? []);
         const draft: ScanDraft = {
           id: crypto.randomUUID(), candidates, cardId: defaultDraftCardId(candidates, preferredId), condition,
           collectionId: owned.selected?.id ?? '', approved: false, note, createdAt: new Date().toISOString(),
@@ -199,12 +201,13 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
       if (visual) {
         const top = visual.resolved ?? visual.shortlist[0];
         setLastText(`Imagen: ${visual.shortlist.map(group => `${group.cards[0].name} · ${group.cards[0].setName} ${Math.round(group.similarity * 100)}%`).join(', ')}\n${text.number}`.trim());
-        // Preselect only when the number leaves exactly one product in the batch printing.
-        const products = new Map((visual.resolved?.cards ?? []).map(card => [JSON.stringify([card.productId, card.printing || card.variant]), card]));
-        stage(visual.gateKey, visual.latchKeys, top.cards[0].name, new Set([...visual.shortlist, ...visual.related].map(group => group.key)),
-          products.size === 1 ? [...products.values()][0].id : undefined,
-          visual.resolved ? 'La imagen y el número coinciden. Pendiente de revisión.'
-            : 'La ilustración coincide con varios sets y no se leyó el número: elige el correcto.');
+        const proposed = visual.resolved ? proposedScanCard(visual.resolved.cards) : null;
+        const printingNote = visual.resolved && visual.resolved.cards.length > 1 ? ' Revisa la impresión (1st Edition no se distingue por cámara).' : '';
+        stage(visual.gateKey, visual.latchKeys, top.cards[0].name, [top, ...visual.shortlist, ...visual.related].map(group => group.key),
+          proposed?.id,
+          visual.resolvedBy === 'number' ? `La imagen y el número coinciden.${printingNote}`
+            : visual.resolvedBy === 'image' ? `Reconocida por la imagen; no se leyó el número.${printingNote}`
+              : 'La ilustración coincide con varios sets y no se leyó el número: elige el correcto.');
         return;
       }
 
@@ -217,7 +220,7 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
         setStatus(text.detected ? `Leyendo carta entre las ${count} del catálogo… Mantén la carta quieta y enfocada.` : 'Acerca la carta y deja visibles sus cuatro bordes. Evita los reflejos.');
         return;
       }
-      stage(match.key, [], match.cards[0].name, new Set(matches.slice(0, 6).map(candidate => candidate.key)), certain?.card.id,
+      stage(match.key, [], match.cards[0].name, matches.slice(0, 6).map(candidate => candidate.key), certain?.card.id,
         certain ? 'Nombre y número coinciden. Pendiente de revisión.' : 'Lectura dudosa: elige la carta y la impresión correctas.');
     } catch {
       if (mounted.current && active.current && current === generation.current) {

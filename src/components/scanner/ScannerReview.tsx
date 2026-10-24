@@ -1,4 +1,4 @@
-import { Check, Trash2 } from 'lucide-react';
+import { Check, Minus, Plus, Trash2 } from 'lucide-react';
 import { useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useOwnedCollections } from '../../context/OwnedCollectionsContext';
@@ -25,6 +25,7 @@ export function ScannerReview({ entries, setEntries, scanning, onSavingChange }:
   const valid = (entry: ScanDraft) => Boolean(editableIds.has(entry.collectionId) && entry.candidates.some(card => card.id === entry.cardId && owned.canTrack(card)));
   const locked = saving || scanning;
   const patch = (id: string, change: Partial<ScanDraft>) => setEntries(current => current.map(entry => entry.id === id ? { ...entry, ...change } : entry));
+  const setQuantity = (id: string, quantity: number) => setEntries(current => current.map(entry => entry.id === id ? { ...withDraftQuantity(entry, quantity, () => crypto.randomUUID()), approved: false } : entry));
 
   const confirm = async () => {
     if (savingRef.current || scanning || !session || !owned.synced || !selected.length || !selected.every(valid)) return;
@@ -70,6 +71,12 @@ export function ScannerReview({ entries, setEntries, scanning, onSavingChange }:
             <span><strong>{card?.name || 'Elige la coincidencia correcta'}</strong><span>{card ? `${card.setName} · ${card.number}` : entry.candidates[0]?.name}</span><small>{card ? `${draftQuantity(entry) > 1 ? `×${draftQuantity(entry)} · ` : ''}${card.printing || card.variant} · ${entry.condition}` : entry.note}</small><small>{collection?.name || 'Sin colección de destino'}</small></span>
             <button type="button" className="collections-page__btn" title="Descartar lectura" aria-label={`Descartar ${card?.name || 'lectura'}`} disabled={locked} onClick={() => setEntries(current => current.filter(candidate => candidate.id !== entry.id))}><Trash2 size={16} /></button>
           </div>
+          <div className="scanner-review-quantity" role="group" aria-label={`Cantidad de ${card?.name || 'esta lectura'}`}>
+            <span>Cantidad</span>
+            <button type="button" className="collections-page__btn" aria-label="Una copia menos" disabled={locked || draftQuantity(entry) <= 1} onClick={() => setQuantity(entry.id, draftQuantity(entry) - 1)}><Minus size={16} /></button>
+            <output aria-live="polite">{draftQuantity(entry)}</output>
+            <button type="button" className="collections-page__btn" aria-label="Una copia más" disabled={locked || draftQuantity(entry) >= 99} onClick={() => setQuantity(entry.id, draftQuantity(entry) + 1)}><Plus size={16} /></button>
+          </div>
           <details className="scanner-review-item__details" open={!card}>
             <summary>{card ? 'Editar carta, estado y destino' : 'Resolver esta lectura'}</summary>
           <fieldset className="scanner-scope" disabled={locked}>
@@ -78,10 +85,6 @@ export function ScannerReview({ entries, setEntries, scanning, onSavingChange }:
               <option value="">Selecciona la coincidencia correcta</option>
               {entry.candidates.map(candidate => <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.setName} #{candidate.number} · {candidate.printing || candidate.variant} · {candidate.variant}</option>)}
             </select></label>
-            <label>Cantidad<input type="number" inputMode="numeric" min={1} max={99} value={draftQuantity(entry)} onChange={event => {
-              const quantity = Number(event.target.value);
-              if (quantity >= 1) setEntries(current => current.map(candidate => candidate.id === entry.id ? { ...withDraftQuantity(candidate, quantity, () => crypto.randomUUID()), approved: false } : candidate));
-            }} /></label>
             <label>Estado de la copia<select value={entry.condition} onChange={event => patch(entry.id, { condition: event.target.value as ConditionKey, approved: false })}>{SCAN_CONDITIONS.map(value => <option key={value} value={value}>{value}</option>)}</select></label>
             <label>Destino de la copia<select value={editableIds.has(entry.collectionId) ? entry.collectionId : ''} onChange={event => patch(entry.id, { collectionId: event.target.value, approved: false })}>
               <option value="">Selecciona la colección</option>

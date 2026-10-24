@@ -66,3 +66,15 @@ test('a reprint whose reference photo scored low is still chosen by its number',
   assert.equal(rankVisualMatches([lowBase, shadowless, base2], score, '50/102').resolved, null);
   assert.equal(rankVisualMatches([lowBase, base2], value => value === base2 ? 0.7 : 0.648, '50/102').resolved.cards[0].setName, 'Base Set');
 });
+
+test('an identified card proposes its regular print over the unreadable 1st Edition stamp', async () => {
+  const { proposedScanCard } = await import('../src/utils/cardScanner.ts');
+  const unlimited = { ...card('j1', 'Nidoran ♀', 'Jungle', '57', '64'), printing: 'Unlimited' };
+  const first = { ...unlimited, id: 'j2', printing: '1st Edition', variant: '1st Edition' };
+  assert.equal(proposedScanCard([first, unlimited]).id, 'j1');
+  assert.equal(proposedScanCard([base]).id, 'g1');
+  assert.equal(proposedScanCard([first, { ...first, id: 'j3', printing: 'Holofoil', productId: 9 }]), null);
+  const byNumber = rankVisualMatches([base, base2], similarity, '75/130');
+  assert.equal(byNumber.resolvedBy, 'number');
+  assert.equal(rankVisualMatches([energy, base], value => value === energy ? 0.676 : 0.549, '').resolvedBy, 'image');
+});

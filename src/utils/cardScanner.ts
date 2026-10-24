@@ -62,6 +62,16 @@ export function withDraftQuantity(draft: ScanDraft, quantity: number, newId: () 
   return { ...draft, extraCopyIds: ids };
 }
 
+/** The copy to propose for an identified card. A 1st Edition stamp is too small to read,
+ * so between it and the regular print the far more common regular one is proposed.
+ */
+export function proposedScanCard(cards: Card[]): Card | null {
+  const products = [...new Map(cards.map(card => [JSON.stringify([card.productId, card.printing || card.variant]), card])).values()];
+  if (products.length === 1) return products[0];
+  const regular = products.filter(card => scanPrinting(card) === 'Normal');
+  return regular.length === 1 ? regular[0] : null;
+}
+
 /** A lone candidate needs no choice in review. */
 export const defaultDraftCardId = (candidates: Card[], certainId = '') =>
   certainId || (candidates.length === 1 ? candidates[0].id : '');
