@@ -10,6 +10,7 @@
 <pre id="result"></pre>
 <script type="module">
 import { createCardOcr } from '/src/services/cardOcr.ts';
+import { locateAndCropCard } from '/src/utils/cardDetection.ts';
 import { automaticScanMatch, createScanGate, rankScanMatches } from '/src/utils/cardScanner.ts';
 const canvas = document.querySelector('#card');
 const context = canvas.getContext('2d');
@@ -28,7 +29,18 @@ if (sample === 'pikachu' || sample === 'charizard') {
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
   if (sample === 'charizard') Object.assign(card, { id: 'test-charizard', name: 'Charizard', number: '4', tcgPlayerNumber: '4/102' });
 }
+// Optional private regression fixture, deliberately excluded from Git.
+if (sample === 'gastly-phone') {
+  const image = new Image();
+  image.src = '/.codex-remote-attachments/scanner-qa/gastly-phone.jpg';
+  await image.decode();
+  canvas.width = 432; canvas.height = 602;
+  context.drawImage(image, 80, 257, 432, 602, 0, 0, 432, 602);
+  Object.assign(card, { name: 'Gastly', number: '75', tcgPlayerNumber: '75/130', setName: 'Base Set 2' });
+}
 const status = document.querySelector('#status');
+const located = locateAndCropCard(canvas);
+if (located.detected) canvas.after(located.canvas);
 const ocr = createCardOcr(message => { status.textContent = message; });
 try {
   let candidates = [card];
@@ -38,7 +50,7 @@ try {
     const hierarchy = await loadHierarchy();
     const bundles = await Promise.all(hierarchy.filter(serie => ['Base', 'Gym'].includes(serie.name)).map(serie => generateCardsForSeries(serie.id)));
     const printing = sample === 'charizard' ? '1st Edition Holofoil' : 'Normal';
-    candidates = bundles.flatMap(bundle => bundle.items).filter(entry => (entry.printing || entry.variant) === printing && (sample === 'charizard' || entry.cardVariantTopLevel === 'Standard'));
+    candidates = bundles.flatMap(bundle => bundle.items).filter(entry => (entry.printing || entry.variant) === printing && (sample === 'charizard' || entry.cardVariantTopLevel === 'Standard') && (sample !== 'gastly-phone' || entry.setName === 'Base Set 2'));
   }
   const start = performance.now();
   const first = await ocr.recognize(canvas);
@@ -55,7 +67,7 @@ try {
       gate.commit(match.key);
     }
   }
-  const passed = pending.length === 1 && pending[0].name === card.name && pending[0].approved === false;
+  const passed = pending.length === 1 && pending[0].name === card.name && pending[0].approved === false && (sample !== 'gastly-phone' || pending[0].set === 'Base Set 2');
   status.textContent = passed ? 'PASS: OCR local + lectura estable + una pendiente de revisión, sin guardar en la colección.' : 'FAIL: revisar lectura OCR.';
   document.querySelector('#result').textContent = JSON.stringify({ first, second, candidates: candidates.length, pending, collectionWrites: 0, seconds: Math.round((performance.now() - start) / 100) / 10 }, null, 2);
 } catch (error) {

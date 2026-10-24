@@ -253,7 +253,7 @@ export const Main: React.FC = () => {
       {route === 'pokedex' && <PokedexPage />}
       {route === 'scanner' && (
         <Suspense fallback={<div className="main-status-message">Cargando escáner…</div>}>
-          <ScannerPage key={session?.user.id ?? 'guest'} />
+          <ScannerPage key={session?.user.id ?? 'guest'} catalogLoading={isLoading} catalogError={error} />
         </Suspense>
       )}
       {route === 'reports' && (

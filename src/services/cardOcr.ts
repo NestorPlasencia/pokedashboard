@@ -1,4 +1,5 @@
 import type { Worker } from 'tesseract.js';
+import { locateAndCropCard } from '../utils/cardDetection';
 
 /** One worker per scanner session; no photo is sent to a server. */
 export function createCardOcr(onProgress: (message: string) => void) {
@@ -29,20 +30,28 @@ export function createCardOcr(onProgress: (message: string) => void) {
   return {
     async recognize(image: HTMLCanvasElement) {
       const worker = await getWorker();
+      const located = locateAndCropCard(image);
       // Upscaling and grayscale improve the small collector number on older cards.
       const prepared = document.createElement('canvas');
       prepared.width = 1100;
-      prepared.height = Math.round(image.height * prepared.width / image.width);
+      prepared.height = Math.round(located.canvas.height * prepared.width / located.canvas.width);
       const context = prepared.getContext('2d');
       if (!context) throw new Error('Canvas unavailable');
       context.filter = 'grayscale(1) contrast(1.25)';
-      context.drawImage(image, 0, 0, prepared.width, prepared.height);
+      context.drawImage(located.canvas, 0, 0, prepared.width, prepared.height);
       await worker.setParameters({ tessedit_pageseg_mode: '11' as import('tesseract.js').PSM });
       const name = await worker.recognize(prepared, { rectangle: {
         left: Math.round(prepared.width * 0.05), top: Math.round(prepared.height * 0.025),
         width: Math.round(prepared.width * 0.9), height: Math.round(prepared.height * 0.14),
       } });
       if (disposed) throw new Error('Scanner closed');
+      // Isolate the name line from the stage label, HP and energy symbols.
+      await worker.setParameters({ tessedit_pageseg_mode: '7' as import('tesseract.js').PSM });
+      const nameLine = await worker.recognize(prepared, { rectangle: {
+        left: Math.round(prepared.width * 0.055), top: Math.round(prepared.height * 0.055),
+        width: Math.round(prepared.width * 0.64), height: Math.round(prepared.height * 0.06),
+      } });
+      await worker.setParameters({ tessedit_pageseg_mode: '11' as import('tesseract.js').PSM });
       const number = await worker.recognize(prepared, { rectangle: {
         left: Math.round(prepared.width * 0.04), top: Math.floor(prepared.height * 0.86),
         width: Math.round(prepared.width * 0.92), height: Math.floor(prepared.height * 0.13),
@@ -51,18 +60,28 @@ export function createCardOcr(onProgress: (message: string) => void) {
       if (!/\d\s*[/／]\s*\d/.test(numberText)) {
         // Small WotC collector numbers get lost among the copyright/flavour text.
         // A single-line pass of each bottom corner also covers modern left-side numbers.
-        await worker.setParameters({ tessedit_pageseg_mode: '7' as import('tesseract.js').PSM });
-        for (const [left, width] of [[0.83, 0.14], [0.025, 0.45]]) {
+        await worker.setParameters({ tessedit_pageseg_mode: '7' as import('tesseract.js').PSM, tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ/ ' });
+        for (const [left, width] of [[0.79, 0.19], [0.025, 0.45]]) {
           if (disposed) throw new Error('Scanner closed');
           const focused = await worker.recognize(prepared, { rectangle: {
-            left: Math.round(prepared.width * left), top: Math.round(prepared.height * 0.947),
-            width: Math.round(prepared.width * width), height: Math.round(prepared.height * 0.037),
+            left: Math.round(prepared.width * left), top: Math.round(prepared.height * 0.94),
+            width: Math.round(prepared.width * width), height: Math.round(prepared.height * 0.05),
           } });
           numberText += `\n${focused.data.text.trim()}`;
           if (/\d\s*[/／]\s*\d/.test(numberText)) break;
         }
+        await worker.setParameters({ tessedit_char_whitelist: '' });
       }
-      return { name: name.data.text.trim(), number: numberText.trim() };
+      let nameText = `${name.data.text.trim()}\n${nameLine.data.text.trim()}`;
+      if (!located.detected) {
+        // Non-yellow borders and incomplete edges still get a full-frame fallback.
+        // All results remain review drafts; no collection write is made from OCR.
+        await worker.setParameters({ tessedit_pageseg_mode: '11' as import('tesseract.js').PSM });
+        const full = await worker.recognize(prepared);
+        nameText += `\n${full.data.text.trim()}`;
+        numberText += `\n${full.data.text.trim()}`;
+      }
+      return { name: nameText.trim(), number: numberText.trim(), detected: located.detected };
     },
     dispose() {
       disposed = true;

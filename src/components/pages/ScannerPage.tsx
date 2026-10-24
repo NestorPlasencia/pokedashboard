@@ -1,18 +1,15 @@
-import { ListChecks, Pause, Play, ScanLine, SlidersHorizontal } from 'lucide-react';
+import { BookOpen, Check, ListChecks, Pause, Play, ScanLine } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useCardContext } from '../../context/CardContext';
 import { useOwnedCollections } from '../../context/OwnedCollectionsContext';
-import { loadHierarchy } from '../../services/cards';
 import { createCardOcr } from '../../services/cardOcr';
 import { COLLECTION_PRINTING_ORDER } from '../../services/inventory';
-import { generateCardsForSeries } from '../../services/runtimeCards';
 import { readScannerReview, saveScannerReview } from '../../services/scannerReview';
-import type { Card, ConditionKey } from '../../types/dashboard';
-import type { HierarchySerie } from '../../types/source-card';
-import { automaticScanMatch, BASE_GYM_SCAN_SCOPE, cardsInScanScope, createScanGate, groupScanCards, rankScanMatches, scanScopeError, scanScopeFromFilters, type ScanDraft, type ScanScope } from '../../utils/cardScanner';
-import { orderHierarchy } from '../../utils/hierarchy';
-import { navigate } from '../../utils/route';
+import type { ConditionKey } from '../../types/dashboard';
+import { automaticScanMatch, createScanGate, groupScanCards, rankScanMatches, type ScanDraft } from '../../utils/cardScanner';
+import { scannerCatalogCards } from '../../utils/scannerCatalog';
+import { navigate, openCardsView } from '../../utils/route';
 import { parseUrlParams } from '../../utils/urlParams';
 import { ScannerCamera } from '../scanner/ScannerCamera';
 import { ScannerReview } from '../scanner/ScannerReview';
@@ -21,23 +18,16 @@ import './scanner.css';
 const CONDITIONS: ConditionKey[] = ['Near Mint', 'Lightly Played', 'Moderately Played', 'Heavily Played', 'Damaged'];
 type ScannerStep = 'setup' | 'camera' | 'review';
 
-export function ScannerPage() {
+export function ScannerPage({ catalogLoading = false, catalogError }: { catalogLoading?: boolean; catalogError?: string | null }) {
   const { session } = useAuth();
-  const { seriesSelection, selectedSets } = useCardContext();
+  const { renderCards, seriesSelection, selectedSets, activeFilterChips, viewMode, priceRange, collectionFilter, pokemonGrouping } = useCardContext();
   const owned = useOwnedCollections();
-  const [scope, setScope] = useState<ScanScope>(() => scanScopeFromFilters(parseUrlParams()));
-  const [scopeLink, setScopeLink] = useState('');
-  const [hierarchy, setHierarchy] = useState<HierarchySerie[] | null>(null);
-  const [catalog, setCatalog] = useState<Card[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState('');
-  const [retry, setRetry] = useState(0);
   const [printing, setPrinting] = useState('');
   const [condition, setCondition] = useState<ConditionKey>('Near Mint');
   const [running, setRunning] = useState(false);
   const [working, setWorking] = useState(false);
   const [progress, setProgress] = useState('');
-  const [status, setStatus] = useState('Configura la sesión y pulsa Iniciar escaneo. Las cartas pasarán a revisión.');
+  const [status, setStatus] = useState('Lista para escanear la selección del catálogo. Las cartas pasarán a revisión.');
   const [error, setError] = useState('');
   const ownerId = session?.user.id ?? '';
   const [restoredReview] = useState(() => {
@@ -86,51 +76,38 @@ export function ScannerPage() {
     return () => window.removeEventListener('resize', revealCamera);
   }, [mobileStep]);
 
-  useEffect(() => {
-    let cancelled = false;
-    loadHierarchy().then(value => {
-      if (!cancelled) setHierarchy(orderHierarchy(value));
-    }).catch(() => { if (!cancelled) { setLoadError('No se pudieron cargar las series. Revisa tu conexión y vuelve a intentar.'); setLoading(false); } });
-    return () => { cancelled = true; };
-  }, [retry]);
-
-  const seriesKey = JSON.stringify(scope.series);
-  useEffect(() => {
-    if (!hierarchy) return;
-    let cancelled = false;
-    const names: string[] = JSON.parse(seriesKey);
-    const series = hierarchy.filter(serie => names.includes(serie.name));
-    setCatalog([]); setLoadError('');
-    if (!series.length) { setLoading(false); return; }
-    setLoading(true);
-    Promise.all(series.map(serie => generateCardsForSeries(serie.id))).then(responses => {
-      if (!cancelled) setCatalog([...new Map(responses.flatMap(response => response.items).map(card => [card.id, card])).values()]);
-    }).catch(() => {
-      if (!cancelled) setLoadError('No se pudo cargar todo el rango. Revisa la conexión y vuelve a intentar.');
-    }).finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [hierarchy, seriesKey, retry]);
-
-  const scopedCards = useMemo(() => cardsInScanScope(catalog, scope), [catalog, scope]);
+  const scopedCards = useMemo(() => scannerCatalogCards(renderCards), [renderCards]);
   const printings = useMemo(() => {
     const values = [...new Set(scopedCards.map(card => card.printing || card.variant).filter(Boolean))];
     const rank = (value: string) => { const index = (COLLECTION_PRINTING_ORDER as readonly string[]).indexOf(value); return index < 0 ? 999 : index; };
     return values.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
   }, [scopedCards]);
-  const scanCards = useMemo(() => scopedCards.filter(card => (card.printing || card.variant) === printing), [scopedCards, printing]);
+  const scanCards = useMemo(() => printing ? scopedCards.filter(card => (card.printing || card.variant) === printing) : scopedCards, [scopedCards, printing]);
   const count = useMemo(() => groupScanCards(scanCards).length, [scanCards]);
-  const scopeError = scanScopeError(scope);
+  const catalogSignature = useMemo(() => JSON.stringify(scopedCards.map(card => [card.id, card.printing || card.variant]).sort()), [scopedCards]);
   const locked = running || working || reviewSaving;
-  const canStart = Boolean(printing && count && !loading && !loadError && !scopeError && !reviewSaving);
-  const scopeOptions = useMemo(() => cardsInScanScope(catalog, { ...scope, rarities: [], topLevelVariants: [], variants: [] }), [catalog, scope]);
+  const canStart = Boolean(count && !catalogLoading && !catalogError && !reviewSaving);
+  const printingLabel = printing || (printings.length === 1 ? printings[0] : 'Impresión del catálogo');
+  const search = parseUrlParams().search;
+  const sourceChips = [
+    ...seriesSelection.included.map(value => `Era: ${value}`),
+    ...seriesSelection.excluded.map(value => `Era excluida: ${value}`),
+    ...selectedSets.map(value => `Set: ${value}`),
+    ...activeFilterChips.map(chip => chip.label),
+    ...(viewMode.kind === 'collection' ? [`Colección: ${viewMode.names.join(', ')}`] : viewMode.kind === 'wishlist' ? ['Lista de deseos seleccionada'] : []),
+    ...(search ? [`Búsqueda: ${search}`] : []),
+    ...(priceRange.min !== null || priceRange.max !== null ? [`Precio: ${priceRange.min ?? '0'} – ${priceRange.max ?? 'sin límite'}`] : []),
+    ...(collectionFilter.enabled && collectionFilter.mode !== 'none' ? [`Colecciones: ${collectionFilter.mode} · ${collectionFilter.selectedCollections.join(', ')}`] : []),
+    ...(pokemonGrouping.enabled && pokemonGrouping.allowVariants.length ? [`Formas: ${pokemonGrouping.allowVariants.join(', ')}`] : []),
+  ];
 
   useEffect(() => {
-    if (running && !canStart) {
-      active.current = false;
+    if (running && (!canStart || sessionSignature.current !== JSON.stringify([session?.user.id, owned.selectedId, printing, condition, catalogSignature]))) {
+      active.current = false; generation.current++;
       setRunning(false);
-      setStatus('Sesión pausada: revisa el rango y la impresión del lote.');
+      setStatus('Sesión pausada: cambió la selección del catálogo o el lote.');
     }
-  }, [running, canStart]);
+  }, [running, canStart, session?.user.id, owned.selectedId, printing, condition, catalogSignature]);
 
   const pause = (message = 'Sesión pausada. Pulsa Continuar para seguir.') => {
     active.current = false; generation.current++;
@@ -147,7 +124,7 @@ export function ScannerPage() {
 
   const start = () => {
     if (!canStart || processing.current) return;
-    const signature = JSON.stringify([session?.user.id, owned.selectedId, printing, condition, scope]);
+    const signature = JSON.stringify([session?.user.id, owned.selectedId, printing, condition, catalogSignature]);
     if (signature !== sessionSignature.current) {
       gate.current.rearm();
       sessionSignature.current = signature;
@@ -178,7 +155,7 @@ export function ScannerPage() {
       const match = matches[0];
       if (!match) {
         gate.current.observe(null);
-        setStatus('Buscando carta dentro del rango…');
+        setStatus(text.detected ? `Leyendo carta entre las ${count} del catálogo… Mantén el nombre y el número enfocados.` : 'Acerca la carta y deja visibles sus cuatro bordes. Evita los reflejos.');
         return;
       }
       const stable = gate.current.observe(match.key);
@@ -218,74 +195,45 @@ export function ScannerPage() {
     <main className="collections-page__body">
       <div className="collections-page__intro">
         <h1><ScanLine size={26} aria-hidden="true" /> Escaneo continuo</h1>
-        <p>Configura el lote una vez y pasa las cartas frente a la cámara. Se acumulan en revisión; sólo las confirmadas se añaden a tu colección.</p>
+        <p>Usa las cartas que tienes filtradas en el catálogo y pásalas frente a la cámara. Se acumulan en revisión; sólo las confirmadas se añaden a tu colección.</p>
       </div>
       <nav className="scanner-step-nav" aria-label="Pasos del escáner">
-        <button type="button" aria-pressed={mobileStep === 'setup'} disabled={reviewSaving} onClick={() => showStep('setup')}><SlidersHorizontal size={18} aria-hidden="true" /><span>Configurar</span></button>
+        <button type="button" aria-pressed={mobileStep === 'setup'} disabled={reviewSaving} onClick={() => showStep('setup')}><BookOpen size={18} aria-hidden="true" /><span>Catálogo</span></button>
         <button type="button" aria-pressed={mobileStep === 'camera'} disabled={reviewSaving} onClick={() => showStep('camera')}><ScanLine size={18} aria-hidden="true" /><span>Escanear</span>{running && <span className="scanner-live-dot" aria-label="Video activo" />}</button>
         <button type="button" aria-pressed={mobileStep === 'review'} onClick={() => showStep('review')}><ListChecks size={18} aria-hidden="true" /><span>Revisar</span><span className="scanner-step-count">{drafts.length}</span></button>
       </nav>
       <div className="scanner-setup">
-      <section className="scanner-panel">
-        <h2>1. Rango de cartas</h2>
-        <fieldset disabled={locked} className="scanner-scope">
-          <legend className="scanner-sr-only">Series, sets y números permitidos</legend>
-          <div className="scanner-actions">
-            <button type="button" className="collections-page__btn" onClick={() => setScope({ ...BASE_GYM_SCAN_SCOPE })}>Base + Gym · Common / Uncommon / Rare · Standard</button>
-            <button type="button" className="collections-page__btn" onClick={() => setScope({ ...scanScopeFromFilters(parseUrlParams()), series: seriesSelection.included.filter(name => !seriesSelection.excluded.includes(name)), sets: selectedSets })}>Usar selección del catálogo</button>
-          </div>
-          <label>Importar filtros de un enlace del catálogo<input type="url" placeholder="Pega aquí tu enlace con sets, rarezas y variantes" value={scopeLink} onChange={event => setScopeLink(event.target.value)} /></label>
-          <button type="button" className="collections-page__btn" disabled={!scopeLink.trim()} onClick={() => {
-            try { setScope(scanScopeFromFilters(parseUrlParams(new URL(scopeLink, window.location.origin).search))); setError(''); }
-            catch { setError('El enlace del catálogo no es válido.'); }
-          }}>Aplicar filtros del enlace</button>
-          {!hierarchy && !loadError && <p role="status">Cargando series…</p>}
-          <div className="scanner-series" role="group" aria-label="Eras permitidas">
-            {hierarchy?.map(serie => <label key={serie.id}>
-              <input type="checkbox" checked={scope.series.includes(serie.name)} onChange={event => {
-                const series = event.target.checked ? [...scope.series, serie.name] : scope.series.filter(name => name !== serie.name);
-                const allowedSets = hierarchy.filter(entry => series.includes(entry.name)).flatMap(entry => entry.sets.map(set => set.name));
-                setScope({ ...scope, series, sets: scope.sets.filter(name => allowedSets.includes(name)) });
-              }} />{serie.name}
-            </label>)}
-          </div>
-          <details className="scanner-sets">
-            <summary>Limitar a sets concretos {scope.sets.length ? `(${scope.sets.length})` : '(todos los de las eras elegidas)'}</summary>
-            <button type="button" className="collections-page__btn" onClick={() => setScope({ ...scope, sets: [] })}>Incluir todos los sets de estas eras</button>
-            {hierarchy?.filter(serie => scope.series.includes(serie.name)).map(serie => <div key={serie.id}>
-              <strong>{serie.name}</strong>
-              {serie.sets.map(set => <label key={set.id}><input type="checkbox" checked={scope.sets.includes(set.name)} onChange={event => setScope({ ...scope, sets: event.target.checked ? [...scope.sets, set.name] : scope.sets.filter(name => name !== set.name) })} />{set.name}</label>)}
-            </div>)}
-          </details>
-          <ScopeChoices title="Rarezas" options={[...new Set(scopeOptions.flatMap(card => card.rarities?.length ? card.rarities : [card.rarity]).filter(Boolean))].sort()} selected={scope.rarities ?? []} onChange={rarities => setScope({ ...scope, rarities })} />
-          <ScopeChoices title="Tipos de variante" options={[...new Set(scopeOptions.map(card => card.cardVariantTopLevel || card.variant).filter(Boolean))].sort()} selected={scope.topLevelVariants ?? []} onChange={topLevelVariants => setScope({ ...scope, topLevelVariants })} />
-          <ScopeChoices title="Variantes específicas" options={[...new Set(scopeOptions.filter(card => !scope.topLevelVariants?.length || scope.topLevelVariants.includes(card.cardVariantTopLevel || card.variant)).map(card => card.variant).filter(Boolean))].sort()} selected={scope.variants ?? []} onChange={variants => setScope({ ...scope, variants })} />
-          <div className="scanner-range">
-            <label>Número desde<input inputMode="numeric" placeholder="Sin límite" value={scope.min} onChange={event => setScope({ ...scope, min: event.target.value })} /></label>
-            <label>Número hasta<input inputMode="numeric" placeholder="Sin límite" value={scope.max} onChange={event => setScope({ ...scope, max: event.target.value })} /></label>
-          </div>
-          <small>El rango numérico se aplica dentro de cada set. Vacío incluye también números con prefijos, como TG o SV.</small>
-        </fieldset>
-        {scopeError && <p role="alert" className="scanner-error">{scopeError}</p>}
-        {loadError && <p className="scanner-error" role="alert">{loadError} <button type="button" className="collections-page__btn" disabled={locked} onClick={() => setRetry(value => value + 1)}>Reintentar</button></p>}
+      <section className="scanner-panel scanner-catalog" aria-label="Selección del catálogo">
+        <div className="scanner-catalog__heading"><h2><BookOpen size={20} aria-hidden="true" /> Selección del catálogo</h2><span className="scanner-catalog__sync"><Check size={14} aria-hidden="true" /> Sincronizada</span></div>
+        <p className="scanner-catalog__count" role="status">{catalogLoading ? 'Cargando selección…' : `${groupScanCards(scopedCards).length} cartas para identificar`}</p>
+        <p>El escáner busca entre las mismas cartas que ves en el catálogo.</p>
+        <div className="scanner-catalog__chips" aria-label="Filtros heredados del catálogo">
+          {sourceChips.map((label, index) => <span key={`${index}-${label}`}>{label}</span>)}
+          {!sourceChips.length && <span>Todos los resultados del catálogo</span>}
+        </div>
+        {owned.selected && <p className="scanner-catalog__destination">Destino del catálogo: <strong>{owned.selected.name}</strong></p>}
+        {catalogError && <p className="scanner-error" role="alert">{catalogError}</p>}
+        {!catalogLoading && !catalogError && !scopedCards.length && <p role="status">No hay cartas en esta selección. Ajusta los filtros en el catálogo.</p>}
+        <button type="button" className="collections-page__btn" disabled={locked} onClick={openCardsView}>Cambiar en el catálogo</button>
       </section>
       <section className="scanner-panel">
-        <h2>2. Configurar el lote</h2>
+        <h2>Atributos de las copias</h2>
         <fieldset disabled={locked} className="scanner-scope scanner-batch">
           <legend className="scanner-sr-only">Destino y atributos de todas las copias del lote</legend>
           <label>Colección de destino<select value={owned.selected?.id ?? ''} disabled={!owned.synced} onChange={event => owned.setSelectedId(event.target.value)}>
             <option value="">Selecciona tu colección</option>
             {owned.collections.map(collection => <option key={collection.id} value={collection.id}>{collection.name}</option>)}
           </select></label>
-          <label>Impresión<select value={printings.includes(printing) ? printing : ''} onChange={event => setPrinting(event.target.value)}>
-            <option value="">Selecciona la impresión del lote</option>
+          <label>Impresión<select value={printing} onChange={event => setPrinting(event.target.value)}>
+            <option value="">Usar catálogo{printings.length === 1 ? ` · ${printings[0]}` : ''}</option>
+            {printing && !printings.includes(printing) && <option value={printing}>{printing} · fuera de la selección</option>}
             {printings.map(value => <option key={value} value={value}>{value}</option>)}
           </select></label>
           <label>Estado<select value={condition} onChange={event => setCondition(event.target.value as ConditionKey)}>
             {CONDITIONS.map(value => <option key={value} value={value}>{value}</option>)}
           </select></label>
         </fieldset>
-        <p className="scanner-count" role="status">{loading ? 'Cargando cartas del rango…' : `${count} cartas elegibles con esta impresión`}</p>
+        <p className="scanner-count" role="status">{catalogLoading ? 'Cargando cartas…' : `${count} cartas con estos ajustes`}</p>
         {!session && <p>Puedes escanear a revisión sin iniciar sesión. <button type="button" className="collections-page__btn" onClick={() => navigate('collections')}>Inicia sesión para elegir una colección</button></p>}
         {session && !owned.collections.length && <p>Crea una colección editable o una subcolección. <button type="button" className="collections-page__btn" onClick={() => navigate('collections')}>Ir a colecciones</button></p>}
         <small>Estos ajustes se aplican a cada copia nueva. Pausa el video para cambiar de lote.</small>
@@ -295,7 +243,7 @@ export function ScannerPage() {
       <div className="scanner-columns">
         <section ref={cameraPanelRef} className="scanner-panel scanner-camera-panel" aria-label="Captura de cartas">
           <div className="scanner-camera-panel__heading"><h2>Pasa las cartas</h2><span>{drafts.length} en revisión</span></div>
-          <p className="scanner-batch-summary">{printing || 'Sin impresión'} · {condition}{owned.selected ? ` · ${owned.selected.name}` : ''}</p>
+          <p className="scanner-batch-summary">{printingLabel} · {condition}{owned.selected ? ` · ${owned.selected.name}` : ''}</p>
           <ScannerCamera running={running} onFrame={readFrame} onStop={pause} />
           <div className="scanner-actions scanner-session-actions">
             {running
@@ -307,7 +255,7 @@ export function ScannerPage() {
           </div>
           <p className="scanner-live-status" role="status" aria-live="polite">{status}</p>
           {progress && <p className="scanner-progress">{progress}</p>}
-          {!canStart && !running && <button type="button" className="collections-page__btn scanner-camera-configure" onClick={() => showStep('setup')}>Configura el rango y la impresión para empezar</button>}
+          {!canStart && !running && <button type="button" className="collections-page__btn scanner-camera-configure" onClick={() => showStep('setup')}>Ver selección del catálogo</button>}
           <button type="button" className="collections-page__btn scanner-open-review" disabled={!drafts.length || reviewSaving} onClick={() => showStep('review')}><ListChecks size={18} aria-hidden="true" />Revisar {drafts.length} pendientes</button>
           <details className="scanner-help"><summary>Consejos y texto leído</summary>
             <p>Mantén cada carta quieta hasta ver «Enviada a revisión» y pasa a la siguiente. Las lecturas dudosas quedan señaladas para corregirlas.</p>
@@ -331,11 +279,3 @@ export function ScannerPage() {
   </div>;
 }
 
-function ScopeChoices({ title, options, selected, onChange }: { title: string; options: string[]; selected: string[]; onChange: (values: string[]) => void }) {
-  const values = [...new Set([...selected, ...options])];
-  return <details className="scanner-sets" open={selected.length > 0}>
-    <summary>{title}: {selected.length ? selected.join(', ') : 'Todas'}</summary>
-    <button type="button" className="collections-page__btn" onClick={() => onChange([])}>Incluir todas</button>
-    <div>{values.map(value => <label key={value}><input type="checkbox" checked={selected.includes(value)} onChange={event => onChange(event.target.checked ? [...selected, value] : selected.filter(entry => entry !== value))} />{value}</label>)}</div>
-  </details>;
-}

@@ -15,9 +15,12 @@ export interface SuggestedPriceSettings {
   tiers: Record<SuggestedPriceTier, { minimumDiscountPercent: number; maximumDiscountPercent: number; roundingStep: number }>;
 }
 
-export const SUGGESTED_PRICE_STORAGE_KEY = "pokedashboard:suggested-prices:v3";
-const PREVIOUS_STORAGE_KEY = "pokedashboard:suggested-prices:v2";
-const LEGACY_STORAGE_KEY = "pokedashboard:suggested-prices:v1";
+export const SUGGESTED_PRICE_STORAGE_KEY = "pokedashboard:suggested-prices:v4";
+const OLDER_STORAGE_KEYS = [
+  "pokedashboard:suggested-prices:v3",
+  "pokedashboard:suggested-prices:v2",
+  "pokedashboard:suggested-prices:v1",
+];
 const PREVIOUS_TIERS = {
   under5: { maximumDiscountPercent: 15, roundingStep: 1 },
   under10: { maximumDiscountPercent: 18, roundingStep: 1 },
@@ -77,8 +80,14 @@ export function normalizeSuggestedPriceSettings(value: unknown): SuggestedPriceS
 
 export function readSuggestedPriceSettings(storage: Pick<Storage, "getItem">): SuggestedPriceSettings {
   try {
-    const raw = storage.getItem(SUGGESTED_PRICE_STORAGE_KEY) ?? storage.getItem(PREVIOUS_STORAGE_KEY) ?? storage.getItem(LEGACY_STORAGE_KEY);
-    return normalizeSuggestedPriceSettings(raw ? JSON.parse(raw) : null);
+    const current = storage.getItem(SUGGESTED_PRICE_STORAGE_KEY);
+    if (current) return normalizeSuggestedPriceSettings(JSON.parse(current));
+    const older = OLDER_STORAGE_KEYS.map(key => storage.getItem(key)).find(Boolean);
+    const saved = older ? JSON.parse(older) : null;
+    // Earlier versions saved settings on every load, so a stored "show on cards" was
+    // usually the old default rather than a choice. Only the new default (off) carries over.
+    if (saved && typeof saved === "object") delete saved.showOnCards;
+    return normalizeSuggestedPriceSettings(saved);
   } catch {
     return normalizeSuggestedPriceSettings(null);
   }

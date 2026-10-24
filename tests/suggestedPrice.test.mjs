@@ -127,7 +127,7 @@ const previousDefaults = {
 
 test('saved v2 defaults upgrade automatically to the requested per-range values', () => {
   const migrated = readSuggestedPriceSettings({ getItem: key => key.endsWith(':v2') ? JSON.stringify(previousDefaults) : null });
-  assert.deepEqual(migrated, { ...defaults, showOnCards: true }, 'a saved visibility choice is kept');
+  assert.deepEqual(migrated, defaults);
   assert.deepEqual(calculateSuggestedPrice(2.21, migrated), { price: 2, percent: 10 });
   assert.deepEqual(normalizeSuggestedPriceSettings(migrated), migrated);
 });
@@ -139,4 +139,13 @@ test('v2 migration preserves custom minimums, discounts, steps and visibility', 
   assert.deepEqual(migrated.tiers.under5, { minimumDiscountPercent: 12, maximumDiscountPercent: 16, roundingStep: .25 });
   assert.equal(migrated.tiers.under50.minimumDiscountPercent, 12);
   assert.equal(migrated.tiers.under50.roundingStep, 3);
+});
+
+test('settings auto-saved by older versions start with card suggestions hidden', () => {
+  const v3 = normalizeSuggestedPriceSettings({ ...defaults, showOnCards: true, tiers: { ...defaults.tiers, under5: { minimumDiscountPercent: 7, maximumDiscountPercent: 12, roundingStep: .25 } } });
+  const migrated = readSuggestedPriceSettings({ getItem: key => key.endsWith(':v3') ? JSON.stringify(v3) : null });
+  assert.equal(migrated.showOnCards, false);
+  assert.deepEqual(migrated.tiers.under5, v3.tiers.under5, 'discounts and rounding carry over');
+  const chosen = { ...defaults, showOnCards: true };
+  assert.equal(readSuggestedPriceSettings({ getItem: key => key === SUGGESTED_PRICE_STORAGE_KEY ? JSON.stringify(chosen) : null }).showOnCards, true);
 });

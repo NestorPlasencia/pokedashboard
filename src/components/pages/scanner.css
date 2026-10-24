@@ -2,6 +2,14 @@
 .scanner-page .collections-page__body { max-width: 1120px; min-width: 0; padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
 .scanner-page .collections-page__body > *, .scanner-setup > *, .scanner-columns > * { min-width: 0; }
 .scanner-setup { display: grid; gap: 16px; }
+.scanner-catalog__heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.scanner-catalog__heading h2 { display: flex; align-items: center; gap: 8px; margin: 0; }
+.scanner-catalog__sync { display: inline-flex; align-items: center; gap: 4px; color: var(--success); font-size: 12px; }
+.scanner-catalog .scanner-catalog__count { margin: 16px 0 4px; color: var(--text); font-size: 1.4rem; font-weight: 700; }
+.scanner-catalog > p { font-size: 13px; }
+.scanner-catalog__chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+.scanner-catalog__chips > span { max-width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--accent-soft); color: var(--text); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.scanner-catalog > .collections-page__btn { margin-top: 8px; }
 .scanner-step-nav { display: none; }
 .scanner-page h1 { display: flex; align-items: center; gap: 8px; }
 .scanner-panel { padding: 20px; min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
