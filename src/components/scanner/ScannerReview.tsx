@@ -21,6 +21,7 @@ export function ScannerReview({ entries, setEntries, scanning, onSavingChange }:
   const [failed, setFailed] = useState('');
   const savingRef = useRef(false);
   const selected = entries.filter(entry => entry.approved);
+  const selectedCopies = selected.reduce((sum, entry) => sum + draftQuantity(entry), 0);
   const editableIds = new Set(owned.collections.map(collection => collection.id));
   const valid = (entry: ScanDraft) => Boolean(editableIds.has(entry.collectionId) && entry.candidates.some(card => card.id === entry.cardId && owned.canTrack(card)));
   const resolved = entries.filter(valid);
@@ -96,13 +97,13 @@ export function ScannerReview({ entries, setEntries, scanning, onSavingChange }:
     {/* Selection lives in the sticky bar with Save, so it is reachable after reviewing the list. */}
     {entries.length > 0 && <div className="scanner-review-footer">
       <div className="scanner-review-footer__select">
-        <small>{selected.length} de {entries.length} seleccionadas</small>
+        <small>{selected.length} de {entries.length} seleccionadas · {selectedCopies} {selectedCopies === 1 ? 'copia' : 'copias'}</small>
         {allResolvedSelected
           ? <button type="button" className="collections-page__btn" disabled={locked || !selected.length} onClick={() => setEntries(current => current.map(entry => ({ ...entry, approved: false })))}>Quitar selección</button>
           : <button type="button" className="collections-page__btn" disabled={locked} onClick={() => setEntries(current => current.map(entry => ({ ...entry, approved: valid(entry) })))}><CheckCheck size={16} aria-hidden="true" />Seleccionar resueltas ({resolved.length})</button>}
       </div>
       {!session && <button type="button" className="collections-page__btn" onClick={() => navigate('collections')}>Inicia sesión para guardar la revisión</button>}
-      {session && <button type="button" className="collections-page__btn collections-page__btn--primary" disabled={locked || !owned.synced || !selected.length || !selected.every(valid)} onClick={() => void confirm()}><Check size={16} />{saving ? 'Guardando…' : `Añadir ${selected.length} revisadas`}</button>}
+      {session && <button type="button" className="collections-page__btn collections-page__btn--primary" disabled={locked || !owned.synced || !selected.length || !selected.every(valid)} onClick={() => void confirm()}><Check size={16} />{saving ? 'Guardando…' : `Añadir ${selected.length} ${selected.length === 1 ? 'revisada' : 'revisadas'} · ${selectedCopies} ${selectedCopies === 1 ? 'copia' : 'copias'}`}</button>}
     </div>}
     {notice && <p role="status" className="scanner-notice">{notice}</p>}
     {(failed || owned.error) && <p role="alert" className="scanner-error">{failed || owned.error}</p>}
