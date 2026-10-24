@@ -8,7 +8,8 @@ const PRICE_CONDITIONS: ConditionKey[] = [
   "Heavily Played",
 ];
 
-const getBestAvailablePrice = (card: Card): number | null => {
+/** What a copy is valued at when its own condition has no price (or it has no condition). */
+export const getBestAvailablePrice = (card: Card): number | null => {
   for (const condition of PRICE_CONDITIONS) {
     const price = card.prices?.[condition];
     if (price !== null && price !== undefined) return price;
