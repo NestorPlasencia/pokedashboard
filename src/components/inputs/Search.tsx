@@ -17,6 +17,7 @@ import { applySorting, applyPriceFilter, applyCollectionFilter, applyFormsFilter
 import { Card } from "../../types/dashboard";
 import type { CollectionEnrichment } from "../../hooks/useLoadCards";
 import { countCopies } from "../../utils/copyCount";
+import { ownedCountersForCard } from "../../utils/collectionQuantity";
 
 type SearchProps = {
   /** How far the viewed collection has been matched to the external catalog. */
@@ -155,7 +156,14 @@ export const Search: React.FC<SearchProps> = ({ collectionEnrichment, loading = 
 
   const handleClear = () => setQuery("");
 
-  const itemCount = visibleCards.filter((card) => !('isPlaceholder' in card)).length;
+  const shownCards = useMemo(() => visibleCards.filter((card): card is Card => !('isPlaceholder' in card)), [visibleCards]);
+  const itemCount = shownCards.length;
+  // Copies are counted like the badges on the cards, so the total is their sum.
+  const countsCopies = viewMode.kind === "collection" || collectionFilter.selectedCollections.length > 0;
+  const copyCount = useMemo(() => countsCopies
+    ? shownCards.reduce((sum, card) => sum + ownedCountersForCard(card, viewMode, collections, collectionFilter.selectedCollections, collectionFilter.conditionsFilter)
+      .reduce((cardSum, counter) => cardSum + counter.quantity, 0), 0)
+    : 0, [countsCopies, shownCards, viewMode, collections, collectionFilter.selectedCollections, collectionFilter.conditionsFilter]);
 
   // Sincronizar URL con debounce
   useEffect(() => {
@@ -296,8 +304,15 @@ export const Search: React.FC<SearchProps> = ({ collectionEnrichment, loading = 
         <div className="search-bar__end">
           <ViewMenu />
           <SortMenu />
-          <span className="search-item-count" aria-live="polite" aria-label={`${itemCount} cards shown`}>
-            {itemCount.toLocaleString()}
+          <span
+            className="search-item-count"
+            aria-live="polite"
+            aria-label={countsCopies ? `${itemCount} cards shown, ${copyCount} copies` : `${itemCount} cards shown`}
+            title={countsCopies ? "Distinct cards shown · total copies they hold" : "Cards shown"}
+          >
+            {countsCopies
+              ? <>{itemCount.toLocaleString()} cards · <strong>{copyCount.toLocaleString()}</strong> copies</>
+              : itemCount.toLocaleString()}
           </span>
         </div>
       </div>
