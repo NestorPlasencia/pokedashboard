@@ -1,8 +1,9 @@
-import { BookOpen, ChartNoAxesCombined, Library, Menu, Settings } from 'lucide-react';
+import { BookOpen, ChartNoAxesCombined, Library, Menu, ScanLine, Settings } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { navigate, type Route } from '../../utils/route';
 
 const SECTIONS = [
+  { route: 'scanner', label: 'Escanear cartas', Icon: ScanLine },
   { route: 'collections', label: 'Colecciones', Icon: Library },
   { route: 'pokedex', label: 'Pokédex', Icon: BookOpen },
   { route: 'reports', label: 'Informes', Icon: ChartNoAxesCombined },

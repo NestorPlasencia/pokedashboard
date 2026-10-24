@@ -1,9 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { Card } from '../types/dashboard';
+import type { Card, ConditionKey } from '../types/dashboard';
 import {
   AppCollectionsUnavailableError,
   addCard,
   addCards,
+  addScannedCopy,
   createCollection,
   deleteCollection,
   moveCollection,
@@ -250,6 +251,17 @@ function useOwnedCollectionsState() {
     return added;
   };
 
+  const addScan = async (card: Card, condition: ConditionKey, copyId: string, collectionId?: string) => {
+    const target = collectionId ? editable.find(collection => collection.id === collectionId) : selected;
+    if (!userId || !target) return false;
+    let added = false;
+    await enqueue(async () => {
+      await addScannedCopy(userId, target.id, card, condition, copyId);
+      added = true;
+    });
+    return added;
+  };
+
   const removeCardFromSelected = async (card: Card) => {
     if (!userId || !selected) return false;
     const target = selected;
@@ -273,7 +285,7 @@ function useOwnedCollectionsState() {
     () => ({
       collections: editable, selected, selectedId, setSelectedId,
       create, rename, remove, move, setTag, setVisibility, setPrintings,
-      add, addMany, removeCard: removeCardFromSelected, has, canTrack,
+      add, addMany, addScan, removeCard: removeCardFromSelected, has, canTrack,
       error, loading: isAuthLoading, remoteUnavailable,
       synced: Boolean(userId) && !remoteUnavailable,
       names: editable.map((collection) => collection.name),

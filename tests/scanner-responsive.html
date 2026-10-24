@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Scanner responsive PWA test</title>
+<style>body{margin:0;padding:16px;background:#e8edf5;color:#172033;font:14px system-ui}header{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}h1{font-size:18px;width:100%;margin:0 0 4px}button,select{min-height:44px;padding:8px;font:inherit}#device{border:1px solid #adbace;background:#fff;display:block;max-width:none}pre{white-space:pre-wrap;overflow-wrap:anywhere}label{display:flex;gap:6px;align-items:center}</style></head>
+<body><header><h1>Prueba de PWA con video simulado</h1>
+<label>Tamaño<select id="size"><option value="320,568">320 × 568</option><option value="390,844" selected>390 × 844</option><option value="430,932">430 × 932</option><option value="844,390">844 × 390 horizontal</option><option value="768,1024">768 × 1024 tablet</option><option value="1366,900">1366 × 900 escritorio</option></select></label>
+<button id="next">Pasar a Charmander</button><button id="measure">Medir diseño</button></header>
+<iframe id="device" title="PWA en dispositivo de prueba" width="390" height="844" src="/tests/scanner-video.html?device=1" allow="camera"></iframe>
+<pre id="report" role="status"></pre>
+<script type="module">
+const frame = document.querySelector('#device');
+const sizes = document.querySelector('#size');
+sizes.onchange = () => { const [width, height] = sizes.value.split(','); frame.width = width; frame.height = height; };
+document.querySelector('#next').onclick = () => frame.contentWindow.postMessage('scanner-test-next', location.origin);
+document.querySelector('#measure').onclick = () => {
+  const doc = frame.contentDocument;
+  const page = doc.querySelector('.scanner-page');
+  if (!page) { document.querySelector('#report').textContent = 'Esperando a que cargue el escáner.'; return; }
+  const width = doc.documentElement.clientWidth;
+  const controls = [...page.querySelectorAll('button, input, select, summary')].filter(element => element.getBoundingClientRect().width > 0 && element.getBoundingClientRect().height > 0);
+  const overflow = controls.filter(element => { const rect = element.getBoundingClientRect(); return rect.left < -1 || rect.right > width + 1; });
+  const smallTargets = controls.filter(element => {
+    const target = element.matches('[type="checkbox"]') ? element.closest('label') || element : element;
+    const rect = target.getBoundingClientRect();
+    return rect.height < 43 || rect.width < 43;
+  });
+  const name = element => element.getAttribute('aria-label') || element.textContent?.trim().slice(0, 80) || element.tagName;
+  document.querySelector('#report').textContent = JSON.stringify({
+    viewport: { width, height: doc.documentElement.clientHeight },
+    documentOverflow: doc.documentElement.scrollWidth > width + 1,
+    pageOverflow: page.scrollWidth > page.clientWidth + 1,
+    controlsOutsideViewport: overflow.map(name), smallTouchTargets: smallTargets.map(name),
+    step: page.className, pending: doc.querySelector('.scanner-review h2')?.textContent,
+    camera: (() => { const rect = page.querySelector('.scanner-camera__preview').getBoundingClientRect(); return { width: Math.round(rect.width), height: Math.round(rect.height) }; })(),
+  }, null, 2);
+};
+</script></body></html>

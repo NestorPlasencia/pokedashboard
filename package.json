@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/prepare-ocr.mjs",
     "dev": "vite",
+    "prebuild": "node scripts/prepare-ocr.mjs",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test": "node --test \"tests/*.test.mjs\"",
@@ -12,9 +14,12 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "@tesseract.js-data/spa": "^1.0.0",
     "lucide-react": "^1.41.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.0",

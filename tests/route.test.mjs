@@ -34,6 +34,11 @@ test('reports have a dedicated address, including a trailing slash', () => {
   assert.equal(pathForRoute('reports'), '/reports');
 });
 
+test('the card scanner has a dedicated address, including a trailing slash', () => {
+  assert.equal(routeFromPath('/scanner/'), 'scanner');
+  assert.equal(pathForRoute('scanner'), '/scanner');
+});
+
 test('a malformed id is not treated as a shared collection', () => {
   // Anything that is not a real id is a mistyped link, and falls through to the app
   // rather than rendering a public page that could only fail to load.

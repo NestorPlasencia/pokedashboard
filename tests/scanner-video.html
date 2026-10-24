@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Scanner simulated video test</title>
+<style>html,body{margin:0;height:100%}body{display:flex;flex-direction:column;overflow:hidden}#test-controls{flex:0 0 auto;min-height:70px;padding:10px;box-sizing:border-box;background:#fff3c5;color:#222;font:14px system-ui}#root{height:auto!important;min-height:0;flex:1}button{font:inherit}</style></head>
+<body>
+<div id="test-controls">Prueba con video sintético y almacenamiento temporal. No usa la cámara física ni guarda cartas en Supabase.<br><button id="next">Cambiar a Charmander</button></div>
+<div id="root"></div>
+<script type="module">
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+if (new URLSearchParams(location.search).has('device')) document.querySelector('#test-controls').hidden = true;
+// This origin-local test uses isolated storage, even when the normal app has a session.
+const data = new Map();
+const storage = { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, String(value)), removeItem: key => data.delete(key), clear: () => data.clear(), key: index => [...data.keys()][index] ?? null, get length() { return data.size; } };
+Object.defineProperty(window, 'localStorage', { value: storage });
+const card = document.createElement('canvas'); card.width = 630; card.height = 880;
+const scene = document.createElement('canvas'); scene.width = 900; scene.height = 1200;
+const draw = (name, number) => {
+  const context = card.getContext('2d');
+  context.fillStyle = '#f5d550'; context.fillRect(0, 0, 630, 880);
+  context.fillStyle = '#f8ebbc'; context.fillRect(20, 20, 590, 840);
+  context.fillStyle = '#111'; context.font = 'bold 42px Arial'; context.fillText(name, 40, 85);
+  context.font = '24px Arial'; context.fillText('40 HP', 500, 85);
+  context.fillStyle = '#86b8ce'; context.fillRect(45, 125, 540, 390);
+  context.fillStyle = '#111'; context.font = '24px Arial'; context.fillText(number, 485, 835);
+  const frame = scene.getContext('2d'); frame.fillStyle = '#ddd'; frame.fillRect(0, 0, 900, 1200);
+  frame.drawImage(card, 72, 72, 756, 1056);
+};
+draw('Pikachu', '58/102');
+setInterval(() => {
+  scene.getContext('2d').drawImage(card, 72, 72, 756, 1056);
+}, 100);
+document.querySelector('#next').onclick = () => draw('Charmander', '46/102');
+window.addEventListener('message', event => {
+  if (event.source === parent && event.origin === location.origin && event.data === 'scanner-test-next') draw('Charmander', '46/102');
+});
+navigator.mediaDevices.getUserMedia = async () => scene.captureStream(10);
+history.replaceState(null, '', '/scanner?series=Base|Gym&cardVariantTopLevel=Standard');
+const { default: App } = await import('/src/App.tsx');
+createRoot(document.querySelector('#root')).render(React.createElement(App));
+</script>
+</body></html>

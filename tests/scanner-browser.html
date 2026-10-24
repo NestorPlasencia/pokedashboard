@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<title>Scanner browser smoke test</title>
+<style>body{font:16px system-ui;margin:24px;max-width:800px}canvas{width:210px;border:1px solid #ccc}pre{white-space:pre-wrap}</style>
+<h1>Prueba local del OCR del navegador</h1>
+<p>Esta prueba crea pendientes locales a partir de una imagen de referencia. No abre la cámara ni escribe en Supabase.</p>
+<canvas id="card" width="630" height="880"></canvas>
+<p id="status" role="status">Preparando…</p>
+<pre id="result"></pre>
+<script type="module">
+import { createCardOcr } from '/src/services/cardOcr.ts';
+import { automaticScanMatch, createScanGate, rankScanMatches } from '/src/utils/cardScanner.ts';
+const canvas = document.querySelector('#card');
+const context = canvas.getContext('2d');
+context.fillStyle = '#f5d550'; context.fillRect(0, 0, 630, 880);
+context.fillStyle = '#f8ebbc'; context.fillRect(20, 20, 590, 840);
+context.fillStyle = '#111'; context.font = 'bold 42px Arial'; context.fillText('Pikachu', 40, 85);
+context.font = '24px Arial'; context.fillText('40 HP', 500, 85);
+context.fillStyle = '#86b8ce'; context.fillRect(45, 125, 540, 390);
+context.fillStyle = '#111'; context.font = '24px Arial'; context.fillText('58/102', 485, 835);
+const card = { id: 'test-pikachu', productId: 25, name: 'Pikachu', number: '58', tcgPlayerNumber: '58/102', setId: 'base', setName: 'Base Set', printing: 'Normal', variant: 'Normal' };
+const sample = new URLSearchParams(location.search).get('sample');
+if (sample === 'pikachu' || sample === 'charizard') {
+  const image = new Image();
+  image.src = `/.codex-remote-attachments/scanner-qa/${sample}.png`;
+  await image.decode();
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  if (sample === 'charizard') Object.assign(card, { id: 'test-charizard', name: 'Charizard', number: '4', tcgPlayerNumber: '4/102' });
+}
+const status = document.querySelector('#status');
+const ocr = createCardOcr(message => { status.textContent = message; });
+try {
+  let candidates = [card];
+  if (new URLSearchParams(location.search).get('catalog') === '1') {
+    const { loadHierarchy } = await import('/src/services/cards.ts');
+    const { generateCardsForSeries } = await import('/src/services/runtimeCards.ts');
+    const hierarchy = await loadHierarchy();
+    const bundles = await Promise.all(hierarchy.filter(serie => ['Base', 'Gym'].includes(serie.name)).map(serie => generateCardsForSeries(serie.id)));
+    const printing = sample === 'charizard' ? '1st Edition Holofoil' : 'Normal';
+    candidates = bundles.flatMap(bundle => bundle.items).filter(entry => (entry.printing || entry.variant) === printing && (sample === 'charizard' || entry.cardVariantTopLevel === 'Standard'));
+  }
+  const start = performance.now();
+  const first = await ocr.recognize(canvas);
+  const second = await ocr.recognize(canvas);
+  const gate = createScanGate();
+  const pending = [];
+  for (const text of [first, second, second, { name: '', number: '' }, second]) {
+    const matches = rankScanMatches(candidates, text.name, text.number);
+    const match = matches[0];
+    if (gate.observe(match?.key ?? null)) {
+      const certain = automaticScanMatch(matches);
+      const candidate = certain?.card ?? match.cards[0];
+      pending.push({ name: candidate.name, set: candidate.setName, productId: candidate.productId, printing: candidate.printing || candidate.variant, condition: 'Lightly Played', approved: false, needsChoice: !certain });
+      gate.commit(match.key);
+    }
+  }
+  const passed = pending.length === 1 && pending[0].name === card.name && pending[0].approved === false;
+  status.textContent = passed ? 'PASS: OCR local + lectura estable + una pendiente de revisión, sin guardar en la colección.' : 'FAIL: revisar lectura OCR.';
+  document.querySelector('#result').textContent = JSON.stringify({ first, second, candidates: candidates.length, pending, collectionWrites: 0, seconds: Math.round((performance.now() - start) / 100) / 10 }, null, 2);
+} catch (error) {
+  status.textContent = 'FAIL: ' + error.message;
+} finally { ocr.dispose(); }
+</script>
+</html>

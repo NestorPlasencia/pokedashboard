@@ -1,4 +1,4 @@
-import type { Card } from "../types/dashboard";
+import type { Card, ConditionKey } from "../types/dashboard";
 import type { CollectionKind } from "./inventory";
 import { supabase } from "./supabase";
 
@@ -352,6 +352,33 @@ export async function addCard(
     status: "active",
     managed_by: null,
   });
+  if (error) fail(error);
+}
+
+/** A reviewed presentation is one physical copy. Retain copyId when retrying. */
+export async function addScannedCopy(
+  ownerId: string,
+  collectionId: string,
+  card: Card,
+  condition: ConditionKey,
+  copyId: string
+): Promise<void> {
+  const reference = cardReference(card);
+  if (!reference) throw new Error('A scanned card requires a product id.');
+  if (!['Near Mint', 'Lightly Played', 'Moderately Played', 'Heavily Played', 'Damaged'].includes(condition)) {
+    throw new Error('Invalid card condition.');
+  }
+  await ensureCatalogCard(ownerId, card);
+  const { error } = await client().from('card_copies').upsert({
+    id: copyId,
+    owner_id: ownerId,
+    collection_id: collectionId,
+    product_id: reference.productId,
+    printing: reference.printing,
+    condition,
+    status: 'active',
+    managed_by: null,
+  }, { onConflict: 'id', ignoreDuplicates: true });
   if (error) fail(error);
 }
 

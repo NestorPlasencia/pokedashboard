@@ -130,6 +130,63 @@ Supabase-hosted OAuth flow; Row Level Security then limits inventory queries to 
 signed-in owner. Use only the browser-safe publishable key. Never put a service-role
 key, database password, or connection string in this app.
 
+### Continuous card scanner
+
+Open **Menú → Escanear cartas** (`/scanner`). Before starting, choose the eras,
+sets, rarities, top-level and specific variants, optional collector-number range,
+printing, condition (Near Mint by default), and optional destination collection.
+Import filters from a catalog link or use the **Base + Gym** preset: the seven
+original sets, Common/Uncommon/Rare, and Standard. Start the video and hold each
+card inside the guide until it says **Enviada a revisión**, then pass the next one.
+
+Tesseract.js runs in a browser worker with local English/Spanish language models.
+Only the name and collector-number regions are read. The selected printing is a
+hard catalog filter, not a prediction. Two stable reads create a draft; no
+collection mutation runs during capture. A clear name+number match preselects
+the suggested card, while ambiguous readings require choosing among candidates.
+OCR does not translate names, so localized names that differ from the catalog
+may need a narrower scope or a manual correction in review.
+
+Drafts are backed up in localStorage separately per account and for guests. Pause
+the video to correct the card/printing, condition and destination, select reviewed
+entries, and explicitly confirm their addition to the collection. Restoring the
+page clears review selections, preserving the drafts. Guest drafts can be imported
+explicitly after signing in. A malformed backup is reported without overwriting it.
+
+On phones and tablets up to 900px wide, the scanner has separate **Configurar**,
+**Escanear**, and **Revisar** panes. Starting a scan brings the camera and its
+controls into view; opening another pane pauses the video. The preview scales
+with the available screen height, including a compact horizontal layout and
+safe-area spacing for installed PWAs. Review cards show a compact summary with
+expandable editing and a save bar above the app navigation. Touch controls are
+at least 44px high and form text stays at 16px to avoid mobile input zoom.
+
+A held card is latched even if a subsequent frame is blurry. A different card
+releases that latch; for identical consecutive copies, use **Otra copia igual**.
+Pausing and resuming keeps the latch. Each draft has a stable copy UUID so
+retrying a confirmed save after a lost response cannot insert the copy twice.
+Successful saves leave the review queue; failed ones stay available for retry.
+Collection writes use the existing authenticated Supabase client and require a connection. No card photos
+leave the device. Leaving the app pauses the video and releases its camera tracks.
+
+`predev` and `prebuild` run `scripts/prepare-ocr.mjs` to copy the pinned worker,
+WASM cores and language data from npm into generated `public/ocr/v7/` assets.
+They are served by the app's own origin and downloaded only when scanning starts.
+The production service worker caches the requested OCR assets; this does not
+make collection writes work offline. No schema migration or recognition server
+is required.
+
+For a browser smoke test without a camera or live database writes, run `npm run dev`
+and open `/tests/scanner-browser.html`. It checks real browser OCR against a
+synthetic card and runs the stable-read/duplicate gate into a review queue with zero collection writes.
+Physical-card recognition accuracy and latency still need validation on target phones.
+`/tests/scanner-video.html` runs the actual scanner UI with a synthetic video feed,
+isolated temporary storage and no signed-in session. Its button swaps Pikachu for
+Charmander to verify continuous capture, the held-card latch and review-only staging.
+`/tests/scanner-responsive.html` wraps that isolated test in phone, landscape,
+tablet and desktop viewports. **Medir diseño** reports horizontal overflow and
+undersized touch targets without using the physical camera or a signed-in account.
+
 ### Installing it as an app
 
 `public/manifest.webmanifest` plus the service worker make the dashboard installable, so

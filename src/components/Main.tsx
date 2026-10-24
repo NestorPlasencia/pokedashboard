@@ -33,6 +33,7 @@ const CardList = lazy(() => import("./views/CardList").then(module => ({ default
 const CardListTable = lazy(() => import("./views/CardListTable").then(module => ({ default: module.CardListTable })));
 const BinderView = lazy(() => import("./views/BinderView").then(module => ({ default: module.BinderView })));
 const ReportsPage = lazy(() => import("./pages/ReportsPage").then(module => ({ default: module.ReportsPage })));
+const ScannerPage = lazy(() => import("./pages/ScannerPage").then(module => ({ default: module.ScannerPage })));
 
 type MobilePanel = 'filters' | 'cards' | 'summary';
 
@@ -250,6 +251,11 @@ export const Main: React.FC = () => {
       )}
       {route === 'settings' && <SettingsPage printBusy={isLoading} inventoryStatus={inventoryStatus} />}
       {route === 'pokedex' && <PokedexPage />}
+      {route === 'scanner' && (
+        <Suspense fallback={<div className="main-status-message">Cargando escáner…</div>}>
+          <ScannerPage key={session?.user.id ?? 'guest'} />
+        </Suspense>
+      )}
       {route === 'reports' && (
         <Suspense fallback={<div className="main-status-message">Cargando informes…</div>}>
           <ReportsPage key={session?.user.id ?? 'guest'} inventory={inventory} inventoryStatus={inventoryStatus} inventoryError={inventoryError} />

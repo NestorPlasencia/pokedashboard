@@ -98,6 +98,20 @@ test('an image is fetched once and then served from the cache', async () => {
   assert.equal(fetchCount, 0, 'a hit never reaches the network');
 });
 
+test('self-hosted OCR worker and language data are available offline after first use', async () => {
+  for (const asset of ['worker.min.js', 'eng.traineddata.gz', 'tesseract-core-lstm.wasm.js']) {
+    const resource = request(`https://app.example/ocr/v7/${asset}`, { destination: '' });
+    const first = await dispatch(resource);
+    assert.equal(first.__from, 'network');
+    fetchMode = 'fail';
+    fetchCount = 0;
+    const cached = await dispatch(resource);
+    assert.equal(cached.__from, 'network');
+    assert.equal(fetchCount, 0, 'cached OCR assets do not need the network');
+    fetchMode = 'ok';
+  }
+});
+
 test('an image that cannot be fetched degrades to a placeholder', async () => {
   fetchMode = 'fail';
   const response = await dispatch(request('https://images.example/card-2.png', { destination: 'image' }));
