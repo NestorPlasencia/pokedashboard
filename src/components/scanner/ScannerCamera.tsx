@@ -1,11 +1,13 @@
 import { Camera } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { cameraSourceRect, mainBackCamera } from '../../utils/cardScanner';
 
-export function ScannerCamera({ running, onFrame, onStop }: {
+export function ScannerCamera({ running, onFrame, onStop, children }: {
   running: boolean;
   onFrame: (image: HTMLCanvasElement) => Promise<void>;
   onStop: (message: string) => void;
+  /** Shown over the bottom of the video in place of the hint, so it is visible while scanning. */
+  children?: ReactNode;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const guideRef = useRef<HTMLDivElement>(null);
@@ -107,6 +109,6 @@ export function ScannerCamera({ running, onFrame, onStop }: {
     <video ref={videoRef} autoPlay muted playsInline aria-label="Video continuo del escáner" />
     {!running && <div className="scanner-camera__placeholder"><Camera size={38} aria-hidden="true" /><span>Video pausado</span></div>}
     <div ref={guideRef} className="scanner-camera__guide" aria-hidden="true" />
-    <span className="scanner-camera__hint">Mantenla quieta hasta ver «Enviada a revisión»</span>
+    {children ?? <span className="scanner-camera__hint">Mantenla quieta hasta ver «Enviada a revisión»</span>}
   </div>;
 }

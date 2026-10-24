@@ -139,3 +139,12 @@
   .scanner-page { scroll-behavior: auto; }
 }
 @media print { .scanner-page { display: none; } }
+.scanner-camera__live { position: absolute; left: 8px; right: 8px; bottom: 8px; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--radius-sm); background: #101724e6; color: #fff; border: 1px solid #a6a1ff; }
+.scanner-camera__live.is-sent { border-color: var(--success); }
+.scanner-camera__live img { flex: none; width: 32px; height: 44px; object-fit: cover; border-radius: 3px; }
+.scanner-camera__live > span { display: grid; min-width: 0; flex: 1; line-height: 1.25; }
+.scanner-camera__live strong, .scanner-camera__live small { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.scanner-camera__live strong { font-size: 14px; }
+.scanner-camera__live small { font-size: 12px; color: #c4cedf; }
+.scanner-camera__live em { flex: none; display: inline-flex; align-items: center; gap: 4px; font-style: normal; font-size: 12px; font-weight: 700; color: #c9c6ff; }
+.scanner-camera__live.is-sent em { color: var(--success); }

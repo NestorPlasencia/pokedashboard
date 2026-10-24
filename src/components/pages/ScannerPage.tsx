@@ -45,6 +45,8 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
     try { return ownerId ? readScannerReview(localStorage, '').length : 0; } catch { return 0; }
   });
   const [lastText, setLastText] = useState('');
+  /** The card being read, shown over the video so it is visible without scrolling. */
+  const [live, setLive] = useState<{ card: Card; detail: string; sent: boolean } | null>(null);
   const ocrRef = useRef<ReturnType<typeof createCardOcr> | null>(null);
   const embedderRef = useRef<ReturnType<typeof createCardEmbedder> | null>(null);
   const [vectors, setVectors] = useState<{ key: string; index: CardVectorIndex | null } | null>(null);
@@ -145,7 +147,7 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
     }
     generation.current++;
     setMobileStep('camera');
-    active.current = true; setRunning(true); setError(''); setStatus('Abriendo cámara…');
+    active.current = true; setRunning(true); setError(''); setLive(null); setStatus('Abriendo cámara…');
     // Scroll after the mobile pane is visible. On desktop, bring the camera into view.
     window.requestAnimationFrame(() => {
       if (window.matchMedia('(max-width: 900px)').matches) pageRef.current?.scrollTo({ top: 0 });
@@ -177,15 +179,16 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
         }
       }
       // Cards without image data, or a frame the image model does not recognise, fall back to OCR.
-      if (!visual && visualCount < count) text = await ocrRef.current.recognize(image, { located });
+      if (!visual) text = await ocrRef.current.recognize(image, { located });
       if (isStale()) return;
       setProgress('');
 
       /** `keys` are in order of likelihood; review lists the candidates the same way. */
-      const stage = (gateKey: string, latchKeys: string[], name: string, keys: string[], preferredId: string | undefined, note: string) => {
+      const stage = (gateKey: string, latchKeys: string[], shown: Card, detail: string, keys: string[], preferredId: string | undefined, note: string) => {
+        const name = shown.name;
         const stable = gate.current.observe(gateKey);
-        if (gate.current.isLatched(gateKey)) { setStatus(`${name} enviada a revisión. Pasa la siguiente carta.`); return; }
-        if (!stable) { setStatus(`${name} detectada. Mantenla quieta para confirmar la lectura…`); return; }
+        if (gate.current.isLatched(gateKey)) { setLive({ card: shown, detail, sent: true }); setStatus(`${name} enviada a revisión. Pasa la siguiente carta.`); return; }
+        if (!stable) { setLive({ card: shown, detail, sent: false }); setStatus(`${name} detectada. Mantenla quieta para confirmar la lectura…`); return; }
         const groups = new Map(groupScanCards(scopedCards).map(group => [group.key, group.cards]));
         const candidates = [...new Set(keys)].flatMap(key => groups.get(key) ?? []);
         const draft: ScanDraft = {
@@ -194,6 +197,7 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
         };
         gate.current.commit(gateKey, ...latchKeys);
         setDrafts(entries => [draft, ...entries]);
+        setLive({ card: shown, detail, sent: true });
         if (active.current) setStatus(`${name} enviada a revisión. Pasa la siguiente carta.`);
         if (active.current) navigator.vibrate?.(80);
       };
@@ -203,7 +207,9 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
         setLastText(`Imagen: ${visual.shortlist.map(group => `${group.cards[0].name} · ${group.cards[0].setName} ${Math.round(group.similarity * 100)}%`).join(', ')}\n${text.number}`.trim());
         const proposed = visual.resolved ? proposedScanCard(visual.resolved.cards) : null;
         const printingNote = visual.resolved && visual.resolved.cards.length > 1 ? ' Revisa la impresión (1st Edition no se distingue por cámara).' : '';
-        stage(visual.gateKey, visual.latchKeys, top.cards[0].name, [top, ...visual.shortlist, ...visual.related].map(group => group.key),
+        const shown = proposed ?? top.cards[0];
+        const sets = new Set(visual.shortlist.map(group => group.cards[0].setName)).size;
+        stage(visual.gateKey, visual.latchKeys, shown, visual.resolved ? `${shown.setName} · ${shown.number}` : `${sets} sets posibles · elige en revisión`, [top, ...visual.shortlist, ...visual.related].map(group => group.key),
           proposed?.id,
           visual.resolvedBy === 'number' ? `La imagen y el número coinciden.${printingNote}`
             : visual.resolvedBy === 'image' ? `Reconocida por la imagen; no se leyó el número.${printingNote}`
@@ -217,10 +223,11 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
       const match = matches[0];
       if (!match) {
         gate.current.observe(null);
+        setLive(null);
         setStatus(text.detected ? `Leyendo carta entre las ${count} del catálogo… Mantén la carta quieta y enfocada.` : 'Acerca la carta y deja visibles sus cuatro bordes. Evita los reflejos.');
         return;
       }
-      stage(match.key, [], match.cards[0].name, matches.slice(0, 6).map(candidate => candidate.key), certain?.card.id,
+      stage(match.key, [], certain?.card ?? match.cards[0], certain ? `${certain.card.setName} · ${certain.card.number}` : 'Lectura dudosa · elige en revisión', matches.slice(0, 6).map(candidate => candidate.key), certain?.card.id,
         certain ? 'Nombre y número coinciden. Pendiente de revisión.' : 'Lectura dudosa: elige la carta y la impresión correctas.');
     } catch {
       if (mounted.current && active.current && current === generation.current) {
@@ -294,7 +301,13 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
         <section ref={cameraPanelRef} className="scanner-panel scanner-camera-panel" aria-label="Captura de cartas">
           <div className="scanner-camera-panel__heading"><h2>Pasa las cartas</h2><span>{drafts.length} en revisión</span></div>
           <p className="scanner-batch-summary">{printingLabel} · {condition}{owned.selected ? ` · ${owned.selected.name}` : ''}</p>
-          <ScannerCamera running={running} onFrame={readFrame} onStop={pause} />
+          <ScannerCamera running={running} onFrame={readFrame} onStop={pause}>
+            {running && live ? <div className={`scanner-camera__live${live.sent ? ' is-sent' : ''}`}>
+              <img src={live.card.image} alt="" />
+              <span><strong>{live.card.name}</strong><small>{live.detail}</small></span>
+              <em>{live.sent ? <><Check size={14} aria-hidden="true" />Enviada</> : 'Quieta…'}</em>
+            </div> : undefined}
+          </ScannerCamera>
           <div className="scanner-actions scanner-session-actions">
             {running
               ? <button type="button" className="collections-page__btn" onClick={() => pause()}><Pause size={18} />Pausar</button>
