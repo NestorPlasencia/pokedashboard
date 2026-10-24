@@ -7,7 +7,7 @@ import { createCardOcr } from '../../services/cardOcr';
 import { COLLECTION_PRINTING_ORDER } from '../../services/inventory';
 import { readScannerReview, saveScannerReview } from '../../services/scannerReview';
 import type { ConditionKey } from '../../types/dashboard';
-import { automaticScanMatch, createScanGate, groupScanCards, rankScanMatches, type ScanDraft } from '../../utils/cardScanner';
+import { automaticScanMatch, createScanGate, defaultDraftCardId, draftQuantity, groupScanCards, rankScanMatches, scanPrinting, withDraftQuantity, type ScanDraft } from '../../utils/cardScanner';
 import { scannerCatalogCards } from '../../utils/scannerCatalog';
 import { navigate, openCardsView } from '../../utils/route';
 import { parseUrlParams } from '../../utils/urlParams';
@@ -78,11 +78,11 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
 
   const scopedCards = useMemo(() => scannerCatalogCards(renderCards), [renderCards]);
   const printings = useMemo(() => {
-    const values = [...new Set(scopedCards.map(card => card.printing || card.variant).filter(Boolean))];
+    const values = [...new Set(scopedCards.map(scanPrinting).filter(Boolean))];
     const rank = (value: string) => { const index = (COLLECTION_PRINTING_ORDER as readonly string[]).indexOf(value); return index < 0 ? 999 : index; };
     return values.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
   }, [scopedCards]);
-  const scanCards = useMemo(() => printing ? scopedCards.filter(card => (card.printing || card.variant) === printing) : scopedCards, [scopedCards, printing]);
+  const scanCards = useMemo(() => printing ? scopedCards.filter(card => scanPrinting(card) === printing) : scopedCards, [scopedCards, printing]);
   const count = useMemo(() => groupScanCards(scanCards).length, [scanCards]);
   const catalogSignature = useMemo(() => JSON.stringify(scopedCards.map(card => [card.id, card.printing || card.variant]).sort()), [scopedCards]);
   const locked = running || working || reviewSaving;
@@ -170,7 +170,7 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
       const keys = new Set(matches.slice(0, 6).map(candidate => candidate.key));
       const candidates = groupScanCards(scopedCards).filter(group => keys.has(group.key)).flatMap(group => group.cards);
       const draft: ScanDraft = {
-        id: crypto.randomUUID(), candidates, cardId: certain?.card.id ?? '', condition,
+        id: crypto.randomUUID(), candidates, cardId: defaultDraftCardId(candidates, certain?.card.id), condition,
         collectionId: owned.selected?.id ?? '', approved: false,
         note: certain ? 'Nombre y número coinciden. Pendiente de revisión.' : 'Lectura dudosa: elige la carta y la impresión correctas.',
         createdAt: new Date().toISOString(),
@@ -249,9 +249,12 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
             {running
               ? <button type="button" className="collections-page__btn" onClick={() => pause()}><Pause size={18} />Pausar</button>
               : <button type="button" className="collections-page__btn collections-page__btn--primary" disabled={!canStart || working} onClick={start}><Play size={18} />{drafts.length ? 'Continuar' : 'Iniciar escaneo'}</button>}
-            <button type="button" className="collections-page__btn" disabled={working || reviewSaving || !drafts.length} onClick={() => {
-              gate.current.rearm(); setStatus('Lista para otra copia de la misma carta.');
-            }}>Otra copia igual</button>
+            <button type="button" className="collections-page__btn" disabled={reviewSaving || !drafts.length} onClick={() => {
+              const [latest] = drafts;
+              const name = latest.candidates.find(card => card.id === latest.cardId)?.name ?? latest.candidates[0]?.name ?? 'la carta';
+              setDrafts(entries => entries.map(entry => entry.id === latest.id ? withDraftQuantity(entry, draftQuantity(entry) + 1, () => crypto.randomUUID()) : entry));
+              setStatus(`${name}: ${draftQuantity(latest) + 1} copias. Pasa la siguiente carta.`);
+            }}>+1 copia de la última{drafts[0] && draftQuantity(drafts[0]) > 1 ? ` (×${draftQuantity(drafts[0])})` : ''}</button>
           </div>
           <p className="scanner-live-status" role="status" aria-live="polite">{status}</p>
           {progress && <p className="scanner-progress">{progress}</p>}
@@ -259,7 +262,7 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
           <button type="button" className="collections-page__btn scanner-open-review" disabled={!drafts.length || reviewSaving} onClick={() => showStep('review')}><ListChecks size={18} aria-hidden="true" />Revisar {drafts.length} pendientes</button>
           <details className="scanner-help"><summary>Consejos y texto leído</summary>
             <p>Mantén cada carta quieta hasta ver «Enviada a revisión» y pasa a la siguiente. Las lecturas dudosas quedan señaladas para corregirlas.</p>
-            <p>Una carta quieta no se cuenta dos veces. Para copias idénticas consecutivas, pulsa «Otra copia igual» entre ellas.</p>
+            <p>Una carta quieta no se cuenta dos veces. Si tienes varias copias idénticas seguidas, escanea una y pulsa «+1 copia de la última» por cada copia extra; también puedes cambiar la cantidad en la revisión.</p>
             <p className="scanner-privacy">OCR local en inglés y español. Las fotos no se envían al servidor. La revisión se respalda en este navegador. Sólo el guardado confirmado requiere conexión.</p>
             {lastText && <pre className="scanner-read-text">{lastText}</pre>}
           </details>

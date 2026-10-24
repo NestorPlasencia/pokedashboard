@@ -25,6 +25,21 @@ export function scanScopeFromFilters(params: FilterParams): ScanScope {
   };
 }
 
+/** Sets with a 1st Edition call their regular print "Unlimited"; others call it "Normal".
+ * Both are the same physical finish, so the batch printing treats them as one.
+ */
+export const scanPrinting = (card: Card): string => (card.printing || card.variant)
+  .replace(/^Unlimited$/, 'Normal').replace(/^Unlimited Holofoil$/, 'Holofoil');
+
+/** Pick the main rear lens; facingMode alone lets some phones open the telephoto. */
+export function mainBackCamera(devices: Pick<MediaDeviceInfo, 'kind' | 'label' | 'deviceId'>[]): string | null {
+  const cameras = devices.filter(device => device.kind === 'videoinput' && device.deviceId);
+  const back = cameras.filter(device => /back|rear|environment|trasera/i.test(device.label));
+  const rank = (label: string) => (/tele|zoom|ultra|macro|depth|infrared/i.test(label) ? 1000 : 0) +
+    Number(label.match(/camera2? (\d+)/i)?.[1] ?? 500);
+  return [...back].sort((a, b) => rank(a.label) - rank(b.label))[0]?.deviceId ?? null;
+}
+
 export type ScanDraft = {
   id: string;
   candidates: Card[];
@@ -34,7 +49,22 @@ export type ScanDraft = {
   approved: boolean;
   note: string;
   createdAt: string;
+  /** Ids for identical copies after the first; each saved copy keeps its own id for safe retries. */
+  extraCopyIds?: string[];
 };
+
+export const draftQuantity = (draft: ScanDraft) => 1 + (draft.extraCopyIds?.length ?? 0);
+
+export function withDraftQuantity(draft: ScanDraft, quantity: number, newId: () => string): ScanDraft {
+  const extra = Math.max(0, Math.min(98, Math.floor(quantity) - 1));
+  const ids = (draft.extraCopyIds ?? []).slice(0, extra);
+  while (ids.length < extra) ids.push(newId());
+  return { ...draft, extraCopyIds: ids };
+}
+
+/** A lone candidate needs no choice in review. */
+export const defaultDraftCardId = (candidates: Card[], certainId = '') =>
+  certainId || (candidates.length === 1 ? candidates[0].id : '');
 
 export type ScanMatch = {
   key: string;
@@ -118,7 +148,8 @@ const nameSimilarity = (name: string, text: string): number => {
     const candidate = words.slice(i, i + count).join(' ');
     best = Math.max(best, 1 - editDistance(target, candidate) / Math.max(target.length, candidate.length));
   }
-  return best >= 0.72 && target.length >= 4 ? best : 0;
+  // One misread letter turns "will" into "Bill", so short names must be read exactly.
+  return best >= 0.72 && target.length >= 6 ? best : 0;
 };
 
 export function rankScanMatches(cards: Card[], nameText: string, numberText: string): ScanMatch[] {

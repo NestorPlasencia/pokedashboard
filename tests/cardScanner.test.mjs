@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { automaticScanMatch, BASE_GYM_SCAN_SCOPE, cameraSourceRect, cardsInScanScope, createScanGate, groupScanCards, rankScanMatches, scanScopeFromFilters } from '../src/utils/cardScanner.ts';
+import { automaticScanMatch, BASE_GYM_SCAN_SCOPE, cameraSourceRect, cardsInScanScope, createScanGate, defaultDraftCardId, draftQuantity, groupScanCards, mainBackCamera, rankScanMatches, scanPrinting, scanScopeFromFilters, withDraftQuantity } from '../src/utils/cardScanner.ts';
 import { parseUrlParams } from '../src/utils/urlParams.ts';
 
 const card = (patch = {}) => ({
@@ -99,4 +99,37 @@ test('camera guide maps to the visible crop for landscape and portrait sensors',
   const portrait = cameraSourceRect(1080, 1920, 300, 400, { x: 24, y: 32, width: 252, height: 336 });
   assert.ok(portrait.x >= 0 && portrait.y >= 0);
   assert.ok(portrait.x + portrait.width <= 1080 && portrait.y + portrait.height <= 1920);
+});
+
+test('the regular print counts as Normal whether the set calls it Normal or Unlimited', () => {
+  assert.equal(scanPrinting(card({ printing: 'Unlimited' })), 'Normal');
+  assert.equal(scanPrinting(card({ printing: 'Normal' })), 'Normal');
+  assert.equal(scanPrinting(card({ printing: 'Unlimited Holofoil' })), 'Holofoil');
+  assert.equal(scanPrinting(card({ printing: '1st Edition' })), '1st Edition');
+});
+
+test('short names are never matched from a one-letter misread', () => {
+  const bill = card({ id: 'bill', name: 'Bill', number: '91', tcgPlayerNumber: '91/102' });
+  assert.equal(rankScanMatches([bill], 'Will you search your deck', '').length, 0);
+  assert.equal(rankScanMatches([bill], 'TRAINER\nBill', '').length, 1);
+  assert.equal(rankScanMatches([card()], 'Charizarb', '').length, 1, 'longer names still tolerate a misread');
+});
+
+test('the scanner prefers the main rear lens over telephoto and ultra wide', () => {
+  const camera = (deviceId, label) => ({ kind: 'videoinput', deviceId, label });
+  assert.equal(mainBackCamera([camera('front', 'camera2 1, facing front'), camera('tele', 'camera2 2, facing back'), camera('main', 'camera2 0, facing back')]), 'main');
+  assert.equal(mainBackCamera([camera('t', 'Back Telephoto Camera'), camera('u', 'Back Ultra Wide Camera'), camera('m', 'Back Camera')]), 'm');
+  assert.equal(mainBackCamera([camera('x', '')]), null);
+});
+
+test('draft quantity keeps a stable id per copy and a lone candidate is chosen', () => {
+  let next = 0;
+  const draft = { id: 'a', candidates: [card()], cardId: '', condition: 'Near Mint', collectionId: '', approved: false, note: '', createdAt: '' };
+  const three = withDraftQuantity(draft, 3, () => `id${next++}`);
+  assert.equal(draftQuantity(three), 3);
+  assert.deepEqual(withDraftQuantity(three, 2, () => 'new').extraCopyIds, ['id0']);
+  assert.equal(draftQuantity(withDraftQuantity(three, 0, () => 'new')), 1);
+  assert.equal(defaultDraftCardId([card()]), 'base-charizard');
+  assert.equal(defaultDraftCardId([card(), card({ id: 'b' })]), '');
+  assert.equal(defaultDraftCardId([card(), card({ id: 'b' })], 'b'), 'b');
 });

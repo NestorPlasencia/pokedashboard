@@ -1,6 +1,6 @@
 import { Camera } from 'lucide-react';
 import { useEffect, useRef } from 'react';
-import { cameraSourceRect } from '../../utils/cardScanner';
+import { cameraSourceRect, mainBackCamera } from '../../utils/cardScanner';
 
 export function ScannerCamera({ running, onFrame, onStop }: {
   running: boolean;
@@ -65,11 +65,21 @@ export function ScannerCamera({ running, onFrame, onStop }: {
     const start = async () => {
       try {
         if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) throw new Error('HTTPS required');
-        const acquired = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1440 } },
-        });
+        const size = { width: { ideal: 1920 }, height: { ideal: 1440 } };
+        let acquired = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, ...size } });
+        // Device labels are only readable after permission, so switch lenses on a second request.
+        const main = mainBackCamera(await navigator.mediaDevices.enumerateDevices());
+        if (main && !cancelled && acquired.getVideoTracks()[0]?.getSettings().deviceId !== main) {
+          acquired.getTracks().forEach(track => track.stop());
+          acquired = await navigator.mediaDevices.getUserMedia({ audio: false, video: { deviceId: { exact: main }, ...size } })
+            .catch(() => navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, ...size } }));
+        }
         if (cancelled) { acquired.getTracks().forEach(track => track.stop()); return; }
+        const track = acquired.getVideoTracks()[0];
+        const zoom = (track?.getCapabilities?.() as { zoom?: { min: number; max: number } } | undefined)?.zoom;
+        if (zoom && zoom.min <= 1 && zoom.max >= 1) {
+          await track.applyConstraints({ advanced: [{ zoom: 1 } as MediaTrackConstraintSet] }).catch(() => undefined);
+        }
         stream = acquired;
         if (!video) throw new Error('Video unavailable');
         video.srcObject = stream;
