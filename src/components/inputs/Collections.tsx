@@ -12,9 +12,8 @@ import { toggleViewedCollection } from "../../utils/viewMode";
 import { navigate, openCardsView } from "../../utils/route";
 import { childrenByParent, collectionScopeNames } from "../../utils/collectionTree";
 import { groupByTag } from "../../utils/collectionTags";
-import { countCopies } from "../../utils/copyCount";
+import { CONDITION_ORDER as CONDITION_KEYS, countCopies } from "../../utils/copyCount";
 
-const CONDITION_KEYS: ConditionKey[] = ["Near Mint", "Lightly Played", "Moderately Played", "Damaged", "Heavily Played"];
 // A stable reference outside a collection view, so it never looks like a changed
 // dependency to the hooks that read it.
 const NO_VIEWED_COLLECTIONS: string[] = [];
@@ -400,7 +399,7 @@ export const Collections = () => {
                     type="button"
                     className={`filter-icon-btn ${conditionValuesForMode.length === CONDITION_KEYS.length ? 'active' : ''}`}
                     onClick={() => setConditionValues(
-                      conditionValuesForMode.length === CONDITION_KEYS.length ? [] : CONDITION_KEYS
+                      conditionValuesForMode.length === CONDITION_KEYS.length ? [] : [...CONDITION_KEYS]
                     )}
                     aria-label={conditionValuesForMode.length === CONDITION_KEYS.length ? 'Deselect all conditions' : 'Select all conditions'}
                     title={conditionValuesForMode.length === CONDITION_KEYS.length ? 'Deselect all' : 'Select all'}

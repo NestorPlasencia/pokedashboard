@@ -418,15 +418,15 @@ export const calculatePriceSummary = (
         moderatelyPlayedTotal += prices["Moderately Played"];
         moderatelyPlayedCount++;
         hasAnyPrice = true;
-      } else if (prices["Damaged"] !== null && prices["Damaged"] !== undefined) {
-        selectedPrice = prices["Damaged"];
-        damagedTotal += prices["Damaged"];
-        damagedCount++;
-        hasAnyPrice = true;
       } else if (prices["Heavily Played"] !== null && prices["Heavily Played"] !== undefined) {
         selectedPrice = prices["Heavily Played"];
         heavilyPlayedTotal += prices["Heavily Played"];
         heavilyPlayedCount++;
+        hasAnyPrice = true;
+      } else if (prices["Damaged"] !== null && prices["Damaged"] !== undefined) {
+        selectedPrice = prices["Damaged"];
+        damagedTotal += prices["Damaged"];
+        damagedCount++;
         hasAnyPrice = true;
       }
     }

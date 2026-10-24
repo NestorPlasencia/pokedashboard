@@ -1,12 +1,11 @@
 import type { Card, ConditionKey, PokemonFormWithoutCard, PokemonFormData, Set } from "../types/dashboard";
-import { countCopies } from "./copyCount.ts";
+import { CONDITION_ORDER as CONDITION_KEYS, countCopies } from "./copyCount.ts";
 import { formBelongsToRegions } from "./pokedexRegions.ts";
 const NON_HIT_RARITIES = ["Common", "Uncommon", "Rare", "Rare Holo"];
 const NON_HOLO_RARITIES = ["Common", "Uncommon", "Rare"];
 const BULK_RARITIES = ["Common", "Uncommon"];
 const RARE_RARITIES = ["Rare"];
 const HOLO_RARITIES = ["Rare Holo"];
-const CONDITION_KEYS: ConditionKey[] = ["Near Mint", "Lightly Played", "Moderately Played", "Damaged", "Heavily Played"];
 
 type FilterProperty = keyof Card | "variants" | "conditions";
 
@@ -61,7 +60,7 @@ export const excludeCardsByProperty = (
 
 const getConditionKeysToUse = (conditionsFilter: string[] = ["All"]): ConditionKey[] => {
   if (conditionsFilter.includes("All")) {
-    return CONDITION_KEYS;
+    return [...CONDITION_KEYS];
   }
 
   return conditionsFilter.filter((condition): condition is ConditionKey =>

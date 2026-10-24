@@ -1,12 +1,8 @@
 import type { Card, ConditionKey, QuantityKey } from "../types/dashboard";
+import { CONDITION_ORDER } from "./copyCount.ts";
 
-const PRICE_CONDITIONS: ConditionKey[] = [
-  "Near Mint",
-  "Lightly Played",
-  "Moderately Played",
-  "Damaged",
-  "Heavily Played",
-];
+// The best condition with a price stands in for a copy whose own condition has none.
+const PRICE_CONDITIONS = CONDITION_ORDER;
 
 /** What a copy is valued at when its own condition has no price (or it has no condition). */
 export const getBestAvailablePrice = (card: Card): number | null => {
@@ -17,7 +13,7 @@ export const getBestAvailablePrice = (card: Card): number | null => {
   return null;
 };
 
-const OWNED_CONDITION_ORDER: QuantityKey[] = [...PRICE_CONDITIONS.filter((condition) => condition !== "Damaged"), "Damaged", "Unknown"];
+const OWNED_CONDITION_ORDER: QuantityKey[] = [...CONDITION_ORDER, "Unknown"];
 
 export const CONDITION_ABBREVIATIONS: Record<QuantityKey, string> = {
   "Near Mint": "NM",

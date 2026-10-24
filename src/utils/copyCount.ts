@@ -1,6 +1,7 @@
 import type { ConditionKey, QuantityKey } from "../types/dashboard";
 
-const CONDITION_KEYS: ConditionKey[] = ["Near Mint", "Lightly Played", "Moderately Played", "Damaged", "Heavily Played"];
+/** Best to worst. Lists, filters and price fallbacks all follow this order. */
+export const CONDITION_ORDER: readonly ConditionKey[] = ["Near Mint", "Lightly Played", "Moderately Played", "Heavily Played", "Damaged"];
 
 /**
  * Copies held in one collection entry, optionally narrowed to some conditions.
@@ -16,7 +17,7 @@ export const countCopies = (
   if (conditionsFilter.includes("All")) {
     return Object.values(quantity).reduce((sum, value) => sum + (value || 0), 0);
   }
-  return CONDITION_KEYS
+  return CONDITION_ORDER
     .filter((condition) => conditionsFilter.includes(condition))
     .reduce((sum, condition) => sum + (quantity[condition] || 0), 0);
 };
