@@ -78,3 +78,15 @@ test('an identified card proposes its regular print over the unreadable 1st Edit
   assert.equal(byNumber.resolvedBy, 'number');
   assert.equal(rankVisualMatches([energy, base], value => value === energy ? 0.676 : 0.549, '').resolvedBy, 'image');
 });
+
+test('the number or the name picks a look-alike that the image ranked second', () => {
+  const oddish = card('o1', 'Oddish', 'Jungle', '58', '64');
+  const erikas = card('o2', "Erika's Oddish", 'Gym Heroes', '78', '132');
+  const looks = value => (value === erikas ? 0.72 : value === oddish ? 0.62 : undefined);
+  assert.equal(rankVisualMatches([oddish, erikas], looks, '').resolved.cards[0].name, "Erika's Oddish", 'the image alone is wrong here');
+  assert.equal(rankVisualMatches([oddish, erikas], looks, '58/64').resolved.cards[0].name, 'Oddish');
+  assert.equal(rankVisualMatches([oddish, erikas], looks, '58').resolved.cards[0].name, "Erika's Oddish", 'a bare number cannot override the image');
+  const byName = rankVisualMatches([oddish, erikas], looks, '', 'Basic Pokémon\nOddish 50 HP');
+  assert.deepEqual([byName.resolved.cards[0].name, byName.resolvedBy], ['Oddish', 'name']);
+  assert.equal(rankVisualMatches([oddish, erikas], value => (value === oddish ? 0.72 : 0.7), '', "Erika's Oddish").resolved.cards[0].name, "Erika's Oddish");
+});

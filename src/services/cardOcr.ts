@@ -28,8 +28,10 @@ export function createCardOcr(onProgress: (message: string) => void) {
   };
 
   return {
-    /** `numberOnly` skips the name passes when the card is identified by its image. */
-    async recognize(image: HTMLCanvasElement, options: { located?: LocatedCard; numberOnly?: boolean } = {}) {
+    /** With the card narrowed down by its image, `numberOnly` reads just the collector number,
+     * and `nameOnly` just the name when the number was not enough.
+     */
+    async recognize(image: HTMLCanvasElement, options: { located?: LocatedCard; numberOnly?: boolean; nameOnly?: boolean } = {}) {
       const worker = await getWorker();
       const located = options.located ?? locateAndCropCard(image);
       // Upscaling and grayscale improve the small collector number on older cards.
@@ -56,13 +58,16 @@ export function createCardOcr(onProgress: (message: string) => void) {
         } });
         nameText = `${name.data.text.trim()}\n${nameLine.data.text.trim()}`;
       }
-      await worker.setParameters({ tessedit_pageseg_mode: '11' as import('tesseract.js').PSM });
-      const number = await worker.recognize(prepared, { rectangle: {
-        left: Math.round(prepared.width * 0.04), top: Math.floor(prepared.height * 0.86),
-        width: Math.round(prepared.width * 0.92), height: Math.floor(prepared.height * 0.13),
-      } });
-      let numberText = number.data.text.trim();
-      if (!/\d\s*[/／]\s*\d/.test(numberText)) {
+      let numberText = '';
+      if (!options.nameOnly) {
+        await worker.setParameters({ tessedit_pageseg_mode: '11' as import('tesseract.js').PSM });
+        const number = await worker.recognize(prepared, { rectangle: {
+          left: Math.round(prepared.width * 0.04), top: Math.floor(prepared.height * 0.86),
+          width: Math.round(prepared.width * 0.92), height: Math.floor(prepared.height * 0.13),
+        } });
+        numberText = number.data.text.trim();
+      }
+      if (!options.nameOnly && !/\d\s*[/／]\s*\d/.test(numberText)) {
         // Small WotC collector numbers get lost among the copyright/flavour text.
         // A single-line pass of each bottom corner also covers modern left-side numbers.
         await worker.setParameters({ tessedit_pageseg_mode: '7' as import('tesseract.js').PSM, tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ/ ' });
@@ -83,7 +88,7 @@ export function createCardOcr(onProgress: (message: string) => void) {
         await worker.setParameters({ tessedit_pageseg_mode: '11' as import('tesseract.js').PSM });
         const full = await worker.recognize(prepared);
         if (!options.numberOnly) nameText += `\n${full.data.text.trim()}`;
-        numberText += `\n${full.data.text.trim()}`;
+        if (!options.nameOnly) numberText += `\n${full.data.text.trim()}`;
       }
       return { name: nameText.trim(), number: numberText.trim(), detected: located.detected };
     },

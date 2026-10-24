@@ -162,6 +162,9 @@ const nameSimilarity = (name: string, text: string): number => {
   return best >= 0.72 && target.length >= 6 ? best : 0;
 };
 
+/** Whether the exact card name appears in the OCR text of the name area. */
+export const readsCardName = (name: string, text: string) => nameSimilarity(name, text) === 1;
+
 export function rankScanMatches(cards: Card[], nameText: string, numberText: string): ScanMatch[] {
   const fractions = [...numberText.toUpperCase().matchAll(/\b([A-Z]{0,3}\s*\d{1,4})\s*[/／]\s*([A-Z]{0,3}\s*\d{1,4})\b/g)]
     .map(match => [normalizeNumber(match[1]), normalizeNumber(match[2])]);

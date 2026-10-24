@@ -176,6 +176,12 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
         if (rankVisualMatches(scanCards, similarity, '')) {
           text = await ocrRef.current.recognize(image, { located, numberOnly: true });
           visual = rankVisualMatches(scanCards, similarity, text.number);
+          // Without a readable number, the name tells look-alikes apart (Oddish, Erika's Oddish).
+          if (visual && visual.resolvedBy !== 'number' && !isStale()) {
+            const name = (await ocrRef.current.recognize(image, { located, nameOnly: true })).name;
+            text = { ...text, name };
+            visual = rankVisualMatches(scanCards, similarity, text.number, name);
+          }
         }
       }
       // Cards without image data, or a frame the image model does not recognise, fall back to OCR.
@@ -204,7 +210,7 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
 
       if (visual) {
         const top = visual.resolved ?? visual.shortlist[0];
-        setLastText(`Imagen: ${visual.shortlist.map(group => `${group.cards[0].name} · ${group.cards[0].setName} ${Math.round(group.similarity * 100)}%`).join(', ')}\n${text.number}`.trim());
+        setLastText(`Imagen: ${visual.shortlist.map(group => `${group.cards[0].name} · ${group.cards[0].setName} ${Math.round(group.similarity * 100)}%`).join(', ')}\n${text.name}\n${text.number}`.trim());
         const proposed = visual.resolved ? proposedScanCard(visual.resolved.cards) : null;
         const printingNote = visual.resolved && visual.resolved.cards.length > 1 ? ' Revisa la impresión (1st Edition no se distingue por cámara).' : '';
         const shown = proposed ?? top.cards[0];
@@ -212,6 +218,7 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
         stage(visual.gateKey, visual.latchKeys, shown, visual.resolved ? `${shown.setName} · ${shown.number}` : `${sets} sets posibles · elige en revisión`, [top, ...visual.shortlist, ...visual.related].map(group => group.key),
           proposed?.id,
           visual.resolvedBy === 'number' ? `La imagen y el número coinciden.${printingNote}`
+            : visual.resolvedBy === 'name' ? `La imagen y el nombre coinciden; no se leyó el número.${printingNote}`
             : visual.resolvedBy === 'image' ? `Reconocida por la imagen; no se leyó el número.${printingNote}`
               : 'La ilustración coincide con varios sets y no se leyó el número: elige el correcto.');
         return;
