@@ -1,4 +1,4 @@
-import { Check, Minus, Plus, Trash2 } from 'lucide-react';
+import { Check, CheckCheck, Minus, Plus, Trash2 } from 'lucide-react';
 import { useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useOwnedCollections } from '../../context/OwnedCollectionsContext';
@@ -23,6 +23,8 @@ export function ScannerReview({ entries, setEntries, scanning, onSavingChange }:
   const selected = entries.filter(entry => entry.approved);
   const editableIds = new Set(owned.collections.map(collection => collection.id));
   const valid = (entry: ScanDraft) => Boolean(editableIds.has(entry.collectionId) && entry.candidates.some(card => card.id === entry.cardId && owned.canTrack(card)));
+  const resolved = entries.filter(valid);
+  const allResolvedSelected = resolved.length > 0 && resolved.every(entry => entry.approved);
   const locked = saving || scanning;
   const patch = (id: string, change: Partial<ScanDraft>) => setEntries(current => current.map(entry => entry.id === id ? { ...entry, ...change } : entry));
   const setQuantity = (id: string, quantity: number) => setEntries(current => current.map(entry => entry.id === id ? { ...withDraftQuantity(entry, quantity, () => crypto.randomUUID()), approved: false } : entry));
@@ -56,10 +58,6 @@ export function ScannerReview({ entries, setEntries, scanning, onSavingChange }:
     <p>Escanear sólo crea pendientes. Revisa la carta, la impresión, el estado y el destino; selecciona las correctas y confirma el guardado.</p>
     {!entries.length && <p>Las cartas detectadas aparecerán aquí mientras las vas pasando.</p>}
     {scanning && entries.length > 0 && <p>Pausa el video para revisar y guardar este lote.</p>}
-    {entries.length > 0 && <div className="scanner-actions">
-      <button type="button" className="collections-page__btn" disabled={locked} onClick={() => setEntries(current => current.map(entry => ({ ...entry, approved: valid(entry) })))}>Seleccionar todas las resueltas</button>
-      <button type="button" className="collections-page__btn" disabled={locked || !selected.length} onClick={() => setEntries(current => current.map(entry => ({ ...entry, approved: false })))}>Quitar selección</button>
-    </div>}
     <div className="scanner-matches">
       {entries.map(entry => {
         const card = entry.candidates.find(candidate => candidate.id === entry.cardId);
@@ -95,8 +93,14 @@ export function ScannerReview({ entries, setEntries, scanning, onSavingChange }:
         </article>;
       })}
     </div>
+    {/* Selection lives in the sticky bar with Save, so it is reachable after reviewing the list. */}
     {entries.length > 0 && <div className="scanner-review-footer">
-      <small>{selected.length} de {entries.length} seleccionadas</small>
+      <div className="scanner-review-footer__select">
+        <small>{selected.length} de {entries.length} seleccionadas</small>
+        {allResolvedSelected
+          ? <button type="button" className="collections-page__btn" disabled={locked || !selected.length} onClick={() => setEntries(current => current.map(entry => ({ ...entry, approved: false })))}>Quitar selección</button>
+          : <button type="button" className="collections-page__btn" disabled={locked} onClick={() => setEntries(current => current.map(entry => ({ ...entry, approved: valid(entry) })))}><CheckCheck size={16} aria-hidden="true" />Seleccionar resueltas ({resolved.length})</button>}
+      </div>
       {!session && <button type="button" className="collections-page__btn" onClick={() => navigate('collections')}>Inicia sesión para guardar la revisión</button>}
       {session && <button type="button" className="collections-page__btn collections-page__btn--primary" disabled={locked || !owned.synced || !selected.length || !selected.every(valid)} onClick={() => void confirm()}><Check size={16} />{saving ? 'Guardando…' : `Añadir ${selected.length} revisadas`}</button>}
     </div>}
