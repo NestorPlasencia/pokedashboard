@@ -13,7 +13,9 @@ import {
   setCollectionPrintings,
   setCollectionTag,
   setCollectionVisibility,
+  setCopyCounts,
   type CollectionTag,
+  type CopyCounts,
 } from '../services/appCollections';
 import { patchInventoryCopy } from '../services/inventory';
 import { isSupabaseConfigured } from '../services/supabase';
@@ -262,6 +264,17 @@ function useOwnedCollectionsState() {
     return added;
   };
 
+  /** Sets how many copies of this card the collection holds in each condition. */
+  const setCopies = async (card: Card, collectionId: string, counts: CopyCounts, printing?: string | null) => {
+    if (!userId || !editable.some(collection => collection.id === collectionId)) return false;
+    let saved = false;
+    await enqueue(async () => {
+      await setCopyCounts(userId, collectionId, card, counts, printing);
+      saved = true;
+    });
+    return saved;
+  };
+
   const removeCardFromSelected = async (card: Card) => {
     if (!userId || !selected) return false;
     const target = selected;
@@ -285,7 +298,7 @@ function useOwnedCollectionsState() {
     () => ({
       collections: editable, selected, selectedId, setSelectedId,
       create, rename, remove, move, setTag, setVisibility, setPrintings,
-      add, addMany, addScan, removeCard: removeCardFromSelected, has, canTrack,
+      add, addMany, addScan, setCopies, removeCard: removeCardFromSelected, has, canTrack,
       error, loading: isAuthLoading, remoteUnavailable,
       synced: Boolean(userId) && !remoteUnavailable,
       names: editable.map((collection) => collection.name),

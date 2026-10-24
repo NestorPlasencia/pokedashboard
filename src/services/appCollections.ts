@@ -382,6 +382,68 @@ export async function addScannedCopy(
   if (error) fail(error);
 }
 
+/** Copies per condition; "Unknown" is a copy added without one (condition null). */
+export type CopyCounts = Partial<Record<ConditionKey | "Unknown", number>>;
+
+/**
+ * Makes the collection hold exactly `counts` copies of this card/printing per condition.
+ * Counts are absolute and the current rows are read first, so a retry after a lost
+ * response converges instead of adding twice. Only rows the app owns (managed_by null)
+ * change; a changed condition is one copy removed and one added.
+ */
+export async function setCopyCounts(
+  ownerId: string,
+  collectionId: string,
+  card: Card,
+  counts: CopyCounts,
+  /** The copies' own printing when known, which can differ from the catalog card's label. */
+  printing?: string | null
+): Promise<void> {
+  const base = cardReference(card);
+  if (!base) throw new Error("This card has no product id to track copies.");
+  const reference = printing === undefined ? base : { ...base, printing };
+  let query = client().from("card_copies").select("id,condition")
+    .eq("owner_id", ownerId)
+    .eq("collection_id", collectionId)
+    .eq("product_id", reference.productId)
+    .eq("status", "active")
+    .is("managed_by", null);
+  query = reference.printing === null ? query.is("printing", null) : query.eq("printing", reference.printing);
+  const current = await query;
+  if (current.error) fail(current.error);
+  const idsByCondition = new Map<string, string[]>();
+  for (const row of (current.data ?? []) as { id: string; condition: string | null }[]) {
+    const key = row.condition ?? "Unknown";
+    idsByCondition.set(key, [...(idsByCondition.get(key) ?? []), row.id]);
+  }
+  const removed: string[] = [];
+  const added: (ConditionKey | null)[] = [];
+  for (const key of new Set([...idsByCondition.keys(), ...Object.keys(counts)])) {
+    const ids = idsByCondition.get(key) ?? [];
+    const target = Math.max(0, Math.floor(counts[key as keyof CopyCounts] ?? ids.length));
+    removed.push(...ids.slice(target));
+    for (let i = ids.length; i < target; i++) added.push(key === "Unknown" ? null : key as ConditionKey);
+  }
+  // Add before removing, so an interrupted change never leaves fewer copies than either side.
+  if (added.length) {
+    await ensureCatalogCard(ownerId, card);
+    const { error } = await client().from("card_copies").insert(added.map(condition => ({
+      owner_id: ownerId,
+      collection_id: collectionId,
+      product_id: reference.productId,
+      printing: reference.printing,
+      condition,
+      status: "active",
+      managed_by: null,
+    })));
+    if (error) fail(error);
+  }
+  if (removed.length) {
+    const { error } = await client().from("card_copies").delete().eq("owner_id", ownerId).in("id", removed);
+    if (error) fail(error);
+  }
+}
+
 /** Adds one copy of each distinct catalog card/printing, in bounded requests. */
 export async function addCards(
   ownerId: string,

@@ -83,6 +83,9 @@ export type QuantityKey = ConditionKey | "Unknown";
 
 export interface Collection {
   name: string;
+  /** Inventory collection id and copy printing, so this entry's copies can be edited. */
+  id?: string;
+  printing?: string | null;
   collectorName: string;
   quantity: Partial<Record<QuantityKey, number>>;
 }

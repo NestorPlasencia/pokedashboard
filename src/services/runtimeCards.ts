@@ -391,6 +391,8 @@ export const generateCardsForCollection = (
         // Enrichment replaces catalog fields later, but deliberately preserves this array.
         collections: [{
           name: entry.collectionName,
+          id: entry.collectionId,
+          printing: entry.printing,
           collectorName: entry.productName,
           quantity: entry.conditions,
         }],
@@ -431,6 +433,8 @@ export const applyInventoryToCards = (
       card.collections ||= [];
       card.collections.push({
         name: entry.collectionName,
+        id: entry.collectionId,
+        printing: entry.printing,
         collectorName: entry.productName,
         quantity: entry.conditions,
       });

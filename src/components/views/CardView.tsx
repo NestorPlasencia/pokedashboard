@@ -1,6 +1,7 @@
 import { TrendingUp } from "lucide-react";
 import { WishlistCardButton } from "../ui/Wishlists";
 import { OwnedCardButton } from "../ui/OwnedCardButton";
+import { CopyEditor } from "../ui/CopyEditor";
 import { useWishlists } from "../../context/WishlistsContext";
 import React, { useMemo } from "react";
 import { Card } from "../../types/dashboard";
@@ -178,6 +179,7 @@ const CardViewComponent: React.FC<{
           </span>
         ))}
       </div>}
+      <CopyEditor card={card} />
       {priceExplorerUrl && (
         <a
           className="card-price-explorer-link"

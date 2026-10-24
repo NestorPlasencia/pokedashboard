@@ -6677,3 +6677,73 @@ button.catalog-breadcrumb__step--collection:hover {
 @media print {
   .edit-target-badges { display: none !important; }
 }
+
+/* Edits the copies a viewed collection holds, under the quantity counter it changes. */
+.card .copy-editor-button {
+  position: absolute;
+  top: 38px;
+  right: 6px;
+  z-index: 11;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  border-radius: 999px;
+  background: rgba(13, 20, 36, 0.82);
+  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.38);
+  color: #fff;
+  cursor: pointer;
+}
+
+.card .copy-editor-button[aria-expanded="true"] { background: #5b68a9; }
+
+.card .copy-editor {
+  position: absolute;
+  inset: 6px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  border-radius: 10px;
+  background: rgba(13, 20, 36, 0.95);
+  color: #fff;
+  font-size: 11px;
+  cursor: default;
+}
+
+.copy-editor__header { display: flex; align-items: center; justify-content: space-between; font-size: 12px; }
+.copy-editor__collection h4 { margin: 0 0 4px; font-size: 11px; color: #c4cedf; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.copy-editor__row { display: grid; grid-template-columns: minmax(0, 1fr) 24px 22px 24px; align-items: center; gap: 4px; min-height: 26px; }
+.copy-editor__row > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.copy-editor__row output { text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+.copy-editor button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 24px;
+  padding: 0 6px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.copy-editor button:disabled { opacity: 0.45; cursor: default; }
+.copy-editor__close { border: none !important; background: none !important; }
+.copy-editor__total { display: flex; justify-content: space-between; padding-top: 4px; border-top: 1px solid rgba(255, 255, 255, 0.2); }
+.copy-editor__error { margin: 0; color: #fca5a5; }
+.copy-editor__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: auto; }
+.copy-editor .copy-editor__save { background: #5b68a9; border-color: #a6a1ff; font-weight: 700; }
+
+@media (pointer: coarse) {
+  .copy-editor__row { grid-template-columns: minmax(0, 1fr) 32px 22px 32px; min-height: 34px; }
+  .copy-editor button { min-height: 32px; }
+}
