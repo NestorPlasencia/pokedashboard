@@ -150,3 +150,6 @@
 .scanner-camera__live.is-sent em { color: var(--success); }
 .scanner-review-footer__select { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .scanner-review-footer .scanner-review-footer__select .collections-page__btn { width: auto; min-height: 44px; }
+.scanner-batch-summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.scanner-sound-toggle { flex: none; display: inline-flex; align-items: center; justify-content: center; min-width: 36px; min-height: 36px; padding: 0; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text-muted); cursor: pointer; }
+.scanner-sound-toggle[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }

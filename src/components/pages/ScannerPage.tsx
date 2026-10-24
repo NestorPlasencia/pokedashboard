@@ -1,4 +1,4 @@
-import { BookOpen, Check, Image as ImageIcon, ListChecks, Pause, Play, ScanLine } from 'lucide-react';
+import { BookOpen, Check, Image as ImageIcon, ListChecks, Pause, Play, ScanLine, Volume2, VolumeX } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useCardContext } from '../../context/CardContext';
@@ -12,6 +12,7 @@ import { locateAndCropCard } from '../../utils/cardDetection';
 import { automaticScanMatch, createScanGate, defaultDraftCardId, draftQuantity, groupScanCards, proposedScanCard, rankScanMatches, scanPrinting, withDraftQuantity, type ScanDraft } from '../../utils/cardScanner';
 import { rankVisualMatches, vectorSimilarity, type CardVectorIndex, type VisualMatch } from '../../utils/visualMatch';
 import { scannerCatalogCards } from '../../utils/scannerCatalog';
+import { playScanSound, primeScanSound, scanSoundEnabled, setScanSoundEnabled } from '../../utils/scanSound';
 import { navigate, openCardsView } from '../../utils/route';
 import { parseUrlParams } from '../../utils/urlParams';
 import { ScannerCamera } from '../scanner/ScannerCamera';
@@ -45,6 +46,7 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
     try { return ownerId ? readScannerReview(localStorage, '').length : 0; } catch { return 0; }
   });
   const [lastText, setLastText] = useState('');
+  const [soundOn, setSoundOn] = useState(scanSoundEnabled);
   /** The card being read, shown over the video so it is visible without scrolling. */
   const [live, setLive] = useState<{ card: Card; detail: string; sent: boolean } | null>(null);
   const ocrRef = useRef<ReturnType<typeof createCardOcr> | null>(null);
@@ -140,6 +142,8 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
 
   const start = () => {
     if (!canStart || processing.current) return;
+    // Audio is only allowed after a tap, so the chime is unlocked here.
+    primeScanSound();
     const signature = JSON.stringify([session?.user.id, owned.selectedId, printing, condition, catalogSignature]);
     if (signature !== sessionSignature.current) {
       gate.current.rearm();
@@ -205,7 +209,7 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
         setDrafts(entries => [draft, ...entries]);
         setLive({ card: shown, detail, sent: true });
         if (active.current) setStatus(`${name} enviada a revisión. Pasa la siguiente carta.`);
-        if (active.current) navigator.vibrate?.(80);
+        if (active.current) { navigator.vibrate?.(80); playScanSound(); }
       };
 
       if (visual) {
@@ -307,7 +311,15 @@ export function ScannerPage({ catalogLoading = false, catalogError }: { catalogL
       <div className="scanner-columns">
         <section ref={cameraPanelRef} className="scanner-panel scanner-camera-panel" aria-label="Captura de cartas">
           <div className="scanner-camera-panel__heading"><h2>Pasa las cartas</h2><span>{drafts.length} en revisión</span></div>
-          <p className="scanner-batch-summary">{printingLabel} · {condition}{owned.selected ? ` · ${owned.selected.name}` : ''}</p>
+          <p className="scanner-batch-summary">
+            <span>{printingLabel} · {condition}{owned.selected ? ` · ${owned.selected.name}` : ''}</span>
+            <button type="button" className="scanner-sound-toggle" aria-pressed={soundOn}
+              title={soundOn ? 'Silenciar el aviso al enviar a revisión' : 'Activar el aviso al enviar a revisión'}
+              aria-label={soundOn ? 'Sonido al enviar a revisión: activado' : 'Sonido al enviar a revisión: silenciado'}
+              onClick={() => { const next = !soundOn; setScanSoundEnabled(next); setSoundOn(next); if (next) { primeScanSound(); playScanSound(); } }}>
+              {soundOn ? <Volume2 size={16} aria-hidden="true" /> : <VolumeX size={16} aria-hidden="true" />}
+            </button>
+          </p>
           <ScannerCamera running={running} onFrame={readFrame} onStop={pause}>
             {running && live ? <div className={`scanner-camera__live${live.sent ? ' is-sent' : ''}`}>
               <img src={live.card.image} alt="" />
