@@ -2,6 +2,9 @@ import { useEffect, useMemo } from 'react';
 import { useCardContext } from '../context/CardContext';
 import { useOptionsContext } from '../context/OptionsContext';
 import { collectionScopeNames } from '../utils/collectionTree';
+import { quantityCollectionNames } from '../utils/collectionQuantity';
+import { ownedSortPrice } from '../utils/collectionValue';
+import type { Card } from '../types/dashboard';
 import {
   applyPriceFilter,
   applySorting,
@@ -50,6 +53,14 @@ export const useCardFilters = () => {
     [collections, collectionFilter.selectedCollections]
   );
 
+  // Where copies are counted, a card sorts by what its copies are worth in their own
+  // condition - the price shown on it - rather than by Near Mint.
+  const ownedPrice = useMemo(() => {
+    if (viewMode.kind !== "collection" && collectionFilter.selectedCollections.length === 0) return undefined;
+    const names = quantityCollectionNames(viewMode, collections, collectionFilter.selectedCollections);
+    return (card: Card) => ownedSortPrice(card, names, collectionFilter.conditionsFilter);
+  }, [viewMode, collections, collectionFilter.selectedCollections, collectionFilter.conditionsFilter]);
+
   // NOTE: Level 1 (basic filters) is handled by Filters.tsx component
   // This hook starts from Level 2 (price filter)
 
@@ -72,9 +83,10 @@ export const useCardFilters = () => {
       priceFilteredCards,
       sortConfig.field,
       sortConfig.direction,
-      variantsFilter
+      variantsFilter,
+      ownedPrice
     );
-  }, [priceFilteredCards, sortConfig.field, sortConfig.direction, variantsFilter]);
+  }, [priceFilteredCards, sortConfig.field, sortConfig.direction, variantsFilter, ownedPrice]);
 
   // Level 4: Apply collection filter (hide/shadow owned/not-owned)
   const collectionFilteredCards = useMemo(() => {

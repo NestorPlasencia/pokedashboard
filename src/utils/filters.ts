@@ -471,14 +471,18 @@ import {
   orderByPriceAsc,
   orderByPriceDesc,
   orderBySetAndNumber,
+  type SortPrice,
 } from './orders.ts';
 
 export const applySorting = (
   cards: Card[],
   sortField: 'number' | 'pokedex' | 'pokedexAndRarity' | 'energy' | 'rarity' | 'energyAndName' | 'energyAndPokedex' | 'price' | 'name' | 'setAndNumber' | 'buyTimingScore',
   sortDirection: 'asc' | 'desc',
-  variantsFilter: string[] = ['All']
+  variantsFilter: string[] = ['All'],
+  /** Price sorting uses this instead of the best available price, e.g. owned copies' condition. */
+  priceOf?: SortPrice
 ): Card[] => {
+  void variantsFilter;
   // No need to spread - order functions already create new arrays
   switch (sortField) {
     case 'number':
@@ -499,8 +503,8 @@ export const applySorting = (
       return orderByEnergyAndPokedex(cards);
     case 'price':
       return sortDirection === 'asc' 
-        ? orderByPriceAsc(cards, variantsFilter)
-        : orderByPriceDesc(cards, variantsFilter);
+        ? orderByPriceAsc(cards, priceOf)
+        : orderByPriceDesc(cards, priceOf);
     default:
       return cards;
   }

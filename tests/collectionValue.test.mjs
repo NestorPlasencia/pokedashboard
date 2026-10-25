@@ -31,3 +31,15 @@ test('per-condition values add up to the collection value the summary shows', ()
   assert.deepEqual(ownedConditionPrices(noCondition, ['Woc DC']).map(row => [row.condition, row.price]), [['Damaged', 0.53], ['Unknown', 0.53]],
     'a missing condition price falls back to the best one, as the summary does');
 });
+
+test('a collection sorts by its copies condition price, not by Near Mint', async () => {
+  const { ownedSortPrice } = await import('../src/utils/collectionValue.ts');
+  const { orderByPriceDesc } = await import('../src/utils/orders.ts');
+  const pidgeot = { name: 'Pidgeot', prices: { 'Near Mint': 9, Damaged: 1.45 }, collections: [{ name: 'Toyland', quantity: { Damaged: 1 } }] };
+  const togepi = { name: 'Togepi', prices: { 'Near Mint': 5, Damaged: 2.85 }, collections: [{ name: 'Toyland', quantity: { Damaged: 1 } }] };
+  const pikachu = { name: 'Pikachu', prices: { 'Near Mint': 11.36, 'Moderately Played': 2.27 }, collections: [{ name: 'Toyland', quantity: { 'Near Mint': 2, 'Moderately Played': 1 } }] };
+  assert.deepEqual(orderByPriceDesc([pidgeot, togepi, pikachu]).map(card => card.name), ['Pikachu', 'Pidgeot', 'Togepi'], 'Near Mint order');
+  const byCopies = orderByPriceDesc([pidgeot, togepi, pikachu], card => ownedSortPrice(card, ['Toyland']));
+  assert.deepEqual(byCopies.map(card => card.name), ['Pikachu', 'Togepi', 'Pidgeot'], 'the most valuable copy decides, in its own condition');
+  assert.equal(ownedSortPrice({ name: 'Mew', prices: { 'Lightly Played': 3 }, collections: [] }, ['Toyland']), 3, 'no copies falls back to the best price');
+});

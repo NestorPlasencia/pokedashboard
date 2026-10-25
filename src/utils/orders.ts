@@ -3,6 +3,7 @@ import {
   DEFAULT_ENERGY_TYPES_ORDER,
   DEFAULT_RARITIES_ORDER,
 } from "../constants/constants.ts";
+import { getBestAvailablePrice } from "./collectionValue.ts";
 
 const sortByEnergy = (a: Card, b: Card) => {
   // Get the first type from the types array, or empty string if no types
@@ -74,45 +75,17 @@ const sortByPokedex = (a: Card, b: Card) => {
   return aValue - bValue;
 };
 
-// Price helpers
-const getCardPrice = (card: Card, _variantsFilter: string[] = ["All"]): number | undefined => {
-  void _variantsFilter;
-  if (!card.prices) return undefined;
-  
-  const prices = card.prices;
-  
-  // Use best available price with fallback
-  if (prices["Near Mint"] !== null && prices["Near Mint"] !== undefined) {
-    return prices["Near Mint"];
-  } else if (prices["Lightly Played"] !== null && prices["Lightly Played"] !== undefined) {
-    return prices["Lightly Played"];
-  } else if (prices["Moderately Played"] !== null && prices["Moderately Played"] !== undefined) {
-    return prices["Moderately Played"];
-  } else if (prices["Damaged"] !== null && prices["Damaged"] !== undefined) {
-    return prices["Damaged"];
-  } else if (prices["Heavily Played"] !== null && prices["Heavily Played"] !== undefined) {
-    return prices["Heavily Played"];
-  }
-  
-  return undefined;
-};
 
-const sortByPriceAsc = (variantsFilter: string[]) => (a: Card, b: Card) => {
-  const ap = getCardPrice(a, variantsFilter);
-  const bp = getCardPrice(b, variantsFilter);
+/** Which price a card sorts by: Near Mint by default, its copies' own condition in a collection. */
+export type SortPrice = (card: Card) => number | null | undefined;
+
+const sortByPrice = (priceOf: SortPrice, direction: 1 | -1) => (a: Card, b: Card) => {
+  const ap = priceOf(a);
+  const bp = priceOf(b);
   if (ap == null && bp == null) return 0;
   if (ap == null) return 1; // push cards without price to the end
   if (bp == null) return -1;
-  return ap - bp;
-};
-
-const sortByPriceDesc = (variantsFilter: string[]) => (a: Card, b: Card) => {
-  const ap = getCardPrice(a, variantsFilter);
-  const bp = getCardPrice(b, variantsFilter);
-  if (ap == null && bp == null) return 0;
-  if (ap == null) return 1; // push cards without price to the end
-  if (bp == null) return -1;
-  return bp - ap;
+  return (ap - bp) * direction;
 };
 
 export const orderByEnergy = (cards: Card[]) => {
@@ -155,12 +128,12 @@ export const orderByEnergyAndPokedex = (cards: Card[]) => {
   });
 };
 
-export const orderByPriceAsc = (cards: Card[], variantsFilter: string[] = ["All"]) => {
-  return [...cards].sort(sortByPriceAsc(variantsFilter));
+export const orderByPriceAsc = (cards: Card[], priceOf: SortPrice = getBestAvailablePrice) => {
+  return [...cards].sort(sortByPrice(priceOf, 1));
 };
 
-export const orderByPriceDesc = (cards: Card[], variantsFilter: string[] = ["All"]) => {
-  return [...cards].sort(sortByPriceDesc(variantsFilter));
+export const orderByPriceDesc = (cards: Card[], priceOf: SortPrice = getBestAvailablePrice) => {
+  return [...cards].sort(sortByPrice(priceOf, -1));
 };
 
 const sortBySetAndNumber = (a: Card, b: Card) => {

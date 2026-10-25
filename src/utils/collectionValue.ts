@@ -55,6 +55,22 @@ export const ownedConditionPrices = (
     }));
 };
 
+/**
+ * The price to sort a card by where copies are counted: what its most valuable copy is
+ * worth in its own condition - the top price line on the card. A card without copies
+ * there falls back to its best available price.
+ */
+export const ownedSortPrice = (
+  card: Card,
+  collectionsToFilter: string[],
+  conditionsFilter: string[] = ["All"]
+): number | null => {
+  const owned = ownedConditionPrices(card, collectionsToFilter, conditionsFilter)
+    .map((item) => item.price)
+    .filter((price): price is number => price !== null);
+  return owned.length ? Math.max(...owned) : getBestAvailablePrice(card);
+};
+
 /** Count the physical copies held in the selected collections. */
 export const getCollectionCopyCount = (
   card: Card,
