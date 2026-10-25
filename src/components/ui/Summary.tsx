@@ -7,7 +7,8 @@ import { POKEDEX_REGIONS } from "../../constants/constants";
 import { formBelongsToRegions } from "../../utils/pokedexRegions";
 import { useOptionsContext } from "../../context/OptionsContext";
 import { activeFilterCollectionNames, quantityCollectionNames } from "../../utils/collectionQuantity";
-import { ownedConditionPrices } from "../../utils/collectionValue";
+import { CONDITION_ABBREVIATIONS, ownedConditionPrices } from "../../utils/collectionValue";
+import { CONDITION_ORDER } from "../../utils/copyCount";
 
 interface RegionPokemonStats {
   regionName: string;
@@ -88,18 +89,21 @@ export const Summary = () => {
   // The collection's value split by the condition of its copies, each at that condition's price.
   const conditionRows = useMemo(() => {
     if (!hasCollectionScope) return [];
-    const rows = new Map<QuantityKey, { condition: QuantityKey; copies: number; value: number }>();
+    const rows = new Map<QuantityKey, { condition: QuantityKey; cards: number; copies: number; value: number }>();
     // The same variant filter the totals above apply, so the rows add up to them.
     const cards = variantsFilter.includes("All") ? filteredCards : filteredCards.filter((card) => card.variant && variantsFilter.includes(card.variant));
     for (const card of cards) {
       for (const item of ownedConditionPrices(card, summaryCollectionNames, collectionFilter.conditionsFilter)) {
-        const row = rows.get(item.condition) ?? { condition: item.condition, copies: 0, value: 0 };
+        const row = rows.get(item.condition) ?? { condition: item.condition, cards: 0, copies: 0, value: 0 };
+        row.cards += 1;
         row.copies += item.copies;
         row.value += (item.price ?? 0) * item.copies;
         rows.set(item.condition, row);
       }
     }
-    return [...rows.values()];
+    // Best to worst, the order used everywhere else.
+    const order: QuantityKey[] = [...CONDITION_ORDER, "Unknown"];
+    return [...rows.values()].sort((a, b) => order.indexOf(a.condition) - order.indexOf(b.condition));
   }, [hasCollectionScope, filteredCards, variantsFilter, summaryCollectionNames, collectionFilter.conditionsFilter]);
 
   const ownershipSummary = useMemo(() => calculatePriceSummary(
@@ -382,24 +386,34 @@ export const Summary = () => {
   return (
     <div className="summary-content">
       {/* Global Information */}
-      <table className="summary-table">
+      {/* Where copies are counted, cards and copies differ: both are shown, with the
+          average value of a copy. */}
+      <table className="summary-table summary-table--totals">
         <thead>
           <tr>
             <th>Description</th>
             <th>Cards</th>
+            {summary.isCollectionView && <th title="Physical copies">Copies</th>}
+            {summary.isCollectionView && <th title="Average value of a copy">Avg</th>}
             <th>Value</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td>📋 Cards in search</td>
-            <td><strong>{summary.isCollectionView ? summary.totalCopies : summary.totalCards}</strong></td>
+            <td><strong>{summary.totalCards}</strong></td>
+            {summary.isCollectionView && <td><strong>{summary.totalCopies}</strong></td>}
+            {summary.isCollectionView && <td>{summary.totalCopies ? formatPrice(summary.total / summary.totalCopies) : "—"}</td>}
             <td><strong>{formatPrice(summary.total)}</strong></td>
           </tr>
           {conditionRows.length > 1 && conditionRows.map((row) => (
             <tr key={row.condition} className="secondary-row">
-              <td>↳ {row.condition === "Unknown" ? "No condition" : row.condition}</td>
+              <td>↳ {row.condition === "Unknown"
+                ? "No condition"
+                : <abbr title={row.condition}>{CONDITION_ABBREVIATIONS[row.condition]}</abbr>}</td>
+              <td>{row.cards}</td>
               <td>{row.copies}</td>
+              <td>{row.copies ? formatPrice(row.value / row.copies) : "—"}</td>
               <td>{formatPrice(row.value)}</td>
             </tr>
           ))}
@@ -407,6 +421,7 @@ export const Summary = () => {
             <tr className="secondary-row">
               <td>📋 Cards in search ({collectionFilter.limit})</td>
               <td><strong>{ownershipSummary.totalCardsToLimit}</strong></td>
+              {summary.isCollectionView && <><td /><td /></>}
               <td><strong>{formatPrice(ownershipSummary.totalToLimitPrice)}</strong></td>
             </tr>
           )}
@@ -414,6 +429,7 @@ export const Summary = () => {
             <tr className="secondary-row">
               <td>⚠️ No price</td>
               <td>{summary.withoutPriceCount}</td>
+              {summary.isCollectionView && <><td /><td /></>}
               <td>—</td>
             </tr>
           )}

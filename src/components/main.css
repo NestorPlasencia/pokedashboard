@@ -6785,3 +6785,14 @@ button.catalog-breadcrumb__step--collection:hover {
 
 .card .prices:has(.card-owned-prices) { top: auto; bottom: 10px; }
 .card:has(.missing-box) .prices:has(.card-owned-prices) { bottom: 44px; }
+
+/* Totals with copies: every number column right-aligned and compact enough for the sidebar. */
+.summary-table--totals th:not(:first-child),
+.summary-table--totals td:not(:first-child) {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.summary-table--totals th,
+.summary-table--totals td { padding-inline: 6px; }
+.summary-table--totals abbr { text-decoration: none; cursor: help; }

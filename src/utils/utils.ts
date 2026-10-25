@@ -1,6 +1,7 @@
 import { Card, Collection } from "../types/dashboard";
 import { POKEDEX_REGIONS, getRegionForPokedexNumber } from "../constants/constants";
 import { getCollectionCopyCount, getCollectionPriceTotal } from "./collectionValue";
+import { CONDITION_ORDER } from "./copyCount";
 
 export const removeAllOccurrences = <T>(arr: T[], value: T): T[] => {
   let i = 0;
@@ -498,7 +499,9 @@ export const getCardPriceBreakdown = (card: Card) => {
 
   if (card.prices) {
     const prices = card.prices;
-    Object.entries(prices).forEach(([condition, price]) => {
+    // Best to worst whatever order the data arrived in.
+    CONDITION_ORDER.forEach((condition) => {
+      const price = prices[condition];
       if (price !== null && price !== undefined && typeof price === 'number') {
         breakdown.push({
           condition,
