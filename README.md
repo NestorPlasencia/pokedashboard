@@ -13,7 +13,10 @@ A React-based web application for managing and visualizing a Pokemon Trading Car
   Pokédex group settings. Families keep the position of their lowest national number;
   babies come first, followed by their evolutions, with sibling branches in national
   order. Regional forms stay with their species. The Pokédex preview follows this
-  order too. Filters keep their existing scope, so only included Pokémon appear.
+  order too. In evolutionary order, region filters follow the family's earliest
+  national species: Kanto includes Pichu and Crobat with their families, while Johto
+  includes later evolutions such as Togekiss, Yanmega and Mamoswine. National
+  Pokédex order keeps the original per-species regions.
   Evolution data for species 1–1025 is bundled from
   [PokeAPI](https://github.com/PokeAPI/pokeapi/blob/master/data/v2/csv/pokemon_species.csv);
   regenerate it with `node scripts/update-pokemon-evolution.mjs` (or pass a local CSV).

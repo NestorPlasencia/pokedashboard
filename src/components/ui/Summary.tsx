@@ -4,7 +4,7 @@ import type { Card, QuantityKey } from "../../types/dashboard";
 import { calculatePriceSummary } from "../../utils/utils";
 import { shouldIncludePokemonForm } from "../../utils/filters";
 import { POKEDEX_REGIONS } from "../../constants/constants";
-import { formBelongsToRegions } from "../../utils/pokedexRegions";
+import { formBelongsToRegions, pokedexNumberBelongsToRegions, pokedexNumbersInRegion } from "../../utils/pokedexRegions";
 import { useOptionsContext } from "../../context/OptionsContext";
 import { activeFilterCollectionNames, quantityCollectionNames } from "../../utils/collectionQuantity";
 import { CONDITION_ABBREVIATIONS, ownedConditionPrices } from "../../utils/collectionValue";
@@ -211,11 +211,12 @@ export const Summary = () => {
     }
 
     const cardsForStats = showsOwnership ? collectionFilteredCards : filteredCards;
+    const evolutionaryRegions = pokemonGrouping.groupSortBy === 'evolution';
 
     // Determine which forms to include based on current filter settings
     let filteredForms = pokemonFormsData;
     if (pokemonGrouping.groupingRegions.length > 0 && !pokemonGrouping.groupingRegions.includes('All')) {
-      filteredForms = pokemonFormsData.filter(form => formBelongsToRegions(form, pokemonGrouping.groupingRegions));
+      filteredForms = pokemonFormsData.filter(form => formBelongsToRegions(form, pokemonGrouping.groupingRegions, evolutionaryRegions));
     }
     const formsToShow = filteredForms.filter(form =>
       !pokemonGrouping.excludedFormIds.includes(form.id) &&
@@ -255,6 +256,7 @@ export const Summary = () => {
       if (card.nationalPokedexNumbers) {
         if (!card.shadow) {
           card.nationalPokedexNumbers.forEach(num => {
+            if (!pokedexNumberBelongsToRegions(num, pokemonGrouping.groupingRegions, evolutionaryRegions)) return;
             pokemonNumbersWithCards.add(num);
             if (ownershipCollectionNames.length > 0) {
               const owned = (card.collections || [])
@@ -267,13 +269,17 @@ export const Summary = () => {
             }
           });
         } else {
-          card.nationalPokedexNumbers.forEach(num => pokemonNumbersWithCards.add(num));
+          card.nationalPokedexNumbers.forEach(num => {
+            if (pokedexNumberBelongsToRegions(num, pokemonGrouping.groupingRegions, evolutionaryRegions)) {
+              pokemonNumbersWithCards.add(num);
+            }
+          });
         }
       }
     });
 
     // Determine which regions to show
-    const selectedRegions = pokemonGrouping.groupingRegions.includes('All')
+    const selectedRegions = pokemonGrouping.groupingRegions.length === 0 || pokemonGrouping.groupingRegions.includes('All')
       ? POKEDEX_REGIONS
       : POKEDEX_REGIONS.filter(r => pokemonGrouping.groupingRegions.includes(r.name));
 
@@ -283,20 +289,16 @@ export const Summary = () => {
     const globalFormsOwned = formsToShow.filter(f => formNamesOwned.has(f.name)).length;
 
     // Pokemon totals: unique pokemon numbers in selected regions
-    let globalPokemonTotal = 0;
-    selectedRegions.forEach(r => { globalPokemonTotal += r.count; });
+    const globalPokemonTotal = selectedRegions.reduce((total, region) =>
+      total + pokedexNumbersInRegion(region.name, evolutionaryRegions).length, 0);
     const globalPokemonAvailable = pokemonNumbersWithCards.size;
     const globalPokemonOwned = pokemonNumbersOwned.size;
 
     // Per-region stats
     const regionStats: RegionPokemonStats[] = selectedRegions.map(region => {
-      // Pokemon in this region by pokedex number range
-      const regionPokemonNumbers = new Set<number>();
-      for (let i = region.start; i <= region.end; i++) {
-        regionPokemonNumbers.add(i);
-      }
+      const regionPokemonNumbers = pokedexNumbersInRegion(region.name, evolutionaryRegions);
 
-      const pokemonTotal = region.count;
+      const pokemonTotal = regionPokemonNumbers.length;
       let pokemonAvailable = 0;
       let pokemonOwned = 0;
       regionPokemonNumbers.forEach(num => {
@@ -305,7 +307,7 @@ export const Summary = () => {
       });
 
       // Forms in this region
-      const regionForms = formsToShow.filter(f => f.number >= region.start && f.number <= region.end);
+      const regionForms = formsToShow.filter(form => formBelongsToRegions(form, [region.name], evolutionaryRegions));
       const formsTotal = regionForms.length;
       const formsAvailable = regionForms.filter(f => formNamesWithCards.has(f.name)).length;
       const formsOwned = regionForms.filter(f => formNamesOwned.has(f.name)).length;
@@ -335,6 +337,7 @@ export const Summary = () => {
   }, [
     pokemonGrouping.enabled,
     pokemonGrouping.groupingRegions,
+    pokemonGrouping.groupSortBy,
     pokemonGrouping.allowVariants,
     pokemonGrouping.hideVariants,
     pokemonGrouping.excludedFormIds,

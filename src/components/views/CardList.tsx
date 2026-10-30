@@ -52,13 +52,13 @@ const CardListComponent: React.FC = () => {
     if (!isFormsGrouping) return [];
     let filtered = pokemonFormsData;
     if (pokemonGrouping.groupingRegions.length > 0 && !pokemonGrouping.groupingRegions.includes('All')) {
-      filtered = pokemonFormsData.filter(form => formBelongsToRegions(form, pokemonGrouping.groupingRegions));
+      filtered = pokemonFormsData.filter(form => formBelongsToRegions(form, pokemonGrouping.groupingRegions, pokemonGrouping.groupSortBy === 'evolution'));
     }
     return filtered.filter(form =>
       !pokemonGrouping.excludedFormIds.includes(form.id) &&
       shouldIncludePokemonForm(form, pokemonGrouping.allowVariants, pokemonGrouping.hideVariants)
     ).sort((a, b) => a.number - b.number || a.name.localeCompare(b.name));
-  }, [isFormsGrouping, pokemonFormsData, pokemonGrouping.groupingRegions, pokemonGrouping.allowVariants, pokemonGrouping.hideVariants, pokemonGrouping.excludedFormIds]);
+  }, [isFormsGrouping, pokemonFormsData, pokemonGrouping.groupingRegions, pokemonGrouping.groupSortBy, pokemonGrouping.allowVariants, pokemonGrouping.hideVariants, pokemonGrouping.excludedFormIds]);
 
   // Memoize grouped cards by form
   const groupedCardsByForm = useMemo(() => {

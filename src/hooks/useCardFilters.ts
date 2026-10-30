@@ -119,6 +119,7 @@ export const useCardFilters = () => {
       {
         filterByCollection: pokemonGrouping.filterByCollection,
         groupingRegions: pokemonGrouping.groupingRegions,
+        evolutionaryRegions: pokemonGrouping.groupSortBy === 'evolution',
         allowVariants: pokemonGrouping.allowVariants,
         hideVariants: pokemonGrouping.hideVariants,
         excludedFormIds: pokemonGrouping.excludedFormIds,
@@ -132,6 +133,7 @@ export const useCardFilters = () => {
     pokemonGrouping.enabled,
     pokemonGrouping.filterByCollection,
     pokemonGrouping.groupingRegions,
+    pokemonGrouping.groupSortBy,
     pokemonGrouping.allowVariants,
     pokemonGrouping.hideVariants,
     pokemonGrouping.excludedFormIds,

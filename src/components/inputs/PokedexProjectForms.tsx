@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useCardContext } from "../../context/CardContext";
 import { shouldIncludePokemonForm } from "../../utils/filters";
 import { formBelongsToRegions } from "../../utils/pokedexRegions";
+import { compareEvolutionaryPokedexNumbers } from "../../utils/pokedexEvolution";
 
 export const PokedexProjectForms = () => {
   const { pokemonGrouping, setPokemonGrouping, pokemonFormsData } = useCardContext();
@@ -10,11 +11,13 @@ export const PokedexProjectForms = () => {
     const regions = pokemonGrouping.groupingRegions;
     return pokemonFormsData
       .filter((form) =>
-        formBelongsToRegions(form, regions) &&
+        formBelongsToRegions(form, regions, pokemonGrouping.groupSortBy === 'evolution') &&
         shouldIncludePokemonForm(form, pokemonGrouping.allowVariants, pokemonGrouping.hideVariants)
       )
-      .sort((a, b) => a.number - b.number || a.name.localeCompare(b.name));
-  }, [pokemonFormsData, pokemonGrouping.groupingRegions, pokemonGrouping.allowVariants, pokemonGrouping.hideVariants]);
+      .sort((a, b) => (pokemonGrouping.groupSortBy === 'evolution'
+        ? compareEvolutionaryPokedexNumbers(a.number, b.number)
+        : a.number - b.number) || a.name.localeCompare(b.name));
+  }, [pokemonFormsData, pokemonGrouping.groupingRegions, pokemonGrouping.groupSortBy, pokemonGrouping.allowVariants, pokemonGrouping.hideVariants]);
 
   const excludedIds = useMemo(() => new Set(pokemonGrouping.excludedFormIds), [pokemonGrouping.excludedFormIds]);
   const includedCount = candidateForms.filter((form) => !excludedIds.has(form.id)).length;

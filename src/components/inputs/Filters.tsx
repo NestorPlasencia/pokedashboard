@@ -12,6 +12,7 @@ import { filterSettingsToParams, initialFilterSettings } from "../../utils/urlSt
 import { loadHierarchy } from "../../services/cards";
 import { orderHierarchy } from "../../utils/hierarchy";
 import { PokedexGroupFilter } from "./PokedexGroupFilter";
+import { cardsWithEvolutionFamilyRegions } from "../../utils/pokedexRegions";
 
 /**
  * The URL parameter each filter reads and writes. One map serves both directions, so a
@@ -73,7 +74,7 @@ const renderCollapsedChips = (
 
 export const Filters = () => {
   const {
-    allCards,
+    allCards: sourceCards,
     setFilteredCards,
     variantsFilter,
     setVariantsFilter,
@@ -82,6 +83,7 @@ export const Filters = () => {
     setPriceRange,
     setCollectionFilter,
     setSortConfig,
+    sortConfig,
     setViewOptions,
     seriesSelection,
     setSeriesSelection,
@@ -91,6 +93,13 @@ export const Filters = () => {
     setSelectedSets,
     setActiveFilterChips
   } = useCardContext();
+
+  const evolutionaryRegions = pokemonGrouping.enabled
+    ? pokemonGrouping.groupSortBy === 'evolution'
+    : sortConfig.field === 'pokedexEvolution';
+  const allCards = useMemo(() => evolutionaryRegions
+    ? cardsWithEvolutionFamilyRegions(sourceCards) : sourceCards,
+  [sourceCards, evolutionaryRegions]);
 
   // Track if this is the first render to avoid overwriting URL params on initial load
   const isInitialRender = useRef(true);

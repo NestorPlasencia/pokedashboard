@@ -73,6 +73,7 @@ export const Search: React.FC<SearchProps> = ({ collectionEnrichment, loading = 
         return applyFormsFilter(ownershipFiltered, pokemonFormsData, {
           filterByCollection: pokemonGrouping.filterByCollection,
           groupingRegions: pokemonGrouping.groupingRegions,
+          evolutionaryRegions: pokemonGrouping.groupSortBy === 'evolution',
           allowVariants: pokemonGrouping.allowVariants,
           hideVariants: pokemonGrouping.hideVariants,
           excludedFormIds: pokemonGrouping.excludedFormIds,

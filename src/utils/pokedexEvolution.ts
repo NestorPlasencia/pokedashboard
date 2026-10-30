@@ -7,6 +7,10 @@ for (const family of POKEMON_EVOLUTION_FAMILIES) {
   family.forEach((number, index) => evolutionOrder.set(number, [anchor, index]));
 }
 
+/** The species that first placed this family in the national Pokédex. */
+export const getEvolutionFamilyAnchor = (number: number): number =>
+  evolutionOrder.get(number)?.[0] ?? number;
+
 /** All forms of a species stay together; missing species sort after numbered Pokémon. */
 export const compareEvolutionaryPokedexNumbers = (a?: number, b?: number): number => {
   const key = (number?: number): readonly [number, number] => {

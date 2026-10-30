@@ -9,7 +9,7 @@ export const PokedexProjectOptions = () => {
   const { pokemonGrouping, setPokemonGrouping, pokemonFormsData } = useCardContext();
   const variants = useMemo(() => {
     const counts = new Map<string, number>();
-    pokemonFormsData.filter((form) => formBelongsToRegions(form, pokemonGrouping.groupingRegions)).forEach((form) => form.variants.forEach((entry) => {
+    pokemonFormsData.filter((form) => formBelongsToRegions(form, pokemonGrouping.groupingRegions, pokemonGrouping.groupSortBy === 'evolution')).forEach((form) => form.variants.forEach((entry) => {
       const name = entry.pokemonVariant.name;
       counts.set(name, (counts.get(name) ?? 0) + 1);
     }));
@@ -21,7 +21,7 @@ export const PokedexProjectOptions = () => {
       return first - second || (first === Number.MAX_SAFE_INTEGER
         ? (counts.get(b) ?? 0) - (counts.get(a) ?? 0) || a.localeCompare(b) : 0);
     })];
-  }, [pokemonFormsData, pokemonGrouping.groupingRegions]);
+  }, [pokemonFormsData, pokemonGrouping.groupingRegions, pokemonGrouping.groupSortBy]);
 
   const toggleRegion = (region: string) => setPokemonGrouping((current) => {
     if (region === "All") return { ...current, groupingRegions: ["All"] };
@@ -30,7 +30,7 @@ export const PokedexProjectOptions = () => {
       ? selected.filter((entry) => entry !== region)
       : [...selected, region];
     const availableVariants = new Set(pokemonFormsData
-      .filter((form) => formBelongsToRegions(form, groupingRegions))
+      .filter((form) => formBelongsToRegions(form, groupingRegions, current.groupSortBy === 'evolution'))
       .flatMap((form) => form.variants.map((entry) => entry.pokemonVariant.name)));
     return {
       ...current,
@@ -52,6 +52,9 @@ export const PokedexProjectOptions = () => {
     <section className="section-sidebar">
       <h2>1. Regions</h2>
       <p>Choose the Pokémon in this Pokédex.</p>
+      {pokemonGrouping.groupSortBy === 'evolution' && <p>
+        Regions follow where each family first appeared, including all its later evolutions.
+      </p>}
       <div className="pokedex-project-options__regions">
         {REGIONS.map((region) => <label key={region} className="pokedex-region-option">
           <input

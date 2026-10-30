@@ -1,6 +1,6 @@
 import type { Card, ConditionKey, PokemonFormWithoutCard, PokemonFormData, Set, SortConfig } from "../types/dashboard";
 import { CONDITION_ORDER as CONDITION_KEYS, countCopies } from "./copyCount.ts";
-import { formBelongsToRegions } from "./pokedexRegions.ts";
+import { formBelongsToRegions, getPokedexRegion } from "./pokedexRegions.ts";
 const NON_HIT_RARITIES = ["Common", "Uncommon", "Rare", "Rare Holo"];
 const NON_HOLO_RARITIES = ["Common", "Uncommon", "Rare"];
 const BULK_RARITIES = ["Common", "Uncommon"];
@@ -636,6 +636,7 @@ export const applyFormsFilter = (
   options: {
     filterByCollection: 'all' | 'owned' | 'notOwned' | 'ownedAny' | 'ownedNone';
     groupingRegions: string[];
+    evolutionaryRegions?: boolean;
     allowVariants: string[];
     hideVariants: string[];
     excludedFormIds: number[];
@@ -649,7 +650,7 @@ export const applyFormsFilter = (
   // Filter forms data by selected regions
   let filteredForms = pokemonFormsData;
   if (options.groupingRegions.length > 0 && !options.groupingRegions.includes('All')) {
-    filteredForms = pokemonFormsData.filter(form => formBelongsToRegions(form, options.groupingRegions));
+    filteredForms = pokemonFormsData.filter(form => formBelongsToRegions(form, options.groupingRegions, options.evolutionaryRegions));
   }
 
   // Variant rule: allow first, hide second
@@ -741,7 +742,7 @@ export const applyFormsFilter = (
     formName: form.name,
     image: form.image,
     pokemonNumber: form.number,
-    regionName: getRegionForPokedexNumber(form.number) || 'Unknown',
+    regionName: getPokedexRegion(form.number, options.evolutionaryRegions) || 'Unknown',
     isDefault: form.isDefault,
     variantNames: form.variants.map(v => v.pokemonVariant.name),
     ownedInCollection: false

@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
 import { useCardContext } from "../../context/CardContext";
-import { getRegionForPokedexNumber } from "../../constants/constants";
 import { shouldIncludePokemonForm } from "../../utils/filters";
-import { formBelongsToRegions } from "../../utils/pokedexRegions";
+import { formBelongsToRegions, getPokedexRegion } from "../../utils/pokedexRegions";
 import { compareEvolutionaryPokedexNumbers } from "../../utils/pokedexEvolution";
 
 const PAGE_SIZE = 50;
@@ -16,7 +15,7 @@ export const PokedexPreview = () => {
     const excludedIds = new Set(pokemonGrouping.excludedFormIds);
     return pokemonFormsData
       .filter((form) =>
-        formBelongsToRegions(form, pokemonGrouping.groupingRegions) &&
+        formBelongsToRegions(form, pokemonGrouping.groupingRegions, pokemonGrouping.groupSortBy === 'evolution') &&
         shouldIncludePokemonForm(form, pokemonGrouping.allowVariants, pokemonGrouping.hideVariants) &&
         !excludedIds.has(form.id)
       )
@@ -51,7 +50,7 @@ export const PokedexPreview = () => {
         {matchingForms.slice(0, visibleCount).map((form) => <div className="pokedex-preview__row" key={form.id}>
           <span className="pokedex-preview__number">#{String(form.number).padStart(4, "0")}</span>
           <span className="pokedex-preview__name">{form.name}</span>
-          <span className="pokedex-preview__detail">{getRegionForPokedexNumber(form.number)}</span>
+          <span className="pokedex-preview__detail">{getPokedexRegion(form.number, pokemonGrouping.groupSortBy === 'evolution')}</span>
           {!form.isDefault && <span className="pokedex-preview__detail">{form.variants.map((entry) => entry.pokemonVariant.name).join(", ")}</span>}
         </div>)}
       </div>
