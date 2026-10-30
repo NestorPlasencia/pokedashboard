@@ -4,6 +4,7 @@ export const PokedexGroupingOptions = () => {
   const { pokemonGrouping, setPokemonGrouping } = useCardContext();
   const orderLabel = {
     default: "Pokédex number",
+    evolution: "Pokédex evolutiva",
     cardCount: "Fewest cards",
     cardCountDesc: "Most cards",
     ownedCount: "Fewest owned copies",
@@ -26,12 +27,16 @@ export const PokedexGroupingOptions = () => {
             className="pokedex-filter-select"
           >
             <option value="default">Pokédex number</option>
+            <option value="evolution">Pokédex evolutiva</option>
             <option value="cardCount">Fewest cards first</option>
             <option value="cardCountDesc">Most cards first</option>
             <option value="ownedCount">Fewest owned copies first</option>
             <option value="ownedCountDesc">Most owned copies first</option>
           </select>
         </div>
+        {pokemonGrouping.groupSortBy === 'evolution' && <small>
+          Families follow their earliest Pokédex number, with babies first and later evolutions together.
+        </small>}
         <small>The Cards header sorts cards within each group.</small>
         <label className="pokedex-projects__toggle">
           <input

@@ -9,6 +9,14 @@ A React-based web application for managing and visualizing a Pokemon Trading Car
 - **Browse Cards**: View all available Pokemon TCG cards with details
 - **Filter Cards**: Filter by set, rarity, type, energy, and more
 - **Sort Cards**: Organize cards by various properties (name, rarity, price, etc.)
+- **Evolutionary Pokédex**: Choose **Pokédex evolutiva** in the Cards sort menu or
+  Pokédex group settings. Families keep the position of their lowest national number;
+  babies come first, followed by their evolutions, with sibling branches in national
+  order. Regional forms stay with their species. The Pokédex preview follows this
+  order too. Filters keep their existing scope, so only included Pokémon appear.
+  Evolution data for species 1–1025 is bundled from
+  [PokeAPI](https://github.com/PokeAPI/pokeapi/blob/master/data/v2/csv/pokemon_species.csv);
+  regenerate it with `node scripts/update-pokemon-evolution.mjs` (or pass a local CSV).
 - **Search**: Find cards by name or specific properties
 - **Card Variants**: View different versions (standard, reverse holo, etc.)
 - **Pricing Data**: Real-time pricing information from TCG Player

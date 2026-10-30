@@ -4,6 +4,7 @@ import {
   DEFAULT_RARITIES_ORDER,
 } from "../constants/constants.ts";
 import { getBestAvailablePrice } from "./collectionValue.ts";
+import { compareEvolutionaryPokedexNumbers } from "./pokedexEvolution.ts";
 
 const sortByEnergy = (a: Card, b: Card) => {
   // Get the first type from the types array, or empty string if no types
@@ -104,6 +105,12 @@ export const orderByPokedex = (cards: Card[]) => {
   return [...cards].sort(sortByPokedex);
 };
 
+export const orderByPokedexEvolution = (cards: Card[]) => {
+  return [...cards].sort((a, b) => compareEvolutionaryPokedexNumbers(
+    a.nationalPokedexNumbers?.[0], b.nationalPokedexNumbers?.[0]
+  ));
+};
+
 export const orderByPokedexAndRarity = (cards: Card[]) => {
   return [...cards].sort((a, b) => sortByPokedex(a, b) || sortByRariTies(a, b));
 };
@@ -160,6 +167,7 @@ export const ORDER_OPTIONS = [
   "Number",
   "Set and Number",
   "Pokedex",
+  "Pokédex evolutiva",
   "Pokedex and Rarity",
   "Energy",
   "Rarities",
@@ -184,6 +192,8 @@ export const orderToSortConfig = (order: string): SortConfig => {
       return { field: 'setAndNumber', direction: 'asc' };
     case "Pokedex":
       return { field: 'pokedex', direction: 'asc' };
+    case "Pokédex evolutiva":
+      return { field: 'pokedexEvolution', direction: 'asc' };
     case "Pokedex and Rarity":
       return { field: 'pokedexAndRarity', direction: 'asc' };
     case "Energy":

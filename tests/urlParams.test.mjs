@@ -171,6 +171,13 @@ test('Pokédex and rarity sort survives a URL round trip', () => {
   assert.deepEqual(initialSortConfig(), { field: 'energyAndPokedex', direction: 'asc' });
 });
 
+test('evolutionary Pokédex card and group orders survive a URL round trip', () => {
+  updateUrlParams({ order: 'Pokédex evolutiva', formsGroupSortBy: 'evolution' });
+  assert.equal(parseUrlParams().order, 'Pokédex evolutiva');
+  assert.deepEqual(initialSortConfig(), { field: 'pokedexEvolution', direction: 'asc' });
+  assert.equal(initialPokemonGrouping().groupSortBy, 'evolution');
+});
+
 test('a filter restores its exclusions and advanced settings, not just its checkboxes', () => {
   const custom = {
     excludedValues: ['Sword & Shield', 'Scarlet Violet'], includeMode: 'EXACT_SET',

@@ -193,7 +193,7 @@ export interface PokemonGroupingOptions {
   allowVariants: string[]; // allowlist de variantes; empty = "all"
   hideVariants: string[]; // variantes que ocultan forms/cards
   excludedFormIds: number[]; // formas quitadas de un proyecto concreto
-  groupSortBy: 'default' | 'cardCount' | 'cardCountDesc' | 'ownedCount' | 'ownedCountDesc'; // ordenar grupos
+  groupSortBy: 'default' | 'evolution' | 'cardCount' | 'cardCountDesc' | 'ownedCount' | 'ownedCountDesc'; // ordenar grupos
   fallbackToDefault: boolean; // Agrupar cartas con formas no listadas bajo la forma default
 }
 
@@ -235,6 +235,6 @@ export interface TrendSeries {
 
 // Configuración de ordenamiento
 export interface SortConfig {
-  field: 'number' | 'pokedex' | 'pokedexAndRarity' | 'energy' | 'rarity' | 'energyAndName' | 'energyAndPokedex' | 'price' | 'name' | 'setAndNumber' | 'buyTimingScore';
+  field: 'number' | 'pokedex' | 'pokedexEvolution' | 'pokedexAndRarity' | 'energy' | 'rarity' | 'energyAndName' | 'energyAndPokedex' | 'price' | 'name' | 'setAndNumber' | 'buyTimingScore';
   direction: 'asc' | 'desc';
 }

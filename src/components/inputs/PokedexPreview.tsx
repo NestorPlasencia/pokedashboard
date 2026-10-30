@@ -3,6 +3,7 @@ import { useCardContext } from "../../context/CardContext";
 import { getRegionForPokedexNumber } from "../../constants/constants";
 import { shouldIncludePokemonForm } from "../../utils/filters";
 import { formBelongsToRegions } from "../../utils/pokedexRegions";
+import { compareEvolutionaryPokedexNumbers } from "../../utils/pokedexEvolution";
 
 const PAGE_SIZE = 50;
 
@@ -19,9 +20,11 @@ export const PokedexPreview = () => {
         shouldIncludePokemonForm(form, pokemonGrouping.allowVariants, pokemonGrouping.hideVariants) &&
         !excludedIds.has(form.id)
       )
-      .sort((a, b) => a.number - b.number || a.name.localeCompare(b.name));
+      .sort((a, b) => (pokemonGrouping.groupSortBy === 'evolution'
+        ? compareEvolutionaryPokedexNumbers(a.number, b.number)
+        : a.number - b.number) || a.name.localeCompare(b.name));
   }, [pokemonFormsData, pokemonGrouping.groupingRegions, pokemonGrouping.allowVariants,
-    pokemonGrouping.hideVariants, pokemonGrouping.excludedFormIds]);
+    pokemonGrouping.hideVariants, pokemonGrouping.excludedFormIds, pokemonGrouping.groupSortBy]);
 
   const matchingForms = useMemo(() => {
     const query = search.trim().toLowerCase();

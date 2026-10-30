@@ -1,4 +1,5 @@
 import type { Card, PokemonFormData, PokemonFormWithoutCard, PokemonGroupingOptions } from "../types/dashboard";
+import { compareEvolutionaryPokedexNumbers } from "./pokedexEvolution.ts";
 
 type FormGroup = { form: PokemonFormData; cards: (Card | PokemonFormWithoutCard)[] };
 
@@ -10,6 +11,11 @@ export const orderPokedexGroupNames = (
 ): string[] => {
   const names = forms.map((form) => form.name).filter((name) => groups[name] !== undefined);
   if (order === "default") return names;
+  if (order === "evolution") {
+    return names.sort((a, b) => compareEvolutionaryPokedexNumbers(
+      groups[a].form.number, groups[b].form.number
+    ));
+  }
   const collectionScope = new Set(selectedCollections);
   const count = (name: string): number => groups[name].cards.reduce((total, item) => {
     if ("isPlaceholder" in item) return total;

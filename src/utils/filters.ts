@@ -1,4 +1,4 @@
-import type { Card, ConditionKey, PokemonFormWithoutCard, PokemonFormData, Set } from "../types/dashboard";
+import type { Card, ConditionKey, PokemonFormWithoutCard, PokemonFormData, Set, SortConfig } from "../types/dashboard";
 import { CONDITION_ORDER as CONDITION_KEYS, countCopies } from "./copyCount.ts";
 import { formBelongsToRegions } from "./pokedexRegions.ts";
 const NON_HIT_RARITIES = ["Common", "Uncommon", "Rare", "Rare Holo"];
@@ -466,6 +466,7 @@ import {
   orderByEnergyAndPokedex,
   orderByNumber,
   orderByPokedex,
+  orderByPokedexEvolution,
   orderByPokedexAndRarity,
   orderByRariTies,
   orderByPriceAsc,
@@ -476,7 +477,7 @@ import {
 
 export const applySorting = (
   cards: Card[],
-  sortField: 'number' | 'pokedex' | 'pokedexAndRarity' | 'energy' | 'rarity' | 'energyAndName' | 'energyAndPokedex' | 'price' | 'name' | 'setAndNumber' | 'buyTimingScore',
+  sortField: SortConfig['field'],
   sortDirection: 'asc' | 'desc',
   variantsFilter: string[] = ['All'],
   /** Price sorting uses this instead of the best available price, e.g. owned copies' condition. */
@@ -491,6 +492,8 @@ export const applySorting = (
       return orderBySetAndNumber(cards);
     case 'pokedex':
       return orderByPokedex(cards);
+    case 'pokedexEvolution':
+      return orderByPokedexEvolution(cards);
     case 'pokedexAndRarity':
       return orderByPokedexAndRarity(cards);
     case 'energy':
