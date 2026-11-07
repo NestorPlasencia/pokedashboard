@@ -91,8 +91,21 @@ export const Filters = () => {
     catalogSelectionRequest,
     requestCatalogSelection,
     setSelectedSets,
-    setActiveFilterChips
+    setActiveFilterChips,
+    sets
   } = useCardContext();
+
+  // Set name → symbol URL. Subsets such as "Crown Zenith (Galarian Gallery)" use their parent's symbol.
+  const setSymbolByName = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const set of sets) {
+      const symbol = set.images?.symbol || set.symbolImage;
+      if (symbol && set.name) map.set(set.name, symbol);
+    }
+    return map;
+  }, [sets]);
+  const setSymbolFor = (name: string) =>
+    setSymbolByName.get(name) || setSymbolByName.get(name.replace(/\s*\([^)]*\)\s*$/, '')) || '';
 
   const evolutionaryRegions = pokemonGrouping.enabled
     ? pokemonGrouping.groupSortBy === 'evolution'
@@ -821,12 +834,14 @@ export const Filters = () => {
           return count === 0 && currentState === 'neutral';
         };
 
+        // Options with matches come first; zero-count ones go after them, either folded
+        // under "Show more" (hide) or greyed out at the end of the list (disable).
+        const optionsWithData = searchableOptions.filter((option) => !isZeroOption(option));
+        const optionsWithoutData = searchableOptions.filter(isZeroOption);
         const primaryOptions = filter.hideZeroCount
-          ? searchableOptions.filter((option) => !isZeroOption(option))
-          : searchableOptions;
-        const zeroOptions = filter.hideZeroCount
-          ? searchableOptions.filter(isZeroOption)
-          : [];
+          ? optionsWithData
+          : [...optionsWithData, ...optionsWithoutData];
+        const zeroOptions = filter.hideZeroCount ? optionsWithoutData : [];
 
         const allOptionsSelectedForMode = searchableOptions.length > 0 && (
           selectedMode === 'include'
@@ -858,7 +873,15 @@ export const Filters = () => {
                 onChange={() => handleQuickToggle(filter.order, option, currentState)}
                 aria-label={`Toggle ${option} in ${selectedMode} mode`}
               />
-              <span className="filter-option-item-label">{option}</span>
+              <span className="filter-option-item-label">
+                {filter.property === 'setNames' && (() => {
+                  const symbol = setSymbolFor(option);
+                  return symbol
+                    ? <img src={symbol} alt="" className="filter-option-set-symbol" loading="lazy" onError={(event) => event.currentTarget.classList.add('is-broken')} />
+                    : <span className="filter-option-set-symbol" aria-hidden="true" />;
+                })()}
+                {option}
+              </span>
               <span className="filter-option-item-count" title="visible / total">({visibleCount}/{globalCount})</span>
             </label>
           );

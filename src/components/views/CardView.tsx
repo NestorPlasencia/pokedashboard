@@ -40,6 +40,10 @@ const CardViewComponent: React.FC<{
   const trendStartDate = trend?.points.reduce<string | null>((earliest, point) => !earliest || point.date < earliest ? point.date : earliest, null) ?? null;
 
   const variantName = card.variant || 'Normal';
+  // Trainers and energies have no Pokédex number; multi-Pokémon cards list each one.
+  const pokedexLabel = card.nationalPokedexNumbers?.length
+    ? card.nationalPokedexNumbers.map((dex) => `#${dex}`).join(' ')
+    : '';
 
   const hasOwnershipScope = viewMode.kind === "collection" || collectionFilter.selectedCollections.length > 0;
 
@@ -113,12 +117,29 @@ const CardViewComponent: React.FC<{
       <div className="card-tags">
         <div
           className="variant-label card-variant-label card-name-label card-name-tag"
-          title={card.name}
-          aria-label={`Card name ${card.name}`}
+          title={pokedexLabel ? `${card.name} · National Pokédex ${pokedexLabel}` : card.name}
+          aria-label={`Card name ${card.name}${pokedexLabel ? `, National Pokédex ${pokedexLabel}` : ''}`}
         >
           {card.name}
+          {pokedexLabel && <span className="card-pokedex-number">{pokedexLabel}</span>}
         </div>
-        <div className="variant-label card-variant-label">
+        <div
+          className="variant-label card-variant-label card-set-label"
+          title={card.setName}
+          aria-label={`Set ${card.setName}`}
+        >
+          {card.setName}
+        </div>
+        {card.rarity && (
+          <div
+            className="variant-label card-variant-label card-rarity-label"
+            title={card.rarity}
+            aria-label={`Rarity ${card.rarity}`}
+          >
+            {card.rarity}
+          </div>
+        )}
+        <div className="variant-label card-variant-label card-variant-name-label" title={variantName}>
           {variantName}
         </div>
         {setSymbol && (
@@ -140,13 +161,6 @@ const CardViewComponent: React.FC<{
           aria-label={`Card number ${card.number}`}
         >
           {card.number}
-        </div>
-        <div
-          className="variant-label card-variant-label card-set-label"
-          title={card.setName}
-          aria-label={`Set ${card.setName}`}
-        >
-          {card.setName}
         </div>
       </div>
       {nearMintPrice !== null && (

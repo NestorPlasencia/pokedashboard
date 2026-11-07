@@ -1,10 +1,10 @@
-import { useMemo, type ClipboardEvent, type CSSProperties } from "react";
+import { useMemo, useState, type ClipboardEvent, type CSSProperties } from "react";
 import { useCardContext } from "../../context/CardContext";
 import type { Card, QuantityKey } from "../../types/dashboard";
 import { calculatePriceSummary } from "../../utils/utils";
 import { shouldIncludePokemonForm } from "../../utils/filters";
 import { POKEDEX_REGIONS } from "../../constants/constants";
-import { formBelongsToRegions, pokedexNumberBelongsToRegions, pokedexNumbersInRegion } from "../../utils/pokedexRegions";
+import { formBelongsToRegions, getPokedexRegion, pokedexNumberBelongsToRegions, pokedexNumbersInRegion } from "../../utils/pokedexRegions";
 import { useOptionsContext } from "../../context/OptionsContext";
 import { activeFilterCollectionNames, quantityCollectionNames } from "../../utils/collectionQuantity";
 import { CONDITION_ABBREVIATIONS, ownedConditionPrices } from "../../utils/collectionValue";
@@ -33,8 +33,55 @@ interface SetProgressRow {
   setName: string;
   setLogo?: string;
   totalCards: number;
+  /** Market value of the group's cards, priced like the totals above. */
+  value: number;
   thresholds: SetProgressThreshold[];
 }
+
+type ProgressGrouping = "set" | "series" | "rarity" | "variantGroup" | "variant" | "region" | "supertype" | "type" | "artist";
+
+const PROGRESS_GROUPINGS: { key: ProgressGrouping; label: string; keyOf: (card: Card) => string }[] = [
+  { key: "set", label: "Set", keyOf: (card) => card.setName || card.setNames?.[0] || "No set" },
+  { key: "series", label: "Series", keyOf: (card) => card.setSeries || "No series" },
+  { key: "rarity", label: "Rarity", keyOf: (card) => card.rarity || "No rarity" },
+  { key: "variantGroup", label: "Variant group", keyOf: (card) => card.cardVariantTopLevel || card.variant || "Normal" },
+  { key: "variant", label: "Variant", keyOf: (card) => card.variant || "Normal" },
+  // The first Pokémon on the card decides; trainers and energies have none.
+  { key: "region", label: "Region", keyOf: (card) => card.pokedexRegion || (card.nationalPokedexNumbers?.length ? getPokedexRegion(card.nationalPokedexNumbers[0]) : null) || "No region" },
+  { key: "supertype", label: "Supertype", keyOf: (card) => card.supertype || "Unknown" },
+  { key: "type", label: "Type", keyOf: (card) => card.types?.length ? card.types.join(" / ") : "No type" },
+  { key: "artist", label: "Artist", keyOf: (card) => card.artist || "Unknown artist" },
+];
+
+/** Groups the catalog already orders keep that order; regions follow the Pokédex; the rest go largest first. */
+const sortProgressRows = (rows: SetProgressRow[], grouping: ProgressGrouping) => {
+  if (grouping === "set" || grouping === "series") return rows;
+  if (grouping === "region") {
+    const order = POKEDEX_REGIONS.map((region) => region.name);
+    const rank = (name: string) => (order.indexOf(name) === -1 ? order.length : order.indexOf(name));
+    return [...rows].sort((a, b) => rank(a.setName) - rank(b.setName));
+  }
+  return [...rows].sort((a, b) => b.totalCards - a.totalCards || a.setName.localeCompare(b.setName));
+};
+
+/** The price the totals above use: Near Mint, or the best condition that has one. */
+const marketPrice = (card: Card) => {
+  for (const condition of CONDITION_ORDER) {
+    const price = card.prices?.[condition];
+    if (price !== null && price !== undefined) return price;
+  }
+  return 0;
+};
+
+const PROGRESS_GROUPING_STORAGE_KEY = "summary.progressGrouping";
+
+const readStoredGrouping = (): ProgressGrouping => {
+  try {
+    const stored = localStorage.getItem(PROGRESS_GROUPING_STORAGE_KEY);
+    if (PROGRESS_GROUPINGS.some((grouping) => grouping.key === stored)) return stored as ProgressGrouping;
+  } catch { /* storage unavailable */ }
+  return "set";
+};
 
 export const Summary = () => {
   const { 
@@ -122,6 +169,13 @@ export const Summary = () => {
     collectionFilter.limit,
   ]);
 
+  const [progressGrouping, setProgressGrouping] = useState<ProgressGrouping>(readStoredGrouping);
+  const changeProgressGrouping = (grouping: ProgressGrouping) => {
+    setProgressGrouping(grouping);
+    try { localStorage.setItem(PROGRESS_GROUPING_STORAGE_KEY, grouping); } catch { /* storage unavailable */ }
+  };
+  const progressGroupingConfig = PROGRESS_GROUPINGS.find((grouping) => grouping.key === progressGrouping) ?? PROGRESS_GROUPINGS[0];
+
   const setProgress = useMemo(() => {
     const limit = Math.max(1, collectionFilter.limit || 1);
     const selectedCollections = ownershipCollectionNames;
@@ -150,18 +204,19 @@ export const Summary = () => {
 
     const grouped = new Map<string, Card[]>();
     filteredCards.forEach((card) => {
-      const setName = card.setName || card.setNames?.[0] || "No set";
-      const cards = grouped.get(setName) || [];
+      const groupName = progressGroupingConfig.keyOf(card);
+      const cards = grouped.get(groupName) || [];
       cards.push(card);
-      grouped.set(setName, cards);
+      grouped.set(groupName, cards);
     });
 
-    const rows: SetProgressRow[] = Array.from(grouped.entries()).map(([setName, cards]) => {
+    const unsortedRows: SetProgressRow[] = Array.from(grouped.entries()).map(([setName, cards]) => {
       const ownedQuantities = cards.map(getOwnedQuantity);
       return {
         setName,
-        setLogo: setLogoByName.get(setName),
+        setLogo: progressGroupingConfig.key === "set" ? setLogoByName.get(setName) : undefined,
         totalCards: cards.length,
+        value: cards.reduce((sum, card) => sum + marketPrice(card), 0),
         thresholds: thresholds.map((threshold) => {
           const required = cards.length;
           const owned = ownedQuantities.filter((quantity) => quantity >= threshold).length;
@@ -174,12 +229,14 @@ export const Summary = () => {
         })
       };
     });
+    const rows = sortProgressRows(unsortedRows, progressGroupingConfig.key);
 
     const totalCards = rows.reduce((sum, row) => sum + row.totalCards, 0);
     const totalRow: SetProgressRow | null = rows.length > 1
       ? {
         setName: "Total",
         totalCards,
+        value: rows.reduce((sum, row) => sum + row.value, 0),
         thresholds: thresholds.map((threshold) => {
           const required = totalCards;
           const owned = rows.reduce(
@@ -201,7 +258,8 @@ export const Summary = () => {
     filteredCards,
     collectionFilter.limit,
     sets,
-    ownershipCollectionNames
+    ownershipCollectionNames,
+    progressGroupingConfig
   ]);
 
   // Memoize Pokemon + Pokemon Forms statistics per region
@@ -486,13 +544,26 @@ export const Summary = () => {
       {/* Pokémon + Forms Statistics */}
       {setProgress.rows.length > 0 && (
         <div className="set-progress-report">
-          <h4>Progress by set</h4>
+          <div className="set-progress-heading">
+            <h4>Progress by</h4>
+            <select
+              className="set-progress-grouping"
+              value={progressGrouping}
+              onChange={(event) => changeProgressGrouping(event.target.value as ProgressGrouping)}
+              aria-label="Group progress by"
+            >
+              {PROGRESS_GROUPINGS.map((grouping) => (
+                <option key={grouping.key} value={grouping.key}>{grouping.label}</option>
+              ))}
+            </select>
+          </div>
           <div className="set-progress-table-wrap">
             <table className="summary-table set-progress-table" onCopy={handleSetProgressCopy}>
               <thead>
                 <tr>
-                  <th data-copy-value="Set">Set</th>
+                  <th data-copy-value={progressGroupingConfig.label}>{progressGroupingConfig.label}</th>
                   <th data-copy-value="Total">Total</th>
+                  <th data-copy-value="Value" title="Market value (Near Mint, or the best condition with a price)">Value</th>
                   {/* "Owned" alone when one copy counts; with a higher quantity required,
                       one column per number of copies. */}
                   {setProgress.thresholds.map((threshold) => {
@@ -523,6 +594,7 @@ export const Summary = () => {
                       </span>
                     </td>
                     <td data-copy-value={String(row.totalCards)}>{row.totalCards}</td>
+                    <td className="set-progress-value" data-copy-value={row.value.toFixed(2)}>{formatPrice(row.value)}</td>
                     {row.thresholds.map((item) => (
                       <td
                         key={item.threshold}
@@ -544,6 +616,7 @@ export const Summary = () => {
                   <tr className="set-progress-total-row">
                     <td className="set-progress-name" data-copy-value={setProgress.totalRow.setName}>{setProgress.totalRow.setName}</td>
                     <td data-copy-value={String(setProgress.totalRow.totalCards)}>{setProgress.totalRow.totalCards}</td>
+                    <td className="set-progress-value" data-copy-value={setProgress.totalRow.value.toFixed(2)}>{formatPrice(setProgress.totalRow.value)}</td>
                     {setProgress.totalRow.thresholds.map((item) => (
                       <td
                         key={item.threshold}

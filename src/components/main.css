@@ -1051,6 +1051,31 @@ th[scope="row"] {
   text-align: left;
 }
 
+.filter-option-item-label:has(> .filter-option-set-symbol) {
+  display: flex;
+  flex: 0 1 auto;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.filter-option-item:has(.filter-option-set-symbol) .filter-option-item-count {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.filter-option-set-symbol {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+/* A symbol that fails to load keeps its slot so names stay aligned. */
+.filter-option-set-symbol.is-broken {
+  visibility: hidden;
+}
+
 .filter-option-item-count {
   font-size: 0.86rem;
   color: #4a5568;
@@ -1447,8 +1472,30 @@ th[scope="row"] {
 }
 
 .set-progress-report h4 {
-  margin: 0 0 6px 0;
+  margin: 0;
   font-size: 0.9rem;
+}
+
+.set-progress-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px 0;
+}
+
+.set-progress-grouping {
+  padding: 2px 6px;
+  border: 1px solid var(--border, rgba(148, 163, 184, 0.35));
+  border-radius: 5px;
+  background: var(--surface, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+.set-progress-value {
+  text-align: right;
+  white-space: nowrap;
 }
 
 .set-progress-table {
@@ -2958,7 +3005,8 @@ img.binder-pocket__card {
 
 .card-tags {
   position: absolute;
-  top: 52%;
+  /* Anchored to the bottom so extra rows grow up over the art, never off the card. */
+  bottom: 8px;
   left: 6px;
   display: flex;
   flex-flow: row wrap;
@@ -3246,6 +3294,25 @@ img.binder-pocket__card {
 }
 
 .card-number-label {
+  max-width: 100%;
+}
+
+.card-pokedex-number {
+  margin-left: 4px;
+  font-weight: 400;
+  opacity: 0.72;
+}
+
+/* Every tag row stays on one line; the full text lives in the title tooltip. */
+.card-tags .card-variant-label {
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+.card-rarity-label,
+.card-variant-name-label {
+  flex-basis: 100%;
+  width: fit-content;
   max-width: 100%;
 }
 
