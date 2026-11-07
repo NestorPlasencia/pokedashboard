@@ -190,13 +190,20 @@ export function rankScanMatches(cards: Card[], nameText: string, numberText: str
     .sort((a, b) => b.score - a.score || a.cards[0].setName.localeCompare(b.cards[0].setName));
 }
 
-/** Preselect a suggestion only when the name+number identify one clear product. */
-export function automaticScanMatch(matches: ScanMatch[]): { key: string; card: Card } | null {
+/** The one card that name and number agree on, whichever of its printings it is. */
+export function clearScanMatch(matches: ScanMatch[]): ScanMatch | null {
   const best = matches[0];
   if (!best || best.score < 95 || !best.evidence.includes('Nombre leído') ||
     !best.evidence.some(value => value === 'Número coincide' || value === 'Número y total coinciden') ||
     best.evidence.includes('El total del set no coincide') ||
     (matches[1] && best.score - matches[1].score < 15)) return null;
+  return best;
+}
+
+/** Preselect a suggestion only when the name+number identify one clear product. */
+export function automaticScanMatch(matches: ScanMatch[]): { key: string; card: Card } | null {
+  const best = clearScanMatch(matches);
+  if (!best) return null;
   const products = new Map(best.cards.filter(card => Number.isInteger(card.productId) && (card.productId ?? 0) > 0)
     .map(card => [JSON.stringify([card.productId, card.printing || card.variant]), card]));
   if (products.size !== 1) return null;

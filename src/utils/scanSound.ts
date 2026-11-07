@@ -1,5 +1,5 @@
 /**
- * A short two-note chime when a card is sent to review, synthesized with Web Audio so no
+ * A short chime when a card is sent to review or checked, synthesized with Web Audio so no
  * sound file has to load. Phones only allow audio after a tap, so `prime` runs from the
  * Start button and `play` reuses that unlocked context for every later card.
  */
@@ -21,14 +21,21 @@ export function primeScanSound() {
   if (context.state === 'suspended') void context.resume().catch(() => undefined);
 }
 
-export function playScanSound() {
+const TONES = {
+  // Rising fifth (A5 → E6): short and bright enough to hear over a room.
+  confirm: [[880, 0], [1318.5, 0.09]],
+  // Falling, so "not there" can be told apart without looking at the screen.
+  missing: [[659.25, 0], [440, 0.11]],
+  alert: [[1760, 0], [1760, 0.14], [1760, 0.28]],
+};
+
+export function playScanSound(tone: keyof typeof TONES = 'confirm') {
   if (!context || !scanSoundEnabled()) return;
   const start = context.currentTime;
-  // Rising fifth (A5 → E6): short and bright enough to hear over a room.
-  [[880, 0], [1318.5, 0.09]].forEach(([frequency, offset]) => {
+  TONES[tone].forEach(([frequency, offset]) => {
     const oscillator = context!.createOscillator();
     const gain = context!.createGain();
-    oscillator.type = 'sine';
+    oscillator.type = tone === 'alert' ? 'square' : 'sine';
     oscillator.frequency.value = frequency;
     gain.gain.setValueAtTime(0.0001, start + offset);
     gain.gain.exponentialRampToValueAtTime(0.25, start + offset + 0.01);
