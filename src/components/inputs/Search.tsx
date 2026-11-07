@@ -17,7 +17,7 @@ import { applySorting, applyPriceFilter, applyCollectionFilter, applyFormsFilter
 import { Card } from "../../types/dashboard";
 import type { CollectionEnrichment } from "../../hooks/useLoadCards";
 import { countCopies } from "../../utils/copyCount";
-import { ownedCountersForCard, quantityCollectionNames } from "../../utils/collectionQuantity";
+import { ownedCountersForCard, quantityCollectionNames, quantityForCollections } from "../../utils/collectionQuantity";
 import { ownedSortPrice } from "../../utils/collectionValue";
 
 type SearchProps = {
@@ -95,7 +95,8 @@ export const Search: React.FC<SearchProps> = ({ collectionEnrichment, loading = 
         const priceFiltered = applyPriceFilter(savedCards, priceRange.min, priceRange.max, variantsFilter, conditionsFilter);
         const ownedNames = collectionFilter.selectedCollections.length ? quantityCollectionNames(viewMode, collections, collectionFilter.selectedCollections) : null;
         const sorted = applySorting(priceFiltered, sortConfig.field, sortConfig.direction, variantsFilter,
-          ownedNames ? card => ownedSortPrice(card, ownedNames, collectionFilter.conditionsFilter) : undefined);
+          ownedNames ? card => ownedSortPrice(card, ownedNames, collectionFilter.conditionsFilter) : undefined,
+          ownedNames ? card => quantityForCollections(card, ownedNames, collectionFilter.conditionsFilter) : undefined);
         return applyCollectionFilter(
           sorted,
           scopedCollections.length > 0 ? collectionFilter.mode : 'none',

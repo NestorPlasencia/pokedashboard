@@ -89,6 +89,27 @@ const sortByPrice = (priceOf: SortPrice, direction: 1 | -1) => (a: Card, b: Card
   return (ap - bp) * direction;
 };
 
+/** How many copies a card sorts by: all collections by default, the selected ones when scoped. */
+export type SortQuantity = (card: Card) => number;
+
+const totalOwnedQuantity: SortQuantity = (card) =>
+  (card.collections || []).reduce(
+    (sum, collection) => sum + Object.values(collection.quantity || {}).reduce((s, q) => s + (q || 0), 0),
+    0
+  );
+
+export const orderByQuantity = (
+  cards: Card[],
+  direction: 'asc' | 'desc',
+  quantityOf: SortQuantity = totalOwnedQuantity
+) => {
+  const factor = direction === 'asc' ? 1 : -1;
+  const quantities = new Map(cards.map((card) => [card, quantityOf(card)]));
+  return [...cards].sort((a, b) =>
+    (quantities.get(a)! - quantities.get(b)!) * factor || sortBySetAndNumber(a, b)
+  );
+};
+
 export const orderByEnergy = (cards: Card[]) => {
   return [...cards].sort(sortByEnergy);
 };
@@ -175,6 +196,8 @@ export const ORDER_OPTIONS = [
   "Energy and Pokedex",
   "Price ↑",
   "Price ↓",
+  "Quantity ↑",
+  "Quantity ↓",
 ] as const;
 
 /** Sort options that only make sense in the trend view. */
@@ -208,6 +231,10 @@ export const orderToSortConfig = (order: string): SortConfig => {
       return { field: 'price', direction: 'asc' };
     case "Price ↓":
       return { field: 'price', direction: 'desc' };
+    case "Quantity ↑":
+      return { field: 'quantity', direction: 'asc' };
+    case "Quantity ↓":
+      return { field: 'quantity', direction: 'desc' };
     case "Trend score ↑":
       return { field: 'buyTimingScore', direction: 'asc' };
     case "Trend score ↓":

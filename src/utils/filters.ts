@@ -472,7 +472,9 @@ import {
   orderByPriceAsc,
   orderByPriceDesc,
   orderBySetAndNumber,
+  orderByQuantity,
   type SortPrice,
+  type SortQuantity,
 } from './orders.ts';
 
 export const applySorting = (
@@ -481,7 +483,9 @@ export const applySorting = (
   sortDirection: 'asc' | 'desc',
   variantsFilter: string[] = ['All'],
   /** Price sorting uses this instead of the best available price, e.g. owned copies' condition. */
-  priceOf?: SortPrice
+  priceOf?: SortPrice,
+  /** Quantity sorting uses this instead of copies across every collection. */
+  quantityOf?: SortQuantity
 ): Card[] => {
   void variantsFilter;
   // No need to spread - order functions already create new arrays
@@ -508,6 +512,8 @@ export const applySorting = (
       return sortDirection === 'asc' 
         ? orderByPriceAsc(cards, priceOf)
         : orderByPriceDesc(cards, priceOf);
+    case 'quantity':
+      return orderByQuantity(cards, sortDirection, quantityOf);
     default:
       return cards;
   }
