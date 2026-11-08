@@ -24,6 +24,8 @@ const MODE_LABELS: Record<CollectionFilterOptions["mode"], string> = {
   hideOwned: "Hide owned",
   shadowOwned: "Dim owned",
   shadowNotOwned: "Dim not owned",
+  markOwned: "Mark owned",
+  markNotOwned: "Mark not owned",
 };
 
 export const Collections = () => {
@@ -332,6 +334,8 @@ export const Collections = () => {
                   <option value="hideOwned">Hide owned</option>
                   <option value="shadowOwned">Dim owned</option>
                   <option value="shadowNotOwned">Dim not owned</option>
+                  <option value="markOwned">Mark owned</option>
+                  <option value="markNotOwned">Mark not owned</option>
                 </select>
               </div>
               <div className="collections-filter-field">

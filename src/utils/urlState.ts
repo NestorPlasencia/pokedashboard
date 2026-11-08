@@ -45,7 +45,7 @@ export const initialCollectionFilter = (params: FilterParams = parseUrlParams())
     // Selecting a collection is the filter trigger. The old flag is kept in URLs for
     // backwards compatibility, but cannot enable an empty filter.
     enabled: selectedCollections.length > 0,
-    mode: oneOf(params.viewCollectionOption, ['none', 'hideOwned', 'hideNotOwned', 'shadowOwned', 'shadowNotOwned'] as const, 'none'),
+    mode: oneOf(params.viewCollectionOption, ['none', 'hideOwned', 'hideNotOwned', 'shadowOwned', 'shadowNotOwned', 'markOwned', 'markNotOwned'] as const, 'none'),
     selectedCollections,
     limit: Number.isFinite(limit) && limit >= 1 ? limit : 1,
     conditionsFilter: params.conditions?.length ? params.conditions : ['All'],

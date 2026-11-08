@@ -8,6 +8,7 @@ import { SeriesStarter } from "./SeriesStarter";
 import { activeFilterCollectionNames, quantityCollectionNames, quantityForCollections } from "../../utils/collectionQuantity";
 import { useOptionsContext } from "../../context/OptionsContext";
 import { CollectionMarkBadge } from '../ui/CollectionMarkBadge';
+import { OwnershipMarkBadge } from '../ui/OwnershipMarkBadge';
 import { collectionMarkClass } from '../../utils/collectionMarks';
 
 const formatCurrency = (value: number | undefined | null) => {
@@ -217,7 +218,7 @@ const CardListTableComponent: React.FC = () => {
                     className="card-list-table-image"
                   />
                 </td>
-                <td>{card.name}<CollectionMarkBadge marks={marks} /><WishlistCardButton card={card} /><OwnedCardButton card={card} /></td>
+                <td>{card.name}<OwnershipMarkBadge card={card} inline /><CollectionMarkBadge marks={marks} /><WishlistCardButton card={card} /><OwnedCardButton card={card} /></td>
                 <td>{card.setName}</td>
                 <td>
                   {setSymbol && (

@@ -18,6 +18,7 @@ const tcgplayerCondition = (condition: QuantityKey) =>
   (condition === "Unknown" ? "Near Mint" : condition).replace(/ /g, "+");
 import { SuggestedPriceBadge } from "../ui/SuggestedPriceBadge";
 import { CollectionMarkBadge } from '../ui/CollectionMarkBadge';
+import { OwnershipMarkBadge } from '../ui/OwnershipMarkBadge';
 import { collectionMarkClass } from '../../utils/collectionMarks';
 
 const formatCurrency = (value: number) => {
@@ -98,6 +99,7 @@ const CardViewComponent: React.FC<{
   return (
     <div className={`card card-view-card${viewOptions.displayMode.includes('trend') ? ' card-view-card--trend' : ''}${collectionMarkClass(marks)}`}>
       <CollectionMarkBadge marks={marks} compact />
+      <OwnershipMarkBadge card={card} />
       <img
         loading="lazy"
         className={card.shadow ? 'shadow' : ''}

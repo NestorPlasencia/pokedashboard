@@ -59,6 +59,9 @@ export interface Card extends PickAndCardUpdatePropertiesCard {
 
   shadow: boolean;
 
+  /** Set by the "Mark owned / Mark not owned" collection modes: badge the card, keep it visible. */
+  ownershipMark?: 'owned' | 'notOwned';
+
   // Pokédex region based on nationalPokedexNumbers
   pokedexRegion?: string;
 
@@ -200,7 +203,7 @@ export interface PokemonGroupingOptions {
 // Opciones de filtro de colecciones
 export interface CollectionFilterOptions {
   enabled: boolean; // Si el filtro de colecciones está activo
-  mode: 'none' | 'hideOwned' | 'hideNotOwned' | 'shadowOwned' | 'shadowNotOwned';
+  mode: 'none' | 'hideOwned' | 'hideNotOwned' | 'shadowOwned' | 'shadowNotOwned' | 'markOwned' | 'markNotOwned';
   selectedCollections: string[]; // Colecciones seleccionadas para filtrar
   limit: number; // Límite para considerar "poseída"
   conditionsFilter: string[]; // Condiciones de las cartas en las colecciones (Near Mint, etc.)

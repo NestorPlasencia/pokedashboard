@@ -1,7 +1,7 @@
 import type { Card, ViewOptions } from '../types/dashboard';
 
 export type BinderPrintOptions = Pick<ViewOptions, 'binderLayout' | 'binderStyle' | 'binderPageColor' | 'binderSleeveColor'>;
-type BinderPrintCard = Pick<Card, 'name' | 'image' | 'shadow'>;
+type BinderPrintCard = Pick<Card, 'name' | 'image' | 'shadow' | 'ownershipMark'>;
 
 const escapeHtml = (value: string | number) => String(value).replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character] || character);
 
@@ -32,7 +32,8 @@ export const buildBinderPrintHtml = (cards: BinderPrintCard[], options: BinderPr
   const renderPage = (face: number, side: 'single' | 'left' | 'right') => {
     const pockets = Array.from({ length: pocketsPerPage }, (_, position) => {
       const card = face < faceCount ? cards[face * pocketsPerPage + position] : undefined;
-      return `<div class="pocket">${card?.image ? `<img class="${card.shadow ? 'dimmed' : ''}" src="${escapeHtml(card.image)}" alt="${escapeHtml(card.name)}">` : ''}</div>`;
+      const mark = card?.ownershipMark ? `<span class="mark mark--${card.ownershipMark}">${card.ownershipMark === 'owned' ? '✓' : '○'}</span>` : '';
+      return `<div class="pocket">${card?.image ? `<img class="${card.shadow ? 'dimmed' : ''}" src="${escapeHtml(card.image)}" alt="${escapeHtml(card.name)}">` : ''}${mark}</div>`;
     }).join('');
     const rings = side === 'single' ? '<div class="rings"><i></i><i></i><i></i></div>' : '';
     return `<div class="page page--${side}">${rings}<div class="pockets">${pockets}</div></div>`;
@@ -59,8 +60,10 @@ export const buildBinderPrintHtml = (cards: BinderPrintCard[], options: BinderPr
     .rings{position:absolute;inset:0 auto 0 1.5mm;display:flex;flex-direction:column;justify-content:space-around;width:4.5mm}
     .rings i{display:block;width:4.5mm;height:4.5mm;border:1.2mm solid #a6adb9;border-radius:50%;background:#383d45}
     .pockets{display:grid;grid-template-columns:repeat(${columns},${pocketWidth.toFixed(2)}mm);grid-auto-rows:${(pocketWidth * 1.4).toFixed(2)}mm;gap:${gap}mm}
-    .pocket{display:flex;align-items:center;justify-content:center;padding:.8mm;overflow:hidden;border:.3mm solid rgba(220,235,250,.35);border-radius:1.2mm;background:${escapeHtml(options.binderSleeveColor)}}
+    .pocket{position:relative;display:flex;align-items:center;justify-content:center;padding:.8mm;overflow:hidden;border:.3mm solid rgba(220,235,250,.35);border-radius:1.2mm;background:${escapeHtml(options.binderSleeveColor)}}
     .pocket img{display:block;width:100%;height:100%;object-fit:contain}
+    .mark{position:absolute;right:1.5mm;bottom:1.5mm;display:flex;align-items:center;justify-content:center;width:4.5mm;height:4.5mm;border:.3mm solid #fff;border-radius:50%;color:#fff;font-size:8px;font-weight:800}
+    .mark--owned{background:#14684a}.mark--notOwned{background:#a92d39}
     .pocket img.dimmed{filter:grayscale(100%) brightness(35%)}
     @media print{
       @page{size:${isTwoPage ? 'landscape' : 'portrait'};margin:6mm}

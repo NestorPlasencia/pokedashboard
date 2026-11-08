@@ -5,6 +5,7 @@ import type { Card } from "../../types/dashboard";
 import { binderSwipeDirection } from "../../utils/binderSwipe";
 import { SeriesStarter } from "./SeriesStarter";
 import { CollectionMarkBadge } from '../ui/CollectionMarkBadge';
+import { OwnershipMarkBadge } from '../ui/OwnershipMarkBadge';
 import { collectionMarkClass } from '../../utils/collectionMarks';
 
 type Turn = { from: number; to: number; direction: "next" | "previous" };
@@ -90,6 +91,7 @@ export const BinderView = () => {
       return (
         <div className={`binder-pocket${collectionMarkClass(marks)}`} key={position}>
           {card && <CollectionMarkBadge marks={marks} compact />}
+          {card && <OwnershipMarkBadge card={card} />}
           {card ? interactive ? (
             <button
               className="binder-pocket__card"

@@ -6863,3 +6863,14 @@ button.catalog-breadcrumb__step--collection:hover {
 .summary-table--totals th,
 .summary-table--totals td { padding-inline: 6px; }
 .summary-table--totals abbr { text-decoration: none; cursor: help; }
+
+/* "Mark owned / Mark not owned": a badge on the card instead of dimming it. Sits on the
+   right edge between the owned counters (top) and the Missing pill (bottom). */
+.ownership-mark-badge { position: absolute; top: 42%; right: 6px; z-index: 4; display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border: 1px solid rgba(255, 255, 255, 0.85); border-radius: 999px; color: #fff; font-size: 11px; font-weight: 800; line-height: 1; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4); pointer-events: none; }
+.ownership-mark-badge--owned { background: #14684a; }
+.ownership-mark-badge--missing { background: #a92d39; }
+.ownership-mark-badge--inline { position: static; margin-left: 6px; padding: 2px 6px; font-size: 10px; vertical-align: middle; box-shadow: none; }
+.binder-pocket > .ownership-mark-badge { top: auto; bottom: 6%; right: 6%; padding: 3px 5px; font-size: 9px; }
+.binder-pocket > .ownership-mark-badge svg { width: 11px; height: 11px; }
+.trend-card-view { position: relative; }
+.trend-card-view > .ownership-mark-badge { top: 8px; right: auto; left: 8px; }

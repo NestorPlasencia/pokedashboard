@@ -382,6 +382,15 @@ export const filterCollectionViewCards = (
         return card;
       });
     }
+    if (option === "markOwned" || option === "markNotOwned") {
+      // Badge the cards instead of dimming them; the card stays fully visible.
+      const target = option === "markOwned";
+      return cards.map((card) => {
+        const owned = isOwnedByCollections(card, collectionsToFilter, limit, conditionsToFilter);
+        const ownershipMark = owned === target ? (owned ? "owned" as const : "notOwned" as const) : undefined;
+        return card.ownershipMark === ownershipMark && !card.shadow ? card : { ...card, shadow: false, ownershipMark };
+      });
+    }
     if (option === "shadowNotOwned") {
       // Sombrear las no poseídas por suma
       return cards.map((card) => {
@@ -528,16 +537,16 @@ export const applySorting = (
  */
 export const applyCollectionFilter = (
   cards: Card[],
-  mode: 'none' | 'hideOwned' | 'hideNotOwned' | 'shadowOwned' | 'shadowNotOwned',
+  mode: 'none' | 'hideOwned' | 'hideNotOwned' | 'shadowOwned' | 'shadowNotOwned' | 'markOwned' | 'markNotOwned',
   selectedCollections: string[],
   limit: number = 1,
   conditionsToFilter: string[] = ["All"]
 ): Card[] => {
   if (mode === 'none' || selectedCollections.length === 0) {
     // Only reset shadow if any card has it set
-    const hasShadow = cards.some(card => card.shadow);
+    const hasShadow = cards.some(card => card.shadow || card.ownershipMark);
     if (!hasShadow) return cards;
-    return cards.map(card => ({ ...card, shadow: false }));
+    return cards.map(card => ({ ...card, shadow: false, ownershipMark: undefined }));
   }
   
   return filterCollectionViewCards(cards, mode, selectedCollections, limit, conditionsToFilter);
@@ -650,7 +659,7 @@ export const applyFormsFilter = (
     hideVariants: string[];
     excludedFormIds: number[];
     selectedCollections: string[];
-    collectionMode: 'none' | 'hideOwned' | 'hideNotOwned' | 'shadowOwned' | 'shadowNotOwned';
+    collectionMode: 'none' | 'hideOwned' | 'hideNotOwned' | 'shadowOwned' | 'shadowNotOwned' | 'markOwned' | 'markNotOwned';
     fallbackToDefault: boolean;
   }
 ): (Card | PokemonFormWithoutCard)[] => {

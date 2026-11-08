@@ -11,6 +11,7 @@ import { buildPriceExplorerUrl } from "../../utils/priceExplorer";
 import { ownedCountersForCard } from "../../utils/collectionQuantity";
 import { SuggestedPriceBadge } from "../ui/SuggestedPriceBadge";
 import { CollectionMarkBadge } from '../ui/CollectionMarkBadge';
+import { OwnershipMarkBadge } from '../ui/OwnershipMarkBadge';
 import { collectionMarkClass } from '../../utils/collectionMarks';
 
 const formatCurrency = (value: number) => value.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
@@ -46,6 +47,7 @@ const TrendCardViewComponent: React.FC<{ card: Card }> = ({ card }) => {
 
   return (
     <article className={`trend-card-view${collectionMarkClass(marks)}`}>
+      <OwnershipMarkBadge card={card} />
       <img className={`trend-card-view__image${card.shadow ? " shadow" : ""}`} src={card.image || ""} alt={`${variantName} image of ${card.name}`} loading="lazy" />
 
       <aside className="trend-card-view__info">

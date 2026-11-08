@@ -292,6 +292,9 @@ export const PrintButton: React.FC<{ busy?: boolean }> = ({ busy = false }) => {
               font-weight: 400;
               opacity: 0.75;
             }
+            .ownership-mark { font-size: 0.85em; }
+            .ownership-mark--owned { color: #14684a; }
+            .ownership-mark--notOwned { color: #a92d39; }
             @media print {
               @page {
                 size: auto;
@@ -364,7 +367,7 @@ export const PrintButton: React.FC<{ busy?: boolean }> = ({ busy = false }) => {
         return `
                   <tr class="${rowClass}">
                     ${viewOptions.printTableImages ? `<td class="card-image-cell">${card.image ? `<img src="${escapeHtml(card.image)}" alt="${escapeHtml(card.name)}" />` : '-'}</td>` : ''}
-                    <td>${card.name}</td>
+                    <td>${card.name}${card.ownershipMark ? ` <strong class="ownership-mark ownership-mark--${card.ownershipMark}">${card.ownershipMark === 'owned' ? '✓ Owned' : '○ Not owned'}</strong>` : ''}</td>
                     <td>${card.setName}</td>
                     ${iconCell}
                     <td>${card.number}</td>
@@ -571,6 +574,21 @@ export const PrintButton: React.FC<{ busy?: boolean }> = ({ busy = false }) => {
               font-size: 11px;
             }
 
+            .ownership-mark {
+              position: absolute;
+              top: 42%;
+              right: 6px;
+              padding: 3px 7px;
+              border: 1px solid rgba(255, 255, 255, 0.9);
+              border-radius: 999px;
+              color: white;
+              font-size: 10px;
+              font-weight: 800;
+              z-index: 3;
+            }
+            .ownership-mark--owned { background: #14684a; }
+            .ownership-mark--notOwned { background: #a92d39; }
+
             .wishlist-price-box {
               position: absolute;
               bottom: 8px;
@@ -705,6 +723,7 @@ export const PrintButton: React.FC<{ busy?: boolean }> = ({ busy = false }) => {
                     <div class="card-tag">${card.setName}</div>
                   </div>
                   ${nearMintPrice !== null ? `<div class="prices">${formatCurrency(nearMintPrice)}</div>` : ''}
+                  ${card.ownershipMark ? `<div class="ownership-mark ownership-mark--${card.ownershipMark}">${card.ownershipMark === 'owned' ? '✓ Owned' : '○ Not owned'}</div>` : ''}
                   ${countersHtml ? `<div class="counters"><span class="counters__label">Owned</span>${countersHtml}</div>` : ''}
                   ${wishlistPrice !== null
         ? `<div class="wishlist-price-box"><span class="wishlist-price-box__amount">${formatSuggestedPrice(wishlistPrice.price)}</span><span class="wishlist-price-box__percent">-${wishlistPrice.percent}%</span></div>`
