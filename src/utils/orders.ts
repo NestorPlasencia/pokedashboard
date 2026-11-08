@@ -149,6 +149,32 @@ const sortBySetRelease = (a: Card, b: Card) => {
     || (Number(a.setId) || 0) - (Number(b.setId) || 0);
 };
 
+// Position of each Pokémon form within its species: the default form first, then the others
+// in catalog order (e.g. Arcanine, Hisuian Arcanine, Arcanine Shiny). Filled from the
+// pokemon-forms catalog once it loads.
+const pokemonFormRanks = new Map<string, number>();
+
+export const registerPokemonFormOrder = (
+  forms: { id: number; name: string; isDefault?: boolean }[]
+) => {
+  pokemonFormRanks.clear();
+  forms.forEach((form) => pokemonFormRanks.set(form.name, form.isDefault ? -1 : form.id));
+};
+
+// Cards without form data stay in one group rather than splitting by name ("Venusaur V").
+const pokemonFormOf = (card: Card) => card.pokemonForms?.[0] || "";
+
+/** Groups a species' cards by Pokémon form (regular, Hisuian, Galarian…), default form first. */
+const sortByPokemonForm = (a: Card, b: Card) => {
+  const aForm = pokemonFormOf(a);
+  const bForm = pokemonFormOf(b);
+  if (aForm === bForm) return 0;
+  const aRank = pokemonFormRanks.get(aForm);
+  const bRank = pokemonFormRanks.get(bForm);
+  if (aRank !== undefined && bRank !== undefined && aRank !== bRank) return aRank - bRank;
+  return aForm.localeCompare(bForm);
+};
+
 const sortByVariant = (a: Card, b: Card) => {
   const rank = (card: Card) => {
     const index = DEFAULT_VARIANTS_ORDER.indexOf(card.variant || "Normal");
@@ -191,9 +217,11 @@ export const isSpecialMechanicCard = (card: Pick<Card, 'name' | 'rarity' | 'rari
 
 /**
  * Evolutionary Pokédex order. Pokémon follow their evolution family; within each species,
- * base cards come before special mechanic cards (V, VMAX, VSTAR, ex, GX…), and each of the
- * two blocks is split by variant, then rarity, then set release and number. Trainers and
- * Energy follow, grouped as Supporter, Item/Pokémon Tool, Stadium, Energy, each A–Z.
+ * cards are grouped by Pokémon form (regular, then Hisuian, Galarian…). Within each form,
+ * base cards come before special mechanic cards (V, VMAX, VSTAR, ex, GX…), then by rarity,
+ * set release and number; the card's printing (Normal, Reverse Holo…) only breaks ties, so
+ * both printings of the same card sit together. Trainers and Energy follow, grouped as
+ * Supporter, Item/Pokémon Tool, Stadium, Energy, each A–Z.
  */
 const sortByPokedexEvolution = (a: Card, b: Card) => {
   const aGroup = evolutionaryCardGroup(a);
@@ -201,11 +229,12 @@ const sortByPokedexEvolution = (a: Card, b: Card) => {
   if (aGroup !== bGroup) return aGroup - bGroup;
   if (aGroup === 0) {
     return compareEvolutionaryPokedexNumbers(a.nationalPokedexNumbers?.[0], b.nationalPokedexNumbers?.[0])
+      || sortByPokemonForm(a, b)
       || Number(isSpecialMechanicCard(a)) - Number(isSpecialMechanicCard(b))
-      || sortByVariant(a, b)
       || sortByRariTies(a, b)
       || sortBySetRelease(a, b)
-      || sortByPrintedNumber(a, b);
+      || sortByPrintedNumber(a, b)
+      || sortByVariant(a, b);
   }
   return (a.name || "").localeCompare(b.name || "")
     || sortBySetRelease(a, b)

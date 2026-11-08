@@ -64,7 +64,7 @@ test('the menu configuration reaches the sorting pipeline and preserves same-spe
     ['pichu', 'pikachu-holo', 'pikachu-normal', 'raichu', 'trainer', 'energy']);
 });
 
-test('evolutionary Pokédex splits each species by variant, then rarity, then set release, with V cards last', async () => {
+test('evolutionary Pokédex orders each species by rarity, then set release, with V cards last', async () => {
   const { registerSetReleaseOrder } = await import('../src/utils/orders.ts');
   // Rebel Clash (id 2) is released after Sword & Shield (id 1), even though its id order is reversed here.
   registerSetReleaseOrder([{ order: 8, sets: [{ id: 'ssh', order: 1 }, { id: 'rcl', order: 2 }] }]);
@@ -80,7 +80,7 @@ test('evolutionary Pokédex splits each species by variant, then rarity, then se
     card('pichu', 172, 'Normal', 'Common', 'rcl'),
   ];
   assert.deepEqual(orderByPokedexEvolution(cards).map((item) => item.id),
-    ['pichu', 'pika-ssh', 'pika-rcl', 'pika-holo', 'pika-reverse', 'pika-v', 'raichu']);
+    ['pichu', 'pika-ssh', 'pika-reverse', 'pika-rcl', 'pika-holo', 'pika-v', 'raichu']);
   registerSetReleaseOrder([]);
 });
 
@@ -96,7 +96,7 @@ test('evolutionary Pokédex puts V and other mechanic cards after every base car
     card('holo', 'Venusaur', 'Normal Holo', 'Rare Holo'),
   ];
   assert.deepEqual(orderByPokedexEvolution(cards).map((item) => item.id),
-    ['holo', 'reverse', 'v', 'vmax', 'v-promo']);
+    ['holo', 'reverse', 'v', 'v-promo', 'vmax']);
   // A V promo is still a V when "Promo" is its only rarity: the name gives it away.
   assert.ok(isSpecialMechanicCard({ name: 'Pikachu V', rarity: 'Promo', rarities: ['Promo'] }));
   assert.ok(isSpecialMechanicCard({ name: 'Venusaur', rarity: 'Promo', rarities: ['Promo', 'Holo Rare V'] }));
@@ -105,6 +105,29 @@ test('evolutionary Pokédex puts V and other mechanic cards after every base car
   assert.ok(!isSpecialMechanicCard({ name: 'Venusaur', rarity: 'Rare Holo' }));
   assert.ok(!isSpecialMechanicCard({ name: 'Pikachu', rarity: 'Rare Holo Full Art' }));
   assert.ok(!isSpecialMechanicCard({ name: 'Vulpix', rarity: 'Common' }));
+});
+
+test('evolutionary Pokédex groups each species by Pokémon form before rarity and set', async () => {
+  const { registerPokemonFormOrder } = await import('../src/utils/orders.ts');
+  registerPokemonFormOrder([
+    { id: 110, name: 'Arcanine', isDefault: true },
+    { id: 111, name: 'Hisuian Arcanine', isDefault: false },
+  ]);
+  const card = (id, form, name, variant, rarity, setId = '1') =>
+    ({ id, name, pokemonForms: [form], nationalPokedexNumbers: [59], supertype: 'Pokémon', variant, rarity, rarities: [rarity], setId, number: '1' });
+  const cards = [
+    card('hisui-v', 'Hisuian Arcanine', 'Hisuian Arcanine V', 'Normal Holo', 'Holo Rare V'),
+    card('hisui-reverse', 'Hisuian Arcanine', 'Hisuian Arcanine', 'Reverse Holo', 'Rare'),
+    card('arcanine-reverse', 'Arcanine', 'Arcanine', 'Reverse Holo', 'Rare'),
+    card('hisui-normal', 'Hisuian Arcanine', 'Hisuian Arcanine', 'Normal', 'Rare'),
+    card('arcanine-normal', 'Arcanine', 'Arcanine', 'Normal', 'Rare'),
+    card('arcanine-holo', 'Arcanine', 'Arcanine', 'Normal Holo', 'Rare Holo'),
+  ];
+  assert.deepEqual(orderByPokedexEvolution(cards).map((item) => item.id), [
+    'arcanine-normal', 'arcanine-reverse', 'arcanine-holo',
+    'hisui-normal', 'hisui-reverse', 'hisui-v',
+  ]);
+  registerPokemonFormOrder([]);
 });
 
 test('evolutionary Pokédex lists Supporters, Items and Tools, Stadiums, then Energy, each A–Z', () => {

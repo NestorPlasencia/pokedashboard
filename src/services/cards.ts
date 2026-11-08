@@ -2,7 +2,7 @@ import { loadJSONFile } from "../utils/utils";
 import { loadCached } from "./offlineCache";
 import type { Set, PokemonFormData } from "../types/dashboard";
 import type { HierarchySerie } from "../types/source-card";
-import { registerSetReleaseOrder } from "../utils/orders";
+import { registerPokemonFormOrder, registerSetReleaseOrder } from "../utils/orders";
 
 const API_BASE_URL =
   import.meta.env.VITE_POKE_DB_API_BASE_URL ||
@@ -64,7 +64,10 @@ export const loadPokemonForms = async (): Promise<PokemonFormData[]> => {
       () => loadJSONFile<PokemonFormData[]>(`${API_BASE_URL}/pokemon-forms`),
       CATALOG_TTL_MS
     )
-      .then((cached) => cached.value)
+      .then((cached) => {
+        registerPokemonFormOrder(cached.value);
+        return cached.value;
+      })
       .catch((error) => {
         pokemonFormsPromise = null;
         throw error;
