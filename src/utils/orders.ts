@@ -175,11 +175,25 @@ const evolutionaryCardGroup = (card: Card) => {
   return 5;
 };
 
+// Card mechanics printed as a name suffix: "Venusaur V", "Charizard VMAX", "Mew ex", "Pikachu-GX".
+const SPECIAL_NAME_SUFFIX = /(?:^|[\s-])(V|VMAX|VSTAR|V-UNION|ex|EX|GX|BREAK|LV\.X|LEGEND|☆|◇)$/;
+// The same mechanics as a rarity: "Holo Rare V", "Rare Holo VMAX", "Rare Holo ex", "Shiny Rare V".
+const SPECIAL_RARITY = /\b(V|VMAX|VSTAR|V-UNION|ex|EX|GX)\b/;
+
 /**
- * Evolutionary Pokédex order. Pokémon follow their evolution family; each species' cards
- * are split by variant, then by rarity (so V and other special cards come after the
- * regular ones), then by set release and number. Trainers and Energy follow, grouped as
- * Supporter, Item/Pokémon Tool, Stadium, Energy, each alphabetical by name.
+ * Whether a Pokémon card is a special mechanic card (V, VMAX, ex, GX…) rather than a base
+ * card. Checks the name and every rarity, so a V promo whose main rarity is just "Promo"
+ * (with "Holo Rare V" as a second rarity, or "V" in its name) still counts as a V.
+ */
+export const isSpecialMechanicCard = (card: Pick<Card, 'name' | 'rarity' | 'rarities'>) =>
+  SPECIAL_NAME_SUFFIX.test((card.name || "").trim())
+  || [card.rarity, ...(card.rarities || [])].some((rarity) => !!rarity && SPECIAL_RARITY.test(rarity));
+
+/**
+ * Evolutionary Pokédex order. Pokémon follow their evolution family; within each species,
+ * base cards come before special mechanic cards (V, VMAX, VSTAR, ex, GX…), and each of the
+ * two blocks is split by variant, then rarity, then set release and number. Trainers and
+ * Energy follow, grouped as Supporter, Item/Pokémon Tool, Stadium, Energy, each A–Z.
  */
 const sortByPokedexEvolution = (a: Card, b: Card) => {
   const aGroup = evolutionaryCardGroup(a);
@@ -187,6 +201,7 @@ const sortByPokedexEvolution = (a: Card, b: Card) => {
   if (aGroup !== bGroup) return aGroup - bGroup;
   if (aGroup === 0) {
     return compareEvolutionaryPokedexNumbers(a.nationalPokedexNumbers?.[0], b.nationalPokedexNumbers?.[0])
+      || Number(isSpecialMechanicCard(a)) - Number(isSpecialMechanicCard(b))
       || sortByVariant(a, b)
       || sortByRariTies(a, b)
       || sortBySetRelease(a, b)

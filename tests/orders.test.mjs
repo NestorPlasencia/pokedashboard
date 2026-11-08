@@ -64,7 +64,7 @@ test('the menu configuration reaches the sorting pipeline and preserves same-spe
     ['pichu', 'pikachu-holo', 'pikachu-normal', 'raichu', 'trainer', 'energy']);
 });
 
-test('evolutionary Pokédex splits each species by variant, then rarity, then set release', async () => {
+test('evolutionary Pokédex splits each species by variant, then rarity, then set release, with V cards last', async () => {
   const { registerSetReleaseOrder } = await import('../src/utils/orders.ts');
   // Rebel Clash (id 2) is released after Sword & Shield (id 1), even though its id order is reversed here.
   registerSetReleaseOrder([{ order: 8, sets: [{ id: 'ssh', order: 1 }, { id: 'rcl', order: 2 }] }]);
@@ -80,8 +80,31 @@ test('evolutionary Pokédex splits each species by variant, then rarity, then se
     card('pichu', 172, 'Normal', 'Common', 'rcl'),
   ];
   assert.deepEqual(orderByPokedexEvolution(cards).map((item) => item.id),
-    ['pichu', 'pika-ssh', 'pika-rcl', 'pika-holo', 'pika-v', 'pika-reverse', 'raichu']);
+    ['pichu', 'pika-ssh', 'pika-rcl', 'pika-holo', 'pika-reverse', 'pika-v', 'raichu']);
   registerSetReleaseOrder([]);
+});
+
+test('evolutionary Pokédex puts V and other mechanic cards after every base card of the species', async () => {
+  const { isSpecialMechanicCard } = await import('../src/utils/orders.ts');
+  const card = (id, name, variant, rarity, rarities = [rarity]) =>
+    ({ id, name, nationalPokedexNumbers: [3], supertype: 'Pokémon', variant, rarity, rarities, setId: '1', number: '1' });
+  const cards = [
+    card('v-promo', 'Venusaur V', 'Holo', 'Promo', ['Promo', 'Holo Rare V']),
+    card('vmax', 'Venusaur VMAX', 'Normal Holo', 'Holo Rare VMAX'),
+    card('reverse', 'Venusaur', 'Reverse Holo', 'Rare Holo'),
+    card('v', 'Venusaur V', 'Normal Holo', 'Holo Rare V'),
+    card('holo', 'Venusaur', 'Normal Holo', 'Rare Holo'),
+  ];
+  assert.deepEqual(orderByPokedexEvolution(cards).map((item) => item.id),
+    ['holo', 'reverse', 'v', 'vmax', 'v-promo']);
+  // A V promo is still a V when "Promo" is its only rarity: the name gives it away.
+  assert.ok(isSpecialMechanicCard({ name: 'Pikachu V', rarity: 'Promo', rarities: ['Promo'] }));
+  assert.ok(isSpecialMechanicCard({ name: 'Venusaur', rarity: 'Promo', rarities: ['Promo', 'Holo Rare V'] }));
+  assert.ok(isSpecialMechanicCard({ name: 'Charizard-GX', rarity: 'Rare Holo GX' }));
+  assert.ok(isSpecialMechanicCard({ name: 'Mew ex', rarity: 'Double Rare' }));
+  assert.ok(!isSpecialMechanicCard({ name: 'Venusaur', rarity: 'Rare Holo' }));
+  assert.ok(!isSpecialMechanicCard({ name: 'Pikachu', rarity: 'Rare Holo Full Art' }));
+  assert.ok(!isSpecialMechanicCard({ name: 'Vulpix', rarity: 'Common' }));
 });
 
 test('evolutionary Pokédex lists Supporters, Items and Tools, Stadiums, then Energy, each A–Z', () => {
