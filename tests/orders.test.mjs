@@ -63,3 +63,20 @@ test('the menu configuration reaches the sorting pipeline and preserves same-spe
   assert.deepEqual(applySorting(cards, config.field, config.direction).map((card) => card.id),
     ['pichu', 'pikachu-holo', 'pikachu-normal', 'raichu', 'trainer', 'energy']);
 });
+
+test('evolutionary Pokédex and rarity keeps family order, then sorts each species by rarity', async () => {
+  const { orderByPokedexEvolutionAndRarity } = await import('../src/utils/orders.ts');
+  const cards = [
+    { id: 'raichu-common', nationalPokedexNumbers: [26], rarity: 'Common' },
+    { id: 'pikachu-rare', nationalPokedexNumbers: [25], rarity: 'Rare' },
+    { id: 'pichu-uncommon', nationalPokedexNumbers: [172], rarity: 'Uncommon' },
+    { id: 'pikachu-common', nationalPokedexNumbers: [25], rarity: 'Common' },
+    { id: 'pichu-common', nationalPokedexNumbers: [172], rarity: 'Common' },
+  ];
+  const expected = ['pichu-common', 'pichu-uncommon', 'pikachu-common', 'pikachu-rare', 'raichu-common'];
+  assert.deepEqual(orderByPokedexEvolutionAndRarity(cards).map((card) => card.id), expected);
+  const config = orderToSortConfig('Pokédex evolutiva and Rarity');
+  assert.ok(ORDER_OPTIONS.includes('Pokédex evolutiva and Rarity'));
+  assert.equal(config.field, 'pokedexEvolutionAndRarity');
+  assert.deepEqual(applySorting(cards, config.field, config.direction).map((card) => card.id), expected);
+});

@@ -132,6 +132,12 @@ export const orderByPokedexEvolution = (cards: Card[]) => {
   ));
 };
 
+export const orderByPokedexEvolutionAndRarity = (cards: Card[]) => {
+  return [...cards].sort((a, b) => compareEvolutionaryPokedexNumbers(
+    a.nationalPokedexNumbers?.[0], b.nationalPokedexNumbers?.[0]
+  ) || sortByRariTies(a, b));
+};
+
 export const orderByPokedexAndRarity = (cards: Card[]) => {
   return [...cards].sort((a, b) => sortByPokedex(a, b) || sortByRariTies(a, b));
 };
@@ -189,6 +195,7 @@ export const ORDER_OPTIONS = [
   "Set and Number",
   "Pokedex",
   "Pokédex evolutiva",
+  "Pokédex evolutiva and Rarity",
   "Pokedex and Rarity",
   "Energy",
   "Rarities",
@@ -217,6 +224,8 @@ export const orderToSortConfig = (order: string): SortConfig => {
       return { field: 'pokedex', direction: 'asc' };
     case "Pokédex evolutiva":
       return { field: 'pokedexEvolution', direction: 'asc' };
+    case "Pokédex evolutiva and Rarity":
+      return { field: 'pokedexEvolutionAndRarity', direction: 'asc' };
     case "Pokedex and Rarity":
       return { field: 'pokedexAndRarity', direction: 'asc' };
     case "Energy":
