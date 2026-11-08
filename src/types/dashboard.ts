@@ -238,6 +238,6 @@ export interface TrendSeries {
 
 // Configuración de ordenamiento
 export interface SortConfig {
-  field: 'number' | 'pokedex' | 'pokedexEvolution' | 'pokedexEvolutionAndRarity' | 'pokedexAndRarity' | 'energy' | 'rarity' | 'energyAndName' | 'energyAndPokedex' | 'price' | 'quantity' | 'name' | 'setAndNumber' | 'buyTimingScore';
+  field: 'number' | 'pokedex' | 'pokedexEvolution' | 'pokedexAndRarity' | 'energy' | 'rarity' | 'energyAndName' | 'energyAndPokedex' | 'price' | 'quantity' | 'name' | 'setAndNumber' | 'buyTimingScore';
   direction: 'asc' | 'desc';
 }

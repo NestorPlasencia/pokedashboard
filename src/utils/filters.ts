@@ -476,7 +476,6 @@ import {
   orderByNumber,
   orderByPokedex,
   orderByPokedexEvolution,
-  orderByPokedexEvolutionAndRarity,
   orderByPokedexAndRarity,
   orderByRariTies,
   orderByPriceAsc,
@@ -508,8 +507,6 @@ export const applySorting = (
       return orderByPokedex(cards);
     case 'pokedexEvolution':
       return orderByPokedexEvolution(cards);
-    case 'pokedexEvolutionAndRarity':
-      return orderByPokedexEvolutionAndRarity(cards);
     case 'pokedexAndRarity':
       return orderByPokedexAndRarity(cards);
     case 'energy':

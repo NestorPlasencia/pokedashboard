@@ -64,19 +64,50 @@ test('the menu configuration reaches the sorting pipeline and preserves same-spe
     ['pichu', 'pikachu-holo', 'pikachu-normal', 'raichu', 'trainer', 'energy']);
 });
 
-test('evolutionary Pokédex and rarity keeps family order, then sorts each species by rarity', async () => {
-  const { orderByPokedexEvolutionAndRarity } = await import('../src/utils/orders.ts');
+test('evolutionary Pokédex splits each species by variant, then rarity, then set release', async () => {
+  const { registerSetReleaseOrder } = await import('../src/utils/orders.ts');
+  // Rebel Clash (id 2) is released after Sword & Shield (id 1), even though its id order is reversed here.
+  registerSetReleaseOrder([{ order: 8, sets: [{ id: 'ssh', order: 1 }, { id: 'rcl', order: 2 }] }]);
+  const card = (id, dex, variant, rarity, setId, number = '1') =>
+    ({ id, nationalPokedexNumbers: [dex], supertype: 'Pokémon', variant, rarity, setId, number });
   const cards = [
-    { id: 'raichu-common', nationalPokedexNumbers: [26], rarity: 'Common' },
-    { id: 'pikachu-rare', nationalPokedexNumbers: [25], rarity: 'Rare' },
-    { id: 'pichu-uncommon', nationalPokedexNumbers: [172], rarity: 'Uncommon' },
-    { id: 'pikachu-common', nationalPokedexNumbers: [25], rarity: 'Common' },
-    { id: 'pichu-common', nationalPokedexNumbers: [172], rarity: 'Common' },
+    card('raichu', 26, 'Normal', 'Rare', 'ssh'),
+    card('pika-v', 25, 'Holo', 'Rare Holo V', 'ssh'),
+    card('pika-reverse', 25, 'Reverse Holo', 'Common', 'ssh'),
+    card('pika-rcl', 25, 'Normal', 'Common', 'rcl'),
+    card('pika-ssh', 25, 'Normal', 'Common', 'ssh'),
+    card('pika-holo', 25, 'Holo', 'Rare Holo', 'rcl'),
+    card('pichu', 172, 'Normal', 'Common', 'rcl'),
   ];
-  const expected = ['pichu-common', 'pichu-uncommon', 'pikachu-common', 'pikachu-rare', 'raichu-common'];
-  assert.deepEqual(orderByPokedexEvolutionAndRarity(cards).map((card) => card.id), expected);
-  const config = orderToSortConfig('Pokédex evolutiva and Rarity');
-  assert.ok(ORDER_OPTIONS.includes('Pokédex evolutiva and Rarity'));
-  assert.equal(config.field, 'pokedexEvolutionAndRarity');
-  assert.deepEqual(applySorting(cards, config.field, config.direction).map((card) => card.id), expected);
+  assert.deepEqual(orderByPokedexEvolution(cards).map((item) => item.id),
+    ['pichu', 'pika-ssh', 'pika-rcl', 'pika-holo', 'pika-v', 'pika-reverse', 'raichu']);
+  registerSetReleaseOrder([]);
+});
+
+test('evolutionary Pokédex lists Supporters, Items and Tools, Stadiums, then Energy, each A–Z', () => {
+  const trainer = (name, subtypes) => ({ id: name, name, supertype: 'Trainer', subtypes, nationalPokedexNumbers: [] });
+  const cards = [
+    { id: 'Water Energy', name: 'Water Energy', supertype: 'Energy', subtypes: ['Basic'], nationalPokedexNumbers: [] },
+    trainer('Path to the Peak', ['Stadium']),
+    trainer('Ultra Ball', ['Item']),
+    trainer('Boss’s Orders', ['Supporter']),
+    { id: 'Fire Energy', name: 'Fire Energy', supertype: 'Energy', subtypes: ['Basic'], nationalPokedexNumbers: [] },
+    trainer('Choice Belt', ['Pokémon Tool']),
+    trainer('Artazon', ['Stadium']),
+    trainer('Arven', ['Supporter']),
+    trainer('Air Balloon', ['Pokémon Tool']),
+    { id: 'Pikachu', name: 'Pikachu', supertype: 'Pokémon', nationalPokedexNumbers: [25] },
+  ];
+  assert.deepEqual(orderByPokedexEvolution(cards).map((item) => item.id), [
+    'Pikachu',
+    'Arven', 'Boss’s Orders',
+    'Air Balloon', 'Choice Belt', 'Ultra Ball',
+    'Artazon', 'Path to the Peak',
+    'Fire Energy', 'Water Energy',
+  ]);
+});
+
+test('the retired "Pokédex evolutiva and Rarity" link opens the evolutionary order', () => {
+  assert.ok(!ORDER_OPTIONS.includes('Pokédex evolutiva and Rarity'));
+  assert.equal(orderToSortConfig('Pokédex evolutiva and Rarity').field, 'pokedexEvolution');
 });

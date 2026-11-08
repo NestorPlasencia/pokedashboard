@@ -2,6 +2,7 @@ import type { Card, SortConfig } from "../types/dashboard";
 import {
   DEFAULT_ENERGY_TYPES_ORDER,
   DEFAULT_RARITIES_ORDER,
+  DEFAULT_VARIANTS_ORDER,
 } from "../constants/constants.ts";
 import { getBestAvailablePrice } from "./collectionValue.ts";
 import { compareEvolutionaryPokedexNumbers } from "./pokedexEvolution.ts";
@@ -126,16 +127,79 @@ export const orderByPokedex = (cards: Card[]) => {
   return [...cards].sort(sortByPokedex);
 };
 
-export const orderByPokedexEvolution = (cards: Card[]) => {
-  return [...cards].sort((a, b) => compareEvolutionaryPokedexNumbers(
-    a.nationalPokedexNumbers?.[0], b.nationalPokedexNumbers?.[0]
-  ));
+// Release position of each set (series order, then set order within the series), filled
+// from the catalog hierarchy once it loads. Until then sets fall back to series order and id.
+const setReleaseRanks = new Map<string, number>();
+
+export const registerSetReleaseOrder = (
+  series: { order: number; sets: { id: number | string; order: number }[] }[]
+) => {
+  setReleaseRanks.clear();
+  [...series]
+    .sort((a, b) => a.order - b.order)
+    .flatMap((serie) => [...serie.sets].sort((a, b) => a.order - b.order))
+    .forEach((set, index) => setReleaseRanks.set(String(set.id), index));
 };
 
-export const orderByPokedexEvolutionAndRarity = (cards: Card[]) => {
-  return [...cards].sort((a, b) => compareEvolutionaryPokedexNumbers(
-    a.nationalPokedexNumbers?.[0], b.nationalPokedexNumbers?.[0]
-  ) || sortByRariTies(a, b));
+const sortBySetRelease = (a: Card, b: Card) => {
+  const aRank = setReleaseRanks.get(String(a.setId));
+  const bRank = setReleaseRanks.get(String(b.setId));
+  if (aRank !== undefined && bRank !== undefined) return aRank - bRank;
+  return (a.setSeriesOrder ?? Infinity) - (b.setSeriesOrder ?? Infinity)
+    || (Number(a.setId) || 0) - (Number(b.setId) || 0);
+};
+
+const sortByVariant = (a: Card, b: Card) => {
+  const rank = (card: Card) => {
+    const index = DEFAULT_VARIANTS_ORDER.indexOf(card.variant || "Normal");
+    return index === -1 ? DEFAULT_VARIANTS_ORDER.length : index;
+  };
+  return rank(a) - rank(b) || (a.variant || "").localeCompare(b.variant || "");
+};
+
+const sortByPrintedNumber = (a: Card, b: Card) =>
+  (a.number || "").localeCompare(b.number || "", undefined, { numeric: true });
+
+/**
+ * Where a card falls in the evolutionary Pokédex: Pokémon first, then Trainer Supporters,
+ * Items and Pokémon Tools, Stadiums and finally Energy.
+ */
+const evolutionaryCardGroup = (card: Card) => {
+  const supertype = (card.supertype || card.cardType || "").toLowerCase();
+  if (card.nationalPokedexNumbers?.length || supertype.startsWith("pok")) return 0;
+  if (supertype === "energy") return 4;
+  const subtypes = card.subtypes || [];
+  if (subtypes.includes("Supporter")) return 1;
+  if (subtypes.includes("Stadium")) return 3;
+  if (supertype === "trainer") return 2; // Items, Pokémon Tools and older untyped trainers
+  return 5;
+};
+
+/**
+ * Evolutionary Pokédex order. Pokémon follow their evolution family; each species' cards
+ * are split by variant, then by rarity (so V and other special cards come after the
+ * regular ones), then by set release and number. Trainers and Energy follow, grouped as
+ * Supporter, Item/Pokémon Tool, Stadium, Energy, each alphabetical by name.
+ */
+const sortByPokedexEvolution = (a: Card, b: Card) => {
+  const aGroup = evolutionaryCardGroup(a);
+  const bGroup = evolutionaryCardGroup(b);
+  if (aGroup !== bGroup) return aGroup - bGroup;
+  if (aGroup === 0) {
+    return compareEvolutionaryPokedexNumbers(a.nationalPokedexNumbers?.[0], b.nationalPokedexNumbers?.[0])
+      || sortByVariant(a, b)
+      || sortByRariTies(a, b)
+      || sortBySetRelease(a, b)
+      || sortByPrintedNumber(a, b);
+  }
+  return (a.name || "").localeCompare(b.name || "")
+    || sortBySetRelease(a, b)
+    || sortByPrintedNumber(a, b)
+    || sortByVariant(a, b);
+};
+
+export const orderByPokedexEvolution = (cards: Card[]) => {
+  return [...cards].sort(sortByPokedexEvolution);
 };
 
 export const orderByPokedexAndRarity = (cards: Card[]) => {
@@ -195,7 +259,6 @@ export const ORDER_OPTIONS = [
   "Set and Number",
   "Pokedex",
   "Pokédex evolutiva",
-  "Pokédex evolutiva and Rarity",
   "Pokedex and Rarity",
   "Energy",
   "Rarities",
@@ -223,9 +286,8 @@ export const orderToSortConfig = (order: string): SortConfig => {
     case "Pokedex":
       return { field: 'pokedex', direction: 'asc' };
     case "Pokédex evolutiva":
+    case "Pokédex evolutiva and Rarity": // retired option: old links open the evolutionary order
       return { field: 'pokedexEvolution', direction: 'asc' };
-    case "Pokédex evolutiva and Rarity":
-      return { field: 'pokedexEvolutionAndRarity', direction: 'asc' };
     case "Pokedex and Rarity":
       return { field: 'pokedexAndRarity', direction: 'asc' };
     case "Energy":

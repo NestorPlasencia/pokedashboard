@@ -109,7 +109,7 @@ export const Filters = () => {
 
   const evolutionaryRegions = pokemonGrouping.enabled
     ? pokemonGrouping.groupSortBy === 'evolution'
-    : sortConfig.field === 'pokedexEvolution' || sortConfig.field === 'pokedexEvolutionAndRarity';
+    : sortConfig.field === 'pokedexEvolution';
   const allCards = useMemo(() => evolutionaryRegions
     ? cardsWithEvolutionFamilyRegions(sourceCards) : sourceCards,
   [sourceCards, evolutionaryRegions]);

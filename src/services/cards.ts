@@ -2,6 +2,7 @@ import { loadJSONFile } from "../utils/utils";
 import { loadCached } from "./offlineCache";
 import type { Set, PokemonFormData } from "../types/dashboard";
 import type { HierarchySerie } from "../types/source-card";
+import { registerSetReleaseOrder } from "../utils/orders";
 
 const API_BASE_URL =
   import.meta.env.VITE_POKE_DB_API_BASE_URL ||
@@ -21,7 +22,10 @@ export const loadHierarchy = (): Promise<HierarchySerie[]> => {
       () => loadJSONFile<HierarchySerie[]>(`${API_BASE_URL}/navigation/cards-hierarchy`),
       CATALOG_TTL_MS
     )
-      .then((cached) => cached.value)
+      .then((cached) => {
+        registerSetReleaseOrder(cached.value);
+        return cached.value;
+      })
       .catch((error) => {
         hierarchyPromise = null;
         throw error;
